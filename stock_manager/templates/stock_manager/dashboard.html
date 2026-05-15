@@ -280,7 +280,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 <h5 class="modal-title"><i class="bi bi-box-seam"></i> Add Item to Warehouse</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <form method="POST" action="{% url 'dashboard' %}">
+            <form method="POST" action="{% url 'dashboard' %}" data-confirm data-confirm-type="success" data-confirm-title="Add to Warehouse?" data-confirm-message="This will add or update stock in the Warehouse." data-confirm-text="Yes, Add Stock" data-confirm-submessage="">
                 {% csrf_token %}
                 <input type="hidden" name="action" value="add_warehouse_item">
                 <div class="modal-body">
@@ -320,7 +320,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 <h5 class="modal-title"><i class="bi bi-file-earmark-arrow-up"></i> Bulk Import Items</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <form method="POST" action="{% url 'dashboard_bulk_import' %}" enctype="multipart/form-data">
+            <form method="POST" action="{% url 'dashboard_bulk_import' %}" enctype="multipart/form-data" data-confirm data-confirm-type="warning" data-confirm-title="Bulk Import Items?" data-confirm-message="This will import items from the CSV file into the Warehouse." data-confirm-text="Yes, Import" data-confirm-submessage="">
                 {% csrf_token %}
                 <div class="modal-body">
                     <div class="alert alert-info mb-3">

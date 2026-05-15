@@ -5,6 +5,8 @@ from . import communication_views as comm
 urlpatterns = [
     path('', views.dashboard, name='dashboard'),
     path('pos/<slug:shop_slug>/', views.point_of_sale, name='point_of_sale'),
+    path('sales-history/', views.sales_history, name='sales_history'),
+    path('receipt/<int:receipt_id>/print/', views.print_receipt, name='print_receipt'),
     path('manage/', views.admin_manage, name='admin_manage'),
     path('financial-report/', views.financial_report, name='financial_report'),
     path('settings/', views.settings_view, name='settings'),

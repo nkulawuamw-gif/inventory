@@ -242,3 +242,33 @@ class PeriodOpeningStock(models.Model):
     def __str__(self):
         return f"{self.item_name} @ {self.shop.name} ({self.period.name})"
 
+
+class Receipt(models.Model):
+    receipt_number = models.CharField(max_length=20, unique=True)
+    shop = models.ForeignKey(Shop, on_delete=models.CASCADE, related_name='receipts')
+    customer_name = models.CharField(max_length=200, blank=True, default='')
+    subtotal = models.DecimalField(max_digits=12, decimal_places=2)
+    total = models.DecimalField(max_digits=12, decimal_places=2)
+    amount_received = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    change = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    created_at = models.DateTimeField(default=timezone.now)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.receipt_number} - {self.shop.name}"
+
+
+class ReceiptItem(models.Model):
+    receipt = models.ForeignKey(Receipt, on_delete=models.CASCADE, related_name='items')
+    item = models.ForeignKey(Item, on_delete=models.SET_NULL, null=True, blank=True)
+    item_name = models.CharField(max_length=200)
+    quantity = models.PositiveIntegerField()
+    unit_price = models.DecimalField(max_digits=10, decimal_places=2)
+    total = models.DecimalField(max_digits=12, decimal_places=2)
+
+    def __str__(self):
+        return f"{self.item_name} x{self.quantity}"
+

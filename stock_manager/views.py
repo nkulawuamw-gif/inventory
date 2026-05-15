@@ -1,12 +1,14 @@
 import json
+import math
+from datetime import date
 from django.shortcuts import render, get_object_or_404, redirect
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.db.models import Q, Sum, F, ExpressionWrapper, DecimalField
 from django.contrib import messages
 from django.db import connection
 from django.utils import timezone
 from collections import defaultdict
-from .models import Shop, Item, Sale, StockTransaction, UserProfile, BusinessPeriod, PeriodOpeningStock
+from .models import Shop, Item, Sale, StockTransaction, UserProfile, BusinessPeriod, PeriodOpeningStock, Receipt, ReceiptItem
 from .middleware import shop_access_required
 
 
@@ -600,47 +602,158 @@ def shop_dashboard(request, shop_slug):
     return render(request, 'stock_manager/shop_dashboard.html', context)
 
 
+def generate_receipt_number():
+    today = date.today()
+    prefix = today.strftime('RCP-%Y%m%d-')
+    last = Receipt.objects.filter(receipt_number__startswith=prefix).order_by('-receipt_number').first()
+    if last:
+        num = int(last.receipt_number.split('-')[-1]) + 1
+    else:
+        num = 1
+    return f'{prefix}{num:04d}'
+
+
 @shop_access_required
 def point_of_sale(request, shop_slug):
     shop = get_object_or_404(Shop, name__iexact=shop_slug.replace('-', ' '))
     is_warehouse = shop.name == 'Warehouse'
 
-    if request.method == 'POST' and not is_warehouse:
-        action = request.POST.get('action')
+    if request.method == 'POST':
+        data = json.loads(request.body) if request.content_type == 'application/json' else request.POST
+        action = data.get('action')
 
-        if action == 'record_sale':
-            item_id = request.POST.get('item_id', '')
-            qty_sold = request.POST.get('quantity_sold', 0)
+        if action == 'complete_sale':
+            raw_items = data.get('items', '[]')
+            if isinstance(raw_items, str):
+                items_data = json.loads(raw_items)
+            else:
+                items_data = raw_items
+            if not items_data:
+                return JsonResponse({'error': 'No items in cart'}, status=400)
 
-            if item_id and int(qty_sold) > 0:
-                item = get_object_or_404(Item, id=item_id, shop=shop)
-                qty_sold = int(qty_sold)
-                total_amount = item.unit_price * qty_sold
-                Sale.objects.create(
-                    item=item,
-                    quantity_sold=qty_sold,
-                    unit_price=item.unit_price,
-                    total_amount=total_amount,
+            customer_name = data.get('customer_name', '').strip()
+            amount_received = float(data.get('amount_received', 0))
+
+            subtotal = 0.0
+            line_items = []
+            errors = []
+
+            for line in items_data:
+                item_id = line.get('item_id')
+                qty = int(line.get('quantity', 0))
+                if not item_id or qty < 1:
+                    continue
+                try:
+                    item = Item.objects.get(id=item_id, shop=shop)
+                except Item.DoesNotExist:
+                    errors.append(f'Item id {item_id} not found')
+                    continue
+                if qty > item.quantity:
+                    errors.append(f'Not enough stock for {item.name}: have {item.quantity}, need {qty}')
+                    continue
+                line_total = float(item.unit_price) * qty
+                subtotal += line_total
+                line_items.append({'item': item, 'qty': qty, 'unit_price': float(item.unit_price), 'total': line_total})
+
+            if errors:
+                return JsonResponse({'error': '; '.join(errors)}, status=400)
+
+            total = subtotal
+            change = max(0, amount_received - total)
+
+            receipt = Receipt.objects.create(
+                receipt_number=generate_receipt_number(),
+                shop=shop,
+                customer_name=customer_name,
+                subtotal=subtotal,
+                total=total,
+                amount_received=amount_received,
+                change=change,
+                created_by=request.user if request.user.is_authenticated else None,
+            )
+
+            for li in line_items:
+                ReceiptItem.objects.create(
+                    receipt=receipt,
+                    item=li['item'],
+                    item_name=li['item'].name,
+                    quantity=li['qty'],
+                    unit_price=li['unit_price'],
+                    total=li['total'],
                 )
-                item.quantity -= qty_sold
-                item.save()
-                messages.success(request, f'Sold: {qty_sold}x {item.name} (MWK {total_amount:,.2f})')
+                li['item'].quantity -= li['qty']
+                li['item'].save()
 
-        return redirect('point_of_sale', shop_slug=shop_slug)
+            return JsonResponse({'receipt_id': receipt.id, 'receipt_number': receipt.receipt_number})
+
+        return JsonResponse({'error': 'Invalid action'}, status=400)
 
     items = Item.objects.filter(shop=shop).order_by('name')
-    shop_sales = Sale.objects.filter(item__shop=shop).select_related('item').order_by('-sold_at')[:20]
-    today_sales = Sale.objects.filter(item__shop=shop, sold_at__date=timezone.now())
-    today_total = today_sales.aggregate(total=Sum('total_amount'))['total'] or 0
+    today_receipts = Receipt.objects.filter(shop=shop, created_at__date=timezone.now())
+    today_total = today_receipts.aggregate(total=Sum('total'))['total'] or 0
+    today_count = today_receipts.count()
 
     context = {
         'shop': shop,
         'items': items,
-        'shop_sales': shop_sales,
         'today_total': today_total,
+        'today_count': today_count,
         'page_title': f'Point of Sale - {shop.name}',
     }
     return render(request, 'stock_manager/point_of_sale.html', context)
+
+
+@shop_access_required
+def sales_history(request):
+    profile = get_user_profile(request.user)
+    user_is_admin = profile is None or profile.is_admin
+
+    receipts = Receipt.objects.select_related('shop', 'created_by').prefetch_related('items')
+    if not user_is_admin and profile.assigned_shop:
+        receipts = receipts.filter(shop=profile.assigned_shop)
+
+    q = request.GET.get('q', '').strip()
+    date_from = request.GET.get('date_from', '')
+    date_to = request.GET.get('date_to', '')
+
+    if q:
+        receipts = receipts.filter(
+            Q(receipt_number__icontains=q) | Q(customer_name__icontains=q)
+        )
+    if date_from:
+        receipts = receipts.filter(created_at__date__gte=date_from)
+    if date_to:
+        receipts = receipts.filter(created_at__date__lte=date_to)
+
+    receipts = receipts.order_by('-created_at')[:100]
+
+    total_sales = receipts.aggregate(total=Sum('total'))['total'] or 0
+
+    context = {
+        'receipts': receipts,
+        'total_sales': total_sales,
+        'query': q,
+        'date_from': date_from,
+        'date_to': date_to,
+        'page_title': 'Sales History',
+    }
+    return render(request, 'stock_manager/sales_history.html', context)
+
+
+@shop_access_required
+def print_receipt(request, receipt_id):
+    receipt = get_object_or_404(Receipt, id=receipt_id)
+    profile = get_user_profile(request.user)
+    user_is_admin = profile is None or profile.is_admin
+    if not user_is_admin and profile.assigned_shop and receipt.shop != profile.assigned_shop:
+        messages.error(request, 'Access denied.')
+        return redirect('dashboard')
+
+    context = {
+        'receipt': receipt,
+        'page_title': f'Receipt {receipt.receipt_number}',
+    }
+    return render(request, 'stock_manager/receipt_print.html', context)
 
 
 @shop_access_required
@@ -754,6 +867,11 @@ def admin_manage(request):
                 messages.success(request, f'Deleted {count} items')
             else:
                 messages.error(request, 'No valid items selected')
+
+        elif action == 'delete_all':
+            count = Item.objects.count()
+            Item.objects.all().delete()
+            messages.success(request, f'Deleted all {count} items from inventory')
 
         elif action == 'stock_transaction':
             item_id = request.POST.get('item_id', '')

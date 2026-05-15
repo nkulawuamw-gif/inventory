@@ -1,79 +1,275 @@
 {% extends 'stock_manager/base.html' %}
+{% load stock_filters %}
 
 {% block content %}
-<h2 class="mb-4"><i class="bi bi-cart3"></i> Point of Sale - {{ shop.name }}</h2>
+<style>
+.pos-container { display: flex; gap: 20px; min-height: calc(100vh - 120px); }
+.pos-items { flex: 1; }
+.pos-cart { width: 420px; flex-shrink: 0; }
+@media (max-width: 900px) { .pos-container { flex-direction: column; } .pos-cart { width: 100%; } }
+.item-list { width: 100%; border-collapse: collapse; }
+.item-list thead th { background: #f8f9fa; padding: 10px 12px; font-size: 0.8rem; text-transform: uppercase; color: #666; border-bottom: 2px solid #dee2e6; text-align: left; }
+.item-list tbody tr { cursor: pointer; transition: background 0.1s; }
+.item-list tbody tr:hover { background: #f0f4ff; }
+.item-list tbody tr:active { background: #e8eeff; }
+.item-list tbody tr.low-stock { background: #fff5f5; }
+.item-list tbody td { padding: 10px 12px; border-bottom: 1px solid #f1f3f5; font-size: 0.9rem; }
+.item-list tbody td .num { display: inline-block; width: 28px; height: 28px; line-height: 28px; text-align: center; border-radius: 8px; background: #667eea; color: white; font-weight: 700; font-size: 0.8rem; }
+.item-list tbody td .name { font-weight: 600; color: #333; }
+.item-list tbody td .price { font-weight: 700; color: #667eea; }
+.item-list tbody td .stock-badge { font-size: 0.8rem; color: #888; }
+.item-list tbody td .stock-badge.low { color: #e74c3c; font-weight: 600; }
+.pos-cart .cart-header { background: linear-gradient(135deg, #2c3e50, #34495e); color: white; border-radius: 16px 16px 0 0; padding: 16px 20px; }
+.cart-items { max-height: 300px; overflow-y: auto; }
+.cart-item { display: flex; align-items: center; gap: 10px; padding: 8px 20px; border-bottom: 1px solid #f1f3f5; }
+.cart-item .qty-controls { display: flex; align-items: center; gap: 6px; }
+.cart-item .qty-controls button { width: 28px; height: 28px; border-radius: 8px; border: 1px solid #dee2e6; background: white; font-weight: 700; cursor: pointer; }
+.cart-item .qty-controls button:hover { background: #f1f3f5; }
+.cart-item .remove-btn { margin-left: auto; background: none; border: none; color: #e74c3c; cursor: pointer; font-size: 1.1rem; }
+.cart-totals { padding: 16px 20px; background: #f8f9fa; border-radius: 0 0 16px 16px; }
+.cart-totals .row-line { display: flex; justify-content: space-between; padding: 4px 0; font-size: 0.95rem; }
+.cart-totals .row-line.total { font-size: 1.2rem; font-weight: 700; border-top: 2px solid #dee2e6; padding-top: 8px; margin-top: 4px; }
+.cart-totals input[type="number"] { width: 100%; padding: 8px 12px; border: 2px solid #dee2e6; border-radius: 10px; font-size: 1rem; text-align: right; font-weight: 600; }
+.cart-totals input[type="text"] { width: 100%; padding: 8px 12px; border: 2px solid #dee2e6; border-radius: 10px; font-size: 0.9rem; }
+.complete-btn { width: 100%; padding: 14px; border: none; border-radius: 12px; font-size: 1.1rem; font-weight: 700; cursor: pointer; transition: all 0.2s; }
+.complete-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.complete-btn.active { background: linear-gradient(135deg, #2ecc71, #27ae60); color: white; }
+.complete-btn.active:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(46,204,113,0.4); }
 
-{% for message in messages %}
-<div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-    {{ message }}
-    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+.receipt-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); z-index: 9998; justify-content: center; align-items: center; }
+.receipt-overlay.active { display: flex; }
+.receipt-card { background: white; border-radius: 20px; width: 400px; max-width: 90vw; padding: 32px; text-align: center; animation: popIn 0.3s ease; box-shadow: 0 25px 60px rgba(0,0,0,0.3); }
+.receipt-card .check { width: 64px; height: 64px; border-radius: 50%; background: linear-gradient(135deg, #2ecc71, #27ae60); display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; font-size: 28px; color: white; }
+.receipt-card h3 { margin: 0 0 4px; }
+.receipt-card .rcp-num { font-size: 1.2rem; font-weight: 700; color: #667eea; margin-bottom: 20px; }
+.receipt-card .actions { display: flex; gap: 12px; justify-content: center; margin-top: 20px; }
+.receipt-card .actions a, .receipt-card .actions button { padding: 10px 24px; border-radius: 12px; font-weight: 600; text-decoration: none; border: none; cursor: pointer; transition: all 0.2s; }
+.receipt-card .actions .btn-print { background: linear-gradient(135deg, #667eea, #764ba2); color: white; }
+.receipt-card .actions .btn-new { background: #f1f3f5; color: #555; }
+
+.search-items { margin-bottom: 16px; }
+.search-items input { width: 100%; padding: 10px 16px; border: 2px solid #e9ecef; border-radius: 12px; font-size: 0.95rem; }
+</style>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3 class="mb-0"><i class="bi bi-cart3"></i> {{ shop.name }} POS</h3>
+    <div>
+        <span class="badge bg-light text-dark me-2 fs-6">Today: MWK {{ today_total|floatformat:2 }} ({{ today_count }})</span>
+        <a href="{% url 'sales_history' %}" class="btn btn-outline-primary btn-sm"><i class="bi bi-clock-history"></i> View Sales</a>
+    </div>
 </div>
-{% endfor %}
 
-<div class="row">
-    <div class="col-md-5">
-        <div class="card">
-            <div class="card-header bg-success text-white">
-                <h5 class="mb-0"><i class="bi bi-cash-register"></i> Record Sale</h5>
-            </div>
-            <div class="card-body">
-                <form method="post">
-                    {% csrf_token %}
-                    <input type="hidden" name="action" value="record_sale">
-                    <div class="mb-3">
-                        <label class="form-label">Select Item</label>
-                        <select name="item_id" class="form-select" required>
-                            <option value="">-- Select Item --</option>
-                            {% for item in items %}
-                            <option value="{{ item.id }}">{{ item.name }} - Qty: {{ item.quantity }} - MWK {{ item.unit_price }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Quantity</label>
-                        <input type="number" name="quantity_sold" class="form-control" min="1" required>
-                    </div>
-                    <button type="submit" class="btn btn-success w-100"><i class="bi bi-cart-check"></i> Complete Sale</button>
-                </form>
-            </div>
+<div class="pos-container">
+    <div class="pos-items">
+        <div class="search-items">
+            <input type="text" id="itemSearch" placeholder="Search items..." oninput="filterItems(this.value)">
+        </div>
+        <div class="table-responsive">
+            <table class="item-list" id="itemTable">
+                <thead>
+                    <tr><th style="width:40px">#</th><th>Item</th><th style="width:100px">Price</th><th style="width:80px">Stock</th></tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                    <tr data-name="{{ item.name|lower }}" class="{% if item.is_low_stock %}low-stock{% endif %}" onclick="addToCart({{ item.id }}, '{{ item.name|escapejs }}', {{ item.unit_price }}, {{ item.quantity }})">
+                        <td><span class="num">{{ forloop.counter }}</span></td>
+                        <td><span class="name">{{ item.name }}</span></td>
+                        <td><span class="price">MWK {{ item.unit_price|floatformat:0 }}</span></td>
+                        <td><span class="stock-badge {% if item.is_low_stock %}low{% endif %}">{{ item.quantity }}</span></td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="4" class="text-center text-muted py-4">No items in this shop</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
 
-    <div class="col-md-7">
-        <div class="card">
-            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-                <h5 class="mb-0"><i class="bi bi-receipt"></i> Today's Sales</h5>
-                <span class="badge bg-light text-dark fs-6">MWK {{ today_total|floatformat:2 }}</span>
+    <div class="pos-cart" id="posCart">
+        <div class="cart-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-basket"></i> Current Sale</h5>
+                <span id="cartCount" class="badge bg-light text-dark">0</span>
             </div>
-            <div class="card-body p-0">
-                <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
-                    <table class="table table-sm table-hover mb-0">
-                        <thead class="table-light sticky-top">
-                            <tr>
-                                <th>Select Item</th>
-                                <th class="text-end">Cost per Unit</th>
-                                <th class="text-center">Quantity Sold</th>
-                                <th class="text-end">Total Amount</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for sale in shop_sales %}
-                            <tr>
-                                <td><strong>{{ sale.item.name }}</strong></td>
-                                <td class="text-end">MWK {{ sale.item.unit_price|floatformat:2 }}</td>
-                                <td class="text-center">{{ sale.quantity_sold }}</td>
-                                <td class="text-end">MWK {{ sale.total_amount|floatformat:2 }}</td>
-                            </tr>
-                            {% empty %}
-                            <tr>
-                                <td colspan="4" class="text-center text-muted py-3">No sales recorded yet</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
+        </div>
+        <div class="cart-items" id="cartItems">
+            <div class="text-center text-muted py-4" id="emptyCart">No items added yet</div>
+        </div>
+        <div class="cart-totals">
+            <div class="mb-3">
+                <label class="form-label small text-muted">Customer Name (optional)</label>
+                <input type="text" id="customerName" placeholder="Walk-in Customer">
             </div>
+            <div class="row-line"><span>Subtotal</span><span id="subtotalDisplay">MWK 0.00</span></div>
+            <div class="row-line total"><span>Total</span><span id="totalDisplay">MWK 0.00</span></div>
+            <div class="mb-2 mt-2">
+                <label class="form-label small text-muted">Amount Received (MWK)</label>
+                <input type="number" id="amountReceived" min="0" step="100" value="0" oninput="calcChange()">
+            </div>
+            <div class="row-line"><span>Change</span><span id="changeDisplay" class="text-success">MWK 0.00</span></div>
+            <button class="complete-btn mt-3" id="completeBtn" onclick="completeSale()" disabled>
+                <i class="bi bi-check-lg"></i> Complete Sale
+            </button>
         </div>
     </div>
 </div>
+
+<div class="receipt-overlay" id="receiptOverlay">
+    <div class="receipt-card">
+        <div class="check"><i class="bi bi-check-lg"></i></div>
+        <h3>Sale Complete!</h3>
+        <div class="rcp-num" id="receiptNum"></div>
+        <div class="actions">
+            <a href="#" class="btn-print" id="printReceiptBtn"><i class="bi bi-printer"></i> Print Receipt</a>
+            <button class="btn-new" onclick="newSale()"><i class="bi bi-plus-lg"></i> New Sale</button>
+        </div>
+    </div>
+</div>
+
+{% csrf_token %}
+<script>
+let cart = [];
+let lastReceiptId = null;
+
+function addToCart(id, name, price, stock) {
+    const existing = cart.find(x => x.id === id);
+    if (existing) {
+        if (existing.qty >= stock) { alert('Not enough stock!'); return; }
+        existing.qty++;
+    } else {
+        if (stock < 1) { alert('Out of stock!'); return; }
+        cart.push({ id, name, price, qty: 1, stock });
+    }
+    renderCart();
+}
+
+function updateQty(id, delta) {
+    const item = cart.find(x => x.id === id);
+    if (!item) return;
+    item.qty += delta;
+    if (item.qty < 1 || delta < 0 && item.qty === 0) {
+        cart = cart.filter(x => x.id !== id);
+    }
+    if (item.qty > item.stock) { item.qty = item.stock; alert('Not enough stock!'); }
+    renderCart();
+}
+
+function removeItem(id) {
+    cart = cart.filter(x => x.id !== id);
+    renderCart();
+}
+
+function renderCart() {
+    const container = document.getElementById('cartItems');
+    const empty = document.getElementById('emptyCart');
+    const count = document.getElementById('cartCount');
+    const subtotalEl = document.getElementById('subtotalDisplay');
+    const totalEl = document.getElementById('totalDisplay');
+    const btn = document.getElementById('completeBtn');
+
+    count.textContent = cart.reduce((s, x) => s + x.qty, 0);
+
+    if (cart.length === 0) {
+        container.innerHTML = '<div class="text-center text-muted py-4" id="emptyCart">No items added yet</div>';
+        subtotalEl.textContent = 'MWK 0.00';
+        totalEl.textContent = 'MWK 0.00';
+        btn.disabled = true;
+        calcChange();
+        return;
+    }
+
+    let html = '';
+    let subtotal = 0;
+    cart.forEach(x => {
+        const lineTotal = x.price * x.qty;
+        subtotal += lineTotal;
+        html += `<div class="cart-item">
+            <div style="flex:1"><strong>${x.name}</strong><br><small class="text-muted">MWK ${x.price.toFixed(2)}</small></div>
+            <div class="qty-controls">
+                <button onclick="updateQty(${x.id}, -1)">−</button>
+                <span style="min-width:24px;text-align:center;font-weight:700">${x.qty}</span>
+                <button onclick="updateQty(${x.id}, 1)">+</button>
+            </div>
+            <div style="min-width:80px;text-align:right;font-weight:600">MWK ${lineTotal.toFixed(2)}</div>
+            <button class="remove-btn" onclick="removeItem(${x.id})"><i class="bi bi-x-circle"></i></button>
+        </div>`;
+    });
+
+    container.innerHTML = html;
+    subtotalEl.textContent = `MWK ${subtotal.toFixed(2)}`;
+    totalEl.textContent = `MWK ${subtotal.toFixed(2)}`;
+    btn.disabled = false;
+    calcChange();
+}
+
+function calcChange() {
+    const received = parseFloat(document.getElementById('amountReceived').value) || 0;
+    const subtotal = cart.reduce((s, x) => s + x.price * x.qty, 0);
+    const change = Math.max(0, received - subtotal);
+    document.getElementById('changeDisplay').textContent = `MWK ${change.toFixed(2)}`;
+}
+
+async function completeSale() {
+    if (cart.length === 0) return;
+    const received = parseFloat(document.getElementById('amountReceived').value) || 0;
+    const total = cart.reduce((s, x) => s + x.price * x.qty, 0);
+    if (received < total) {
+        alert(`Amount received (MWK ${received.toFixed(2)}) is less than total (MWK ${total.toFixed(2)})`);
+        return;
+    }
+
+    const btn = document.getElementById('completeBtn');
+    btn.disabled = true;
+    btn.textContent = 'Processing...';
+
+    try {
+        const resp = await fetch(window.location.href, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            },
+            body: JSON.stringify({
+                action: 'complete_sale',
+                items: cart.map(x => ({ item_id: x.id, quantity: x.qty })),
+                customer_name: document.getElementById('customerName').value,
+                amount_received: received,
+            }),
+        });
+        const data = await resp.json();
+        if (resp.ok) {
+            lastReceiptId = data.receipt_id;
+            document.getElementById('receiptNum').textContent = data.receipt_number;
+            document.getElementById('receiptOverlay').classList.add('active');
+            document.getElementById('printReceiptBtn').href = `/receipt/${data.receipt_id}/print/`;
+        } else {
+            alert(data.error || 'Sale failed');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-check-lg"></i> Complete Sale';
+        }
+    } catch (e) {
+        alert('Error processing sale');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-check-lg"></i> Complete Sale';
+    }
+}
+
+function newSale() {
+    cart = [];
+    lastReceiptId = null;
+    document.getElementById('receiptOverlay').classList.remove('active');
+    document.getElementById('amountReceived').value = 0;
+    document.getElementById('customerName').value = '';
+    renderCart();
+    document.getElementById('completeBtn').disabled = true;
+    document.getElementById('completeBtn').innerHTML = '<i class="bi bi-check-lg"></i> Complete Sale';
+}
+
+function filterItems(val) {
+    const q = val.toLowerCase();
+    document.querySelectorAll('#itemTable tbody tr').forEach(el => {
+        el.style.display = el.dataset.name.includes(q) ? '' : 'none';
+    });
+}
+</script>
 {% endblock %}

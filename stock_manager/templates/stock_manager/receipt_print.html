@@ -1,0 +1,61 @@
+{% extends 'stock_manager/base.html' %}
+{% block content %}
+<style>
+@media print {
+    body { background: white; }
+    .sidebar, .navbar, .btn, .no-print { display: none !important; }
+    main { margin: 0 !important; padding: 0 !important; max-width: 100% !important; }
+    .receipt-print { box-shadow: none !important; border: none !important; padding: 20px !important; }
+}
+.receipt-print { max-width: 400px; margin: 0 auto; background: white; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); padding: 32px; }
+.receipt-print .business-name { text-align: center; font-size: 1.4rem; font-weight: 800; color: #2c3e50; margin-bottom: 4px; }
+.receipt-print .tagline { text-align: center; font-size: 0.8rem; color: #888; margin-bottom: 16px; }
+.receipt-print .divider { border: none; border-top: 1px dashed #ccc; margin: 12px 0; }
+.receipt-print .info-line { display: flex; justify-content: space-between; font-size: 0.85rem; color: #555; padding: 2px 0; }
+.receipt-print table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.receipt-print table th { text-align: left; padding: 6px 4px; border-bottom: 2px solid #333; font-size: 0.8rem; text-transform: uppercase; color: #555; }
+.receipt-print table td { padding: 6px 4px; border-bottom: 1px solid #eee; }
+.receipt-print table td:last-child, .receipt-print table th:last-child { text-align: right; }
+.receipt-print table td:nth-child(2), .receipt-print table th:nth-child(2) { text-align: center; }
+.receipt-print .total-row { display: flex; justify-content: space-between; font-size: 1.1rem; font-weight: 700; padding: 8px 0; border-top: 2px solid #333; margin-top: 4px; }
+.receipt-print .payment-row { display: flex; justify-content: space-between; font-size: 0.9rem; padding: 3px 0; }
+.receipt-print .thanks { text-align: center; font-size: 0.9rem; color: #888; margin-top: 16px; font-style: italic; }
+</style>
+
+<div class="no-print mb-3">
+    <a href="{% url 'sales_history' %}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Back</a>
+    <button class="btn btn-primary" onclick="window.print()"><i class="bi bi-printer"></i> Print</button>
+</div>
+
+<div class="receipt-print">
+    <div class="business-name">STOCK MANAGER</div>
+    <div class="tagline">Inventory Management System</div>
+    <hr class="divider">
+    <div class="info-line"><span>Receipt #</span><strong>{{ receipt.receipt_number }}</strong></div>
+    <div class="info-line"><span>Date</span>{{ receipt.created_at|date:"M d, Y H:i" }}</div>
+    <div class="info-line"><span>Shop</span>{{ receipt.shop.name }}</div>
+    {% if receipt.customer_name %}
+    <div class="info-line"><span>Customer</span>{{ receipt.customer_name }}</div>
+    {% endif %}
+    <hr class="divider">
+    <table>
+        <thead><tr><th>Item</th><th>Qty</th><th>Price</th><th>Total</th></tr></thead>
+        <tbody>
+            {% for li in receipt.items.all %}
+            <tr>
+                <td>{{ li.item_name }}</td>
+                <td>{{ li.quantity }}</td>
+                <td>MWK {{ li.unit_price|floatformat:2 }}</td>
+                <td>MWK {{ li.total|floatformat:2 }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <hr class="divider">
+    <div class="total-row"><span>Total</span><span>MWK {{ receipt.total|floatformat:2 }}</span></div>
+    <div class="payment-row"><span>Amount Received</span><span>MWK {{ receipt.amount_received|floatformat:2 }}</span></div>
+    <div class="payment-row" style="color:#27ae60;font-weight:600"><span>Change</span><span>MWK {{ receipt.change|floatformat:2 }}</span></div>
+    <hr class="divider">
+    <div class="thanks">Thank you for your business!</div>
+</div>
+{% endblock %}

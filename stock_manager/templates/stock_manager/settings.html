@@ -10,7 +10,7 @@
         <h5 class="mb-0"><i class="bi bi-calendar-plus"></i> Open New Business Period</h5>
       </div>
       <div class="card-body">
-        <form method="post">
+        <form method="post" data-confirm data-confirm-type="success" data-confirm-title="Open New Period?" data-confirm-message="This will start a new business period and carry forward current stock as opening stock." data-confirm-text="Yes, Open Period" data-confirm-submessage="">
           {% csrf_token %}
           <input type="hidden" name="action" value="open_period">
           <div class="mb-3">
@@ -57,7 +57,7 @@
         ({{ active_period.start_date|date:"M d, Y" }} - {{ active_period.end_date|date:"M d, Y" }})
         <br><small class="text-muted">{{ opening_count }} items carried forward as opening stock</small>
       </div>
-      <form method="post" class="mb-0" onsubmit="return confirm('Close period &quot;{{ active_period.name }}&quot;?')">
+      <form method="post" class="mb-0" data-confirm data-confirm-type="danger" data-confirm-title="Close Period?" data-confirm-message="This will close &quot;{{ active_period.name }}&quot;. Future transactions will be recorded in a new period." data-confirm-text="Yes, Close Period" data-confirm-submessage="">
         {% csrf_token %}
         <input type="hidden" name="action" value="close_period">
         <input type="hidden" name="period_id" value="{{ active_period.id }}">

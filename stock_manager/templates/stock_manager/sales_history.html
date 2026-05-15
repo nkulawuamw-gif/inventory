@@ -1,0 +1,71 @@
+{% extends 'stock_manager/base.html' %}
+
+{% block content %}
+<h2 class="mb-4"><i class="bi bi-clock-history"></i> Sales History</h2>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label small">Search (receipt # / customer)</label>
+                <input type="text" name="q" class="form-control" placeholder="Search..." value="{{ query }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small">From</label>
+                <input type="date" name="date_from" class="form-control" value="{{ date_from }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small">To</label>
+                <input type="date" name="date_to" class="form-control" value="{{ date_to }}">
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary w-100"><i class="bi bi-search"></i> Search</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="table-container">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="mb-0"><i class="bi bi-receipt"></i> All Receipts</h5>
+        <span class="badge bg-primary fs-6">Total: MWK {{ total_sales|floatformat:2 }}</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Receipt #</th>
+                    <th>Date</th>
+                    <th>Shop</th>
+                    <th>Customer</th>
+                    <th>Items</th>
+                    <th class="text-end">Total</th>
+                    <th class="text-center">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in receipts %}
+                <tr>
+                    <td><strong>{{ r.receipt_number }}</strong></td>
+                    <td>{{ r.created_at|date:"M d, Y H:i" }}</td>
+                    <td>{{ r.shop.name }}</td>
+                    <td>{{ r.customer_name|default:"Walk-in" }}</td>
+                    <td>{{ r.items.count }}</td>
+                    <td class="text-end"><strong>MWK {{ r.total|floatformat:2 }}</strong></td>
+                    <td class="text-center">
+                        <a href="{% url 'print_receipt' r.id %}" class="btn btn-sm btn-outline-primary" target="_blank">
+                            <i class="bi bi-printer"></i> Print
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="text-center text-muted py-4">No sales found</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="text-muted small mt-2">Showing up to 100 most recent receipts</div>
+</div>
+{% endblock %}
