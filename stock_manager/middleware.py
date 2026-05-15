@@ -8,11 +8,33 @@ ACCESS_DENIED = {
     'dashboard': 'You do not have access to the main dashboard.',
     'admin_manage': 'You do not have permission to manage inventory.',
     'financial_report': 'You do not have access to the financial report.',
+    'sales_history': 'You do not have access to sales history.',
+    'search': 'You do not have access to search.',
+    'export_csv': 'You do not have access to export.',
+    'settings': 'You do not have access to settings.',
+    'download_template': 'You do not have access to download templates.',
+    'dashboard_bulk_import': 'You do not have access to bulk import.',
+    'messages': 'You do not have access to messages.',
+    'calls': 'You do not have access to calls.',
+    'meetings': 'You do not have access to meetings.',
+    'send_message': 'You do not have access to messaging.',
+    'get_messages': 'You do not have access to messaging.',
+    'unread_count': 'You do not have access to messaging.',
+    'initiate_call': 'You do not have access to calls.',
+    'call_room': 'You do not have access to calls.',
+    'end_call': 'You do not have access to calls.',
+    'call_signal': 'You do not have access to calls.',
+    'create_meeting': 'You do not have access to meetings.',
+    'join_meeting': 'You do not have access to meetings.',
+    'meeting_room': 'You do not have access to meetings.',
+    'leave_meeting': 'You do not have access to meetings.',
+    'meeting_signal': 'You do not have access to meetings.',
+    'whatsapp_inbox': 'You do not have access to WhatsApp messages.',
 }
 
 ADMIN_ONLY_VIEWS = ['admin_manage', 'financial_report', 'dashboard_bulk_import', 'export_csv']
 
-SHOP_RESTRICTED_VIEWS = ['shop_dashboard']
+SHOP_RESTRICTED_VIEWS = ['shop_dashboard', 'point_of_sale', 'print_receipt']
 
 
 def get_user_profile(user):
@@ -26,7 +48,7 @@ def get_user_profile(user):
     return None
 
 
-EXEMPT_PATHS = ['/heartbeat/', '/mark-offline/', '/admin/login/', '/admin/logout/']
+EXEMPT_PATHS = ['/heartbeat/', '/mark-offline/', '/admin/login/', '/admin/logout/', '/whatsapp/webhook/']
 
 
 class ShopAccessMiddleware:

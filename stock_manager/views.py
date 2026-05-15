@@ -5,10 +5,13 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.http import HttpResponse, JsonResponse
 from django.db.models import Q, Sum, F, ExpressionWrapper, DecimalField
 from django.contrib import messages
+from django.contrib.auth import logout as auth_logout
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.models import User
 from django.db import connection
 from django.utils import timezone
 from collections import defaultdict
-from .models import Shop, Item, Sale, StockTransaction, UserProfile, BusinessPeriod, PeriodOpeningStock, Receipt, ReceiptItem
+from .models import Shop, Item, Sale, StockTransaction, UserProfile, BusinessPeriod, PeriodOpeningStock, Receipt, ReceiptItem, CompanyProfile, WhatsAppSetting, WhatsAppMessage
 from .middleware import shop_access_required
 
 
@@ -615,78 +618,93 @@ def generate_receipt_number():
 
 @shop_access_required
 def point_of_sale(request, shop_slug):
-    shop = get_object_or_404(Shop, name__iexact=shop_slug.replace('-', ' '))
+    try:
+        shop = get_object_or_404(Shop, name__iexact=shop_slug.replace('-', ' '))
+    except Exception:
+        return JsonResponse({'error': 'Shop not found'}, status=404)
     is_warehouse = shop.name == 'Warehouse'
 
     if request.method == 'POST':
-        data = json.loads(request.body) if request.content_type == 'application/json' else request.POST
-        action = data.get('action')
-
-        if action == 'complete_sale':
-            raw_items = data.get('items', '[]')
-            if isinstance(raw_items, str):
-                items_data = json.loads(raw_items)
-            else:
-                items_data = raw_items
-            if not items_data:
-                return JsonResponse({'error': 'No items in cart'}, status=400)
-
-            customer_name = data.get('customer_name', '').strip()
-            amount_received = float(data.get('amount_received', 0))
-
-            subtotal = 0.0
-            line_items = []
-            errors = []
-
-            for line in items_data:
-                item_id = line.get('item_id')
-                qty = int(line.get('quantity', 0))
-                if not item_id or qty < 1:
-                    continue
+        try:
+            if request.content_type == 'application/json':
                 try:
-                    item = Item.objects.get(id=item_id, shop=shop)
-                except Item.DoesNotExist:
-                    errors.append(f'Item id {item_id} not found')
-                    continue
-                if qty > item.quantity:
-                    errors.append(f'Not enough stock for {item.name}: have {item.quantity}, need {qty}')
-                    continue
-                line_total = float(item.unit_price) * qty
-                subtotal += line_total
-                line_items.append({'item': item, 'qty': qty, 'unit_price': float(item.unit_price), 'total': line_total})
+                    data = json.loads(request.body)
+                except Exception:
+                    return JsonResponse({'error': 'Invalid JSON body'}, status=400)
+            else:
+                data = request.POST
+            action = data.get('action')
 
-            if errors:
-                return JsonResponse({'error': '; '.join(errors)}, status=400)
+            if action == 'complete_sale':
+                raw_items = data.get('items', '[]')
+                if isinstance(raw_items, str):
+                    try:
+                        items_data = json.loads(raw_items)
+                    except Exception:
+                        return JsonResponse({'error': 'Invalid items data'}, status=400)
+                else:
+                    items_data = raw_items
+                if not items_data:
+                    return JsonResponse({'error': 'No items in cart'}, status=400)
 
-            total = subtotal
-            change = max(0, amount_received - total)
+                customer_name = data.get('customer_name', '').strip()
+                amount_received = float(data.get('amount_received', 0))
 
-            receipt = Receipt.objects.create(
-                receipt_number=generate_receipt_number(),
-                shop=shop,
-                customer_name=customer_name,
-                subtotal=subtotal,
-                total=total,
-                amount_received=amount_received,
-                change=change,
-                created_by=request.user if request.user.is_authenticated else None,
-            )
+                subtotal = 0.0
+                line_items = []
+                errors = []
 
-            for li in line_items:
-                ReceiptItem.objects.create(
-                    receipt=receipt,
-                    item=li['item'],
-                    item_name=li['item'].name,
-                    quantity=li['qty'],
-                    unit_price=li['unit_price'],
-                    total=li['total'],
+                for line in items_data:
+                    item_id = line.get('item_id')
+                    qty = int(line.get('quantity', 0))
+                    if not item_id or qty < 1:
+                        continue
+                    try:
+                        item = Item.objects.get(id=item_id, shop=shop)
+                    except Item.DoesNotExist:
+                        errors.append(f'Item id {item_id} not found')
+                        continue
+                    if qty > item.quantity:
+                        errors.append(f'Not enough stock for {item.name}: have {item.quantity}, need {qty}')
+                        continue
+                    line_total = float(item.unit_price) * qty
+                    subtotal += line_total
+                    line_items.append({'item': item, 'qty': qty, 'unit_price': float(item.unit_price), 'total': line_total})
+
+                if errors:
+                    return JsonResponse({'error': '; '.join(errors)}, status=400)
+
+                total = subtotal
+                change = max(0, amount_received - total)
+
+                receipt = Receipt.objects.create(
+                    receipt_number=generate_receipt_number(),
+                    shop=shop,
+                    customer_name=customer_name,
+                    subtotal=subtotal,
+                    total=total,
+                    amount_received=amount_received,
+                    change=change,
+                    created_by=request.user if request.user.is_authenticated else None,
                 )
-                li['item'].quantity -= li['qty']
-                li['item'].save()
 
-            return JsonResponse({'receipt_id': receipt.id, 'receipt_number': receipt.receipt_number})
+                for li in line_items:
+                    ReceiptItem.objects.create(
+                        receipt=receipt,
+                        item=li['item'],
+                        item_name=li['item'].name,
+                        quantity=li['qty'],
+                        unit_price=li['unit_price'],
+                        total=li['total'],
+                    )
+                    li['item'].quantity -= li['qty']
+                    li['item'].save()
 
-        return JsonResponse({'error': 'Invalid action'}, status=400)
+                return JsonResponse({'receipt_id': receipt.id, 'receipt_number': receipt.receipt_number})
+
+            return JsonResponse({'error': 'Invalid action'}, status=400)
+        except Exception as e:
+            return JsonResponse({'error': f'Server error: {str(e)}'}, status=500)
 
     items = Item.objects.filter(shop=shop).order_by('name')
     today_receipts = Receipt.objects.filter(shop=shop, created_at__date=timezone.now())
@@ -715,6 +733,7 @@ def sales_history(request):
     q = request.GET.get('q', '').strip()
     date_from = request.GET.get('date_from', '')
     date_to = request.GET.get('date_to', '')
+    shop_filter = request.GET.get('shop', '')
 
     if q:
         receipts = receipts.filter(
@@ -724,6 +743,8 @@ def sales_history(request):
         receipts = receipts.filter(created_at__date__gte=date_from)
     if date_to:
         receipts = receipts.filter(created_at__date__lte=date_to)
+    if user_is_admin and shop_filter:
+        receipts = receipts.filter(shop_id=shop_filter)
 
     receipts = receipts.order_by('-created_at')[:100]
 
@@ -735,6 +756,8 @@ def sales_history(request):
         'query': q,
         'date_from': date_from,
         'date_to': date_to,
+        'selected_shop': shop_filter,
+        'user_is_admin': user_is_admin,
         'page_title': 'Sales History',
     }
     return render(request, 'stock_manager/sales_history.html', context)
@@ -1065,16 +1088,127 @@ def settings_view(request):
             except BusinessPeriod.DoesNotExist:
                 messages.error(request, 'Period not found or already closed.')
 
+        elif action == 'add_shop':
+            name = request.POST.get('name', '').strip()
+            if not name:
+                messages.error(request, 'Shop name is required.')
+            elif Shop.objects.filter(name__iexact=name).exists():
+                messages.error(request, f'Shop "{name}" already exists.')
+            else:
+                Shop.objects.create(name=name)
+                messages.success(request, f'Shop "{name}" created.')
+
+        elif action == 'delete_shop':
+            shop_id = request.POST.get('shop_id')
+            try:
+                shop = Shop.objects.get(id=shop_id)
+                if shop.items.exists() or shop.receipts.exists():
+                    messages.error(request, f'Cannot delete "{shop.name}" — it has items or receipts linked to it.')
+                else:
+                    shop.delete()
+                    messages.success(request, f'Shop "{shop.name}" deleted.')
+            except Shop.DoesNotExist:
+                messages.error(request, 'Shop not found.')
+
+        elif action == 'add_user':
+            username = request.POST.get('username', '').strip()
+            email = request.POST.get('email', '').strip()
+            first_name = request.POST.get('first_name', '').strip()
+            last_name = request.POST.get('last_name', '').strip()
+            password = request.POST.get('password', '')
+            role = request.POST.get('role', 'shop_user')
+            shop_id = request.POST.get('shop_id')
+
+            if not username or not password:
+                messages.error(request, 'Username and password are required.')
+            elif User.objects.filter(username=username).exists():
+                messages.error(request, f'Username "{username}" is already taken.')
+            else:
+                user = User.objects.create(
+                    username=username,
+                    email=email,
+                    first_name=first_name,
+                    last_name=last_name,
+                )
+                user.set_password(password)
+                user.save()
+                assigned_shop = Shop.objects.filter(id=shop_id).first() if shop_id else None
+                UserProfile.objects.create(
+                    user=user,
+                    role=role,
+                    assigned_shop=assigned_shop,
+                )
+                messages.success(request, f'User "{username}" created.')
+
+        elif action == 'reset_password':
+            user_id = request.POST.get('user_id')
+            new_password = request.POST.get('new_password', '')
+            try:
+                user = User.objects.get(id=user_id)
+                if user.is_superuser:
+                    messages.error(request, 'Cannot reset password for superuser.')
+                elif not new_password or len(new_password) < 4:
+                    messages.error(request, 'Password must be at least 4 characters.')
+                else:
+                    user.set_password(new_password)
+                    user.save()
+                    messages.success(request, f'Password for "{user.username}" has been reset.')
+            except User.DoesNotExist:
+                messages.error(request, 'User not found.')
+
+        elif action == 'delete_user':
+            user_id = request.POST.get('user_id')
+            try:
+                user = User.objects.get(id=user_id)
+                if user.is_superuser:
+                    messages.error(request, 'Cannot delete superuser.')
+                else:
+                    name = user.username
+                    user.delete()
+                    messages.success(request, f'User "{name}" deleted.')
+            except User.DoesNotExist:
+                messages.error(request, 'User not found.')
+
+        elif action == 'save_company':
+            company_name = request.POST.get('company_name', '').strip()
+            if company_name:
+                profile = CompanyProfile.get_profile()
+                profile.company_name = company_name
+                profile.address = request.POST.get('address', '').strip()
+                profile.phone = request.POST.get('phone', '').strip()
+                profile.email = request.POST.get('email', '').strip()
+                profile.tax_id = request.POST.get('tax_id', '').strip()
+                profile.receipt_footer = request.POST.get('receipt_footer', '').strip()
+                profile.save()
+                messages.success(request, 'Company profile updated.')
+            else:
+                messages.error(request, 'Company name is required.')
+
+        elif action == 'save_whatsapp':
+            setting = WhatsAppSetting.get_profile()
+            setting.phone_number = request.POST.get('phone_number', '').strip()
+            setting.business_name = request.POST.get('business_name', '').strip()
+            setting.greeting_message = request.POST.get('greeting_message', '').strip()
+            setting.webhook_secret = request.POST.get('webhook_secret', '').strip()
+            api_key = request.POST.get('api_key', '').strip()
+            if api_key:
+                setting.api_key = api_key
+            setting.is_active = request.POST.get('is_active') == '1'
+            setting.save()
+            messages.success(request, 'WhatsApp settings saved.')
+
         return redirect('settings')
 
     periods = BusinessPeriod.objects.all()
     active_period = periods.filter(is_closed=False).first()
     opening_count = PeriodOpeningStock.objects.filter(period=active_period).count() if active_period else 0
+    users = User.objects.filter(is_superuser=False).select_related('profile__assigned_shop').order_by('username')
 
     context = {
         'periods': periods,
         'active_period': active_period,
         'opening_count': opening_count,
+        'users': users,
         'page_title': 'Settings',
     }
     return render(request, 'stock_manager/settings.html', context)
@@ -1166,3 +1300,31 @@ def financial_report(request):
         'page_title': 'Financial Report',
     }
     return render(request, 'stock_manager/financial_report.html', context)
+
+
+@login_required
+def logout_view(request):
+    auth_logout(request)
+    return redirect('admin:index')
+
+
+@login_required
+def change_password(request):
+    if request.method == 'POST':
+        current = request.POST.get('current_password', '')
+        new_pass = request.POST.get('new_password', '')
+        confirm = request.POST.get('confirm_password', '')
+
+        if not request.user.check_password(current):
+            messages.error(request, 'Current password is incorrect.')
+        elif not new_pass or len(new_pass) < 4:
+            messages.error(request, 'New password must be at least 4 characters.')
+        elif new_pass != confirm:
+            messages.error(request, 'Passwords do not match.')
+        else:
+            request.user.set_password(new_pass)
+            request.user.save()
+            messages.success(request, 'Your password has been changed.')
+            return redirect('dashboard')
+
+    return redirect('dashboard')

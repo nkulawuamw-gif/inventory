@@ -28,8 +28,13 @@
 </div>
 
 <div class="receipt-print">
-    <div class="business-name">STOCK MANAGER</div>
-    <div class="tagline">Inventory Management System</div>
+    <div class="business-name">{{ company.company_name|default:"STOCK MANAGER" }}</div>
+    <div class="tagline">{{ company.address|default:"Inventory Management System" }}</div>
+    {% if company.phone or company.email or company.tax_id %}
+    <div class="info-line"><span>Phone</span><span>{{ company.phone }}</span></div>
+    <div class="info-line"><span>Email</span><span>{{ company.email }}</span></div>
+    {% if company.tax_id %}<div class="info-line"><span>Tax ID</span><span>{{ company.tax_id }}</span></div>{% endif %}
+    {% endif %}
     <hr class="divider">
     <div class="info-line"><span>Receipt #</span><strong>{{ receipt.receipt_number }}</strong></div>
     <div class="info-line"><span>Date</span>{{ receipt.created_at|date:"M d, Y H:i" }}</div>
@@ -55,7 +60,13 @@
     <div class="total-row"><span>Total</span><span>MWK {{ receipt.total|floatformat:2 }}</span></div>
     <div class="payment-row"><span>Amount Received</span><span>MWK {{ receipt.amount_received|floatformat:2 }}</span></div>
     <div class="payment-row" style="color:#27ae60;font-weight:600"><span>Change</span><span>MWK {{ receipt.change|floatformat:2 }}</span></div>
+    {% if whatsapp.phone_number and whatsapp.is_active %}
+    <div class="info-line" style="margin-top:8px;">
+        <span><i class="bi bi-whatsapp"></i> WhatsApp</span>
+        <span>+{{ whatsapp.phone_number }}</span>
+    </div>
+    {% endif %}
     <hr class="divider">
-    <div class="thanks">Thank you for your business!</div>
+    <div class="thanks">{{ company.receipt_footer|default:"Thank you for your business!" }}</div>
 </div>
 {% endblock %}

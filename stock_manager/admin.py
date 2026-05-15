@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.models import User
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from .models import Shop, Item, Sale, StockTransaction, UserProfile, UserPresence, Message, Call, Meeting, MeetingParticipant, BusinessPeriod
+from .models import Shop, Item, Sale, StockTransaction, UserProfile, UserPresence, Message, Call, Meeting, MeetingParticipant, BusinessPeriod, CompanyProfile, WhatsAppSetting, WhatsAppMessage
 
 
 class UserProfileInline(admin.StackedInline):
@@ -135,3 +135,21 @@ class BusinessPeriodAdmin(admin.ModelAdmin):
     list_filter = ['period_type', 'is_closed']
     search_fields = ['name']
     date_hierarchy = 'start_date'
+
+
+@admin.register(CompanyProfile)
+class CompanyProfileAdmin(admin.ModelAdmin):
+    list_display = ['company_name', 'phone', 'email']
+
+
+@admin.register(WhatsAppSetting)
+class WhatsAppSettingAdmin(admin.ModelAdmin):
+    list_display = ['phone_number', 'business_name', 'is_active']
+
+
+@admin.register(WhatsAppMessage)
+class WhatsAppMessageAdmin(admin.ModelAdmin):
+    list_display = ['customer_number', 'customer_name', 'body', 'is_from_customer', 'is_read', 'created_at']
+    list_filter = ['is_from_customer', 'is_read']
+    search_fields = ['customer_number', 'customer_name', 'body']
+    date_hierarchy = 'created_at'

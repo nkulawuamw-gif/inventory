@@ -1,9 +1,125 @@
 {% extends 'stock_manager/base.html' %}
 {% block content %}
 
-<h2 class="mb-4"><i class="bi bi-gear-wide-connected"></i> Settings</h2>
+<h2 class="mb-3"><i class="bi bi-gear-wide-connected"></i> Settings</h2>
 
+<div class="d-flex gap-2 mb-4 flex-wrap">
+    <button type="button" class="btn btn-primary rounded-pill px-3" id="tabCompany" onclick="showSection('company')"><i class="bi bi-building"></i> Company Profile</button>
+    <button type="button" class="btn btn-outline-primary rounded-pill px-3" id="tabWhatsapp" onclick="showSection('whatsapp')"><i class="bi bi-whatsapp"></i> WhatsApp</button>
+    <button type="button" class="btn btn-outline-primary rounded-pill px-3" id="tabPeriods" onclick="showSection('periods')"><i class="bi bi-calendar-range"></i> Manage Business Period</button>
+    <button type="button" class="btn btn-outline-primary rounded-pill px-3" id="tabShops" onclick="showSection('shops')"><i class="bi bi-shop"></i> Manage Shops</button>
+    <button type="button" class="btn btn-outline-primary rounded-pill px-3" id="tabSalesmen" onclick="showSection('salesmen')"><i class="bi bi-people"></i> Manage Sales Person</button>
+</div>
+
+<div id="settingsPage">
+
+<div class="settings-section" id="section-company">
 <div class="row">
+  <div class="col-md-6 mx-auto">
+    <div class="card">
+      <div class="card-header bg-dark text-white">
+        <h5 class="mb-0"><i class="bi bi-building"></i> Company Profile</h5>
+      </div>
+      <div class="card-body">
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="save_company">
+          <div class="mb-3">
+            <label class="form-label">Company Name *</label>
+            <input type="text" name="company_name" class="form-control" value="{{ company.company_name }}" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Address</label>
+            <textarea name="address" class="form-control" rows="2">{{ company.address }}</textarea>
+          </div>
+          <div class="row mb-3">
+            <div class="col-6">
+              <label class="form-label">Phone</label>
+              <input type="text" name="phone" class="form-control" value="{{ company.phone }}">
+            </div>
+            <div class="col-6">
+              <label class="form-label">Email</label>
+              <input type="email" name="email" class="form-control" value="{{ company.email }}">
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Tax ID</label>
+            <input type="text" name="tax_id" class="form-control" value="{{ company.tax_id }}">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Receipt Footer</label>
+            <input type="text" name="receipt_footer" class="form-control" value="{{ company.receipt_footer }}">
+          </div>
+          <button type="submit" class="btn btn-dark w-100">
+            <i class="bi bi-check-lg"></i> Save
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<div class="settings-section" id="section-whatsapp" style="display:none">
+<div class="row">
+  <div class="col-md-6 mx-auto">
+    <div class="card">
+      <div class="card-header bg-success text-white">
+        <h5 class="mb-0"><i class="bi bi-whatsapp"></i> WhatsApp Settings</h5>
+      </div>
+      <div class="card-body">
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="save_whatsapp">
+          <div class="mb-3">
+            <label class="form-label">WhatsApp Business Phone Number</label>
+            <input type="text" name="phone_number" class="form-control" value="{{ whatsapp.phone_number }}" placeholder="e.g. 265999000000">
+            <div class="form-text">Include country code. No + or spaces.</div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Business Name</label>
+            <input type="text" name="business_name" class="form-control" value="{{ whatsapp.business_name }}">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Greeting Message</label>
+            <textarea name="greeting_message" class="form-control" rows="2">{{ whatsapp.greeting_message }}</textarea>
+            <div class="form-text">Auto-reply sent when a customer messages for the first time.</div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Webhook Secret</label>
+            <input type="text" name="webhook_secret" class="form-control" value="{{ whatsapp.webhook_secret }}">
+            <div class="form-text">Used to verify incoming webhook requests from WhatsApp API.</div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">API Key (for WhatsApp Business API)</label>
+            <input type="password" name="api_key" class="form-control" value="{{ whatsapp.api_key }}">
+            <div class="form-text">Optional. Required for sending replies via WhatsApp Business API.</div>
+          </div>
+          {% if whatsapp.phone_number %}
+          <div class="alert alert-info">
+            <strong><i class="bi bi-link-45deg"></i> WhatsApp Link:</strong>
+            <a href="https://wa.me/{{ whatsapp.phone_number }}" target="_blank">https://wa.me/{{ whatsapp.phone_number }}</a>
+            <br>
+            <strong><i class="bi bi-webhook"></i> Webhook URL:</strong>
+            <code>{% url 'whatsapp_webhook' %}</code>
+          </div>
+          {% endif %}
+          <div class="form-check mb-3">
+            <input type="checkbox" name="is_active" class="form-check-input" id="waActive" value="1" {% if whatsapp.is_active %}checked{% endif %}>
+            <label class="form-check-label" for="waActive">Enable WhatsApp integration</label>
+          </div>
+          <button type="submit" class="btn btn-success w-100">
+            <i class="bi bi-check-lg"></i> Save WhatsApp Settings
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<div class="settings-section" id="section-periods" style="display:none">
+<div class="row" id="businessPeriods">
   <div class="col-md-5">
     <div class="card mb-4">
       <div class="card-header bg-primary text-white">
@@ -121,5 +237,309 @@
     </div>
   </div>
 </div>
+</div>
 
+<div class="settings-section" id="section-shops" style="display:none">
+<div class="row" id="shops">
+  <div class="col-md-5">
+    <div class="card mb-4">
+      <div class="card-header bg-success text-white">
+        <h5 class="mb-0"><i class="bi bi-shop"></i> Add Shop</h5>
+      </div>
+      <div class="card-body">
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="add_shop">
+          <div class="mb-3">
+            <label class="form-label">Shop Name *</label>
+            <input type="text" name="name" class="form-control" placeholder="e.g. New Shop" required>
+          </div>
+          <button type="submit" class="btn btn-success w-100">
+            <i class="bi bi-plus-circle"></i> Add Shop
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <div class="card mb-4">
+      <div class="card-header bg-danger text-white">
+        <h5 class="mb-0"><i class="bi bi-trash"></i> Remove Shop</h5>
+      </div>
+      <div class="card-body">
+        <form method="post" data-confirm data-confirm-type="danger" data-confirm-title="Delete Shop?" data-confirm-message="Are you sure you want to delete this shop?" data-confirm-text="Yes, Delete">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="delete_shop">
+          <div class="mb-3">
+            <label class="form-label">Select Shop *</label>
+            <select name="shop_id" class="form-select" required>
+              <option value="">-- Choose a shop --</option>
+              {% for shop in all_shops %}
+              <option value="{{ shop.id }}">{{ shop.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <button type="submit" class="btn btn-danger w-100">
+            <i class="bi bi-x-circle"></i> Delete Shop
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-7">
+    <div class="card">
+      <div class="card-header bg-dark text-white">
+        <h5 class="mb-0"><i class="bi bi-shop"></i> All Shops</h5>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+          <table class="table table-hover mb-0">
+            <thead class="table-light sticky-top">
+              <tr>
+                <th>#</th>
+                <th>Shop Name</th>
+                <th>Assigned People</th>
+                <th>Sales Person</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for shop in all_shops %}
+              <tr>
+                <td>{{ forloop.counter }}</td>
+                <td><strong>{{ shop.name }}</strong></td>
+                <td>{{ shop.assigned_users.count }}</td>
+                <td>
+                  {% with users=shop.assigned_users.all %}
+                  {% if users %}
+                  {% for u in users %}{{ u.user.get_full_name|default:u.user.username }}{% if not forloop.last %}, {% endif %}{% endfor %}
+                  {% else %}
+                  <span class="text-muted">—</span>
+                  {% endif %}
+                  {% endwith %}
+                </td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="4" class="text-center text-muted py-3">No shops created yet</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<div class="settings-section" id="section-salesmen" style="display:none">
+<div class="row" id="salesmen">
+  <div class="col-md-5">
+    <div class="card mb-4">
+      <div class="card-header bg-info text-white">
+        <h5 class="mb-0"><i class="bi bi-person-plus"></i> Add Salesman</h5>
+      </div>
+      <div class="card-body">
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="add_user">
+          <div class="mb-3">
+            <label class="form-label">Username *</label>
+            <input type="text" name="username" class="form-control" placeholder="e.g. johndoe" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Email</label>
+            <input type="email" name="email" class="form-control" placeholder="e.g. john@example.com">
+          </div>
+          <div class="row mb-3">
+            <div class="col-6">
+              <label class="form-label">First Name</label>
+              <input type="text" name="first_name" class="form-control" placeholder="John">
+            </div>
+            <div class="col-6">
+              <label class="form-label">Last Name</label>
+              <input type="text" name="last_name" class="form-control" placeholder="Doe">
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Password *</label>
+            <input type="password" name="password" class="form-control" placeholder="Enter password" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Role</label>
+            <select name="role" class="form-select">
+              <option value="shop_user">Shop User</option>
+              <option value="admin">Admin (All Shops)</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Assigned Shop</label>
+            <select name="shop_id" class="form-select">
+              <option value="">-- No shop (admin) --</option>
+              {% for shop in all_shops %}
+              <option value="{{ shop.id }}">{{ shop.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <button type="submit" class="btn btn-info w-100 text-white">
+            <i class="bi bi-person-plus"></i> Add Salesman
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-7">
+    <div class="card" style="margin-bottom: 1px;">
+      <div class="card-header bg-dark text-white">
+        <h5 class="mb-0"><i class="bi bi-people"></i> All Salesmen</h5>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+          <table class="table table-hover mb-0">
+            <thead class="table-light sticky-top">
+              <tr>
+                <th>#</th>
+                <th>Username</th>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Shop</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for u in users %}
+              <tr>
+                <td>{{ forloop.counter }}</td>
+                <td><strong>{{ u.username }}</strong></td>
+                <td>{{ u.get_full_name|default:"-" }}</td>
+                <td>{{ u.email|default:"-" }}</td>
+                <td>
+                  {% if u.profile.is_admin %}
+                  <span class="badge bg-warning text-dark">Admin</span>
+                  {% else %}
+                  <span class="badge bg-info text-white">Shop User</span>
+                  {% endif %}
+                </td>
+                <td>{{ u.profile.assigned_shop.name|default:"All Shops" }}</td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="6" class="text-center text-muted py-3">No users created yet</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom: 1px;">
+      <div class="card-header bg-warning text-dark">
+        <h5 class="mb-0"><i class="bi bi-key"></i> Reset Password</h5>
+      </div>
+      <div class="card-body">
+        <form method="post" data-confirm data-confirm-type="warning" data-confirm-title="Reset Password?" data-confirm-message="This will change the user's password immediately." data-confirm-text="Yes, Reset">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="reset_password">
+          <div class="mb-3">
+            <label class="form-label">Select User *</label>
+            <select name="user_id" class="form-select" required>
+              <option value="">-- Choose a user --</option>
+              {% for u in users %}
+              <option value="{{ u.id }}">{{ u.get_full_name|default:u.username }} ({{ u.username }})</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">New Password *</label>
+            <input type="text" name="new_password" class="form-control" placeholder="Enter new password" required minlength="4">
+          </div>
+          <button type="submit" class="btn btn-warning w-100 text-dark">
+            <i class="bi bi-key"></i> Reset Password
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom: 0;">
+      <div class="card-header bg-danger text-white">
+        <h5 class="mb-0"><i class="bi bi-person-x"></i> Remove Salesman</h5>
+      </div>
+      <div class="card-body">
+        <form method="post" data-confirm data-confirm-type="danger" data-confirm-title="Delete User?" data-confirm-message="Are you sure you want to delete this user?" data-confirm-text="Yes, Delete">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="delete_user">
+          <div class="mb-3">
+            <label class="form-label">Select User *</label>
+            <select name="user_id" class="form-select" required>
+              <option value="">-- Choose a user --</option>
+              {% for u in users %}
+              <option value="{{ u.id }}">{{ u.get_full_name|default:u.username }} ({{ u.username }})</option>
+              {% endfor %}
+            </select>
+          </div>
+          <button type="submit" class="btn btn-danger w-100">
+            <i class="bi bi-person-x"></i> Delete User
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<div class="settings-save-bar" id="settingsSaveBar">
+    <div class="d-flex justify-content-between align-items-center">
+        <small class="text-muted">Fill in the fields above and click Save to apply</small>
+        <button type="button" class="btn btn-success btn-lg px-5" id="saveAllBtn" onclick="saveAllSettings()">
+            <i class="bi bi-check-lg"></i> Save Changes
+        </button>
+    </div>
+</div>
+
+<style>
+.settings-save-bar {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: white; border-top: 2px solid #2ecc71;
+    padding: 12px 24px; z-index: 9999;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.1);
+    margin-left: 16.666%;
+}
+@media (max-width: 768px) {
+    .settings-save-bar { margin-left: 0; }
+}
+</style>
+
+<script>
+function showSection(name) {
+    document.querySelectorAll('.settings-section').forEach(function(s) { s.style.display = 'none'; });
+    document.getElementById('section-' + name).style.display = '';
+    document.querySelectorAll('.d-flex.gap-2.mb-4 button').forEach(function(b) {
+        b.className = b.className.replace('btn-primary', 'btn-outline-primary').replace('btn-outline-primary', 'btn-outline-primary');
+    });
+    var btn = document.getElementById('tab' + name.charAt(0).toUpperCase() + name.slice(1));
+    btn.className = btn.className.replace('btn-outline-primary', 'btn-primary');
+}
+function saveAllSettings() {
+    const forms = document.querySelectorAll('#settingsPage .settings-section:not([style*="display: none"]) form');
+    let hasChanges = false;
+    forms.forEach(function(form) {
+        const inputs = form.querySelectorAll('input:not([type=hidden]), select, textarea');
+        let formHasData = false;
+        inputs.forEach(function(input) {
+            if (input.value.trim()) {
+                formHasData = true;
+                hasChanges = true;
+            }
+        });
+        if (formHasData) {
+            form.querySelector('button[type="submit"]').click();
+        }
+    });
+    if (!hasChanges) {
+        alert('No changes to save.');
+    }
+}
+</script>
 {% endblock %}

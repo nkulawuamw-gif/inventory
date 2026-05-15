@@ -3,14 +3,14 @@ import string
 import random
 from django.shortcuts import render, get_object_or_404, redirect
 from django.http import JsonResponse
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required  # keep for reference, but all views use shop_access_required now
 from django.contrib.auth.models import User
 from django.db.models import Q, Max
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from datetime import timedelta
 from .models import UserPresence, Message, Call, Meeting, MeetingParticipant
-from .middleware import get_user_profile
+from .middleware import get_user_profile, shop_access_required
 
 
 @csrf_exempt
@@ -30,7 +30,7 @@ def mark_offline(request):
     return JsonResponse({'status': 'ok'})
 
 
-@login_required
+@shop_access_required
 def get_online_users(request):
     threshold = timezone.now() - timedelta(seconds=30)
     online_users = UserPresence.objects.filter(
@@ -56,7 +56,7 @@ def get_online_users(request):
     return JsonResponse({'users': users})
 
 
-@login_required
+@shop_access_required
 def messages_view(request):
     conversations = Message.objects.filter(
         Q(receiver=request.user) | Q(sender=request.user)
@@ -92,7 +92,8 @@ def messages_view(request):
                 'last_message_at': None,
             }
 
-    sorted_contacts = sorted(contacts.values(), key=lambda x: x['last_message_at'] or timezone.datetime.min, reverse=True)
+    aware_min = timezone.make_aware(timezone.datetime.min, timezone.utc)
+    sorted_contacts = sorted(contacts.values(), key=lambda x: x['last_message_at'] or aware_min, reverse=True)
 
     selected_user_id = request.GET.get('user', '')
     messages = []
@@ -116,7 +117,7 @@ def messages_view(request):
     })
 
 
-@login_required
+@shop_access_required
 def send_message(request):
     if request.method == 'POST':
         data = json.loads(request.body)
@@ -131,7 +132,7 @@ def send_message(request):
     return JsonResponse({'status': 'error'}, status=400)
 
 
-@login_required
+@shop_access_required
 def get_messages(request, user_id):
     other_user = get_object_or_404(User, id=user_id)
     messages = Message.objects.filter(
@@ -161,13 +162,13 @@ def get_messages(request, user_id):
     return JsonResponse({'messages': msg_list})
 
 
-@login_required
+@shop_access_required
 def get_unread_count(request):
     count = Message.objects.filter(receiver=request.user, is_read=False).count()
     return JsonResponse({'unread': count})
 
 
-@login_required
+@shop_access_required
 def calls_view(request):
     calls = Call.objects.filter(
         Q(caller=request.user) | Q(callee=request.user)
@@ -182,7 +183,7 @@ def calls_view(request):
     })
 
 
-@login_required
+@shop_access_required
 def initiate_call(request):
     if request.method == 'POST':
         data = json.loads(request.body)
@@ -205,7 +206,7 @@ def initiate_call(request):
     return JsonResponse({'status': 'error'}, status=400)
 
 
-@login_required
+@shop_access_required
 def call_room(request, call_id):
     call = get_object_or_404(Call, id=call_id)
 
@@ -223,7 +224,7 @@ def call_room(request, call_id):
     })
 
 
-@login_required
+@shop_access_required
 def end_call(request, call_id):
     call = get_object_or_404(Call, id=call_id)
     if call.caller == request.user or call.callee == request.user:
@@ -233,7 +234,7 @@ def end_call(request, call_id):
     return JsonResponse({'status': 'ended'})
 
 
-@login_required
+@shop_access_required
 def call_signal(request, call_id):
     call = get_object_or_404(Call, id=call_id)
 
@@ -248,7 +249,7 @@ def call_signal(request, call_id):
     return JsonResponse({'signaling': call.signaling_data})
 
 
-@login_required
+@shop_access_required
 def meetings_view(request):
     meetings = Meeting.objects.filter(is_active=True).select_related('host').order_by('-started_at')
     past_meetings = Meeting.objects.filter(is_active=False).select_related('host').order_by('-started_at')[:10]
@@ -260,7 +261,7 @@ def meetings_view(request):
     })
 
 
-@login_required
+@shop_access_required
 def create_meeting(request):
     if request.method == 'POST':
         name = request.POST.get('name', 'Meeting').strip()
@@ -284,7 +285,7 @@ def create_meeting(request):
     return redirect('meetings')
 
 
-@login_required
+@shop_access_required
 def join_meeting(request, meeting_code):
     meeting = get_object_or_404(Meeting, meeting_code=meeting_code, is_active=True)
 
@@ -293,7 +294,7 @@ def join_meeting(request, meeting_code):
     return redirect('meeting_room', meeting_code=meeting_code)
 
 
-@login_required
+@shop_access_required
 def meeting_room(request, meeting_code):
     meeting = get_object_or_404(Meeting, meeting_code=meeting_code)
     participants = MeetingParticipant.objects.filter(meeting=meeting).select_related('user')
@@ -305,7 +306,7 @@ def meeting_room(request, meeting_code):
     })
 
 
-@login_required
+@shop_access_required
 def leave_meeting(request, meeting_code):
     meeting = get_object_or_404(Meeting, meeting_code=meeting_code)
     participant = MeetingParticipant.objects.filter(meeting=meeting, user=request.user).first()
@@ -323,7 +324,7 @@ def leave_meeting(request, meeting_code):
     return redirect('meetings')
 
 
-@login_required
+@shop_access_required
 def meeting_signal(request, meeting_code):
     meeting = get_object_or_404(Meeting, meeting_code=meeting_code)
 

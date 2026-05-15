@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.core.cache import cache
 from django.utils import timezone
 
 
@@ -271,4 +272,82 @@ class ReceiptItem(models.Model):
 
     def __str__(self):
         return f"{self.item_name} x{self.quantity}"
+
+
+class CompanyProfile(models.Model):
+    company_name = models.CharField(max_length=200, default='My Store')
+    address = models.TextField(blank=True, default='')
+    phone = models.CharField(max_length=50, blank=True, default='')
+    email = models.EmailField(blank=True, default='')
+    tax_id = models.CharField(max_length=100, blank=True, default='')
+    receipt_footer = models.CharField(max_length=300, blank=True, default='Thank you for your business!')
+
+    class Meta:
+        verbose_name = 'Company Profile'
+        verbose_name_plural = 'Company Profile'
+
+    def __str__(self):
+        return self.company_name
+
+    @classmethod
+    def get_profile(cls):
+        obj = cache.get('company_profile')
+        if obj is None:
+            obj = cls.objects.first()
+            if obj is None:
+                obj = cls.objects.create()
+            cache.set('company_profile', obj, 3600)
+        return obj
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        cache.delete('company_profile')
+
+
+class WhatsAppSetting(models.Model):
+    phone_number = models.CharField(max_length=20, blank=True, default='')
+    business_name = models.CharField(max_length=200, blank=True, default='My Business')
+    webhook_secret = models.CharField(max_length=100, blank=True, default='')
+    api_key = models.TextField(blank=True, default='')
+    greeting_message = models.TextField(blank=True, default='Hello! Welcome to our store. How can we assist you today?')
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name = 'WhatsApp Setting'
+        verbose_name_plural = 'WhatsApp Settings'
+
+    def __str__(self):
+        return f'WhatsApp - {self.phone_number or "Not configured"}'
+
+    @classmethod
+    def get_profile(cls):
+        obj = cache.get('whatsapp_setting')
+        if obj is None:
+            obj = cls.objects.first()
+            if obj is None:
+                obj = cls.objects.create()
+            cache.set('whatsapp_setting', obj, 3600)
+        return obj
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        cache.delete('whatsapp_setting')
+
+
+class WhatsAppMessage(models.Model):
+    customer_number = models.CharField(max_length=20, db_index=True)
+    customer_name = models.CharField(max_length=200, blank=True, default='')
+    wa_message_id = models.CharField(max_length=255, blank=True, null=True, unique=True)
+    body = models.TextField()
+    is_from_customer = models.BooleanField(default=True)
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    replied_to = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        who = self.customer_name or self.customer_number
+        return f'{who}: {self.body[:50]}'
 

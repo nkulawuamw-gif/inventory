@@ -212,29 +212,29 @@
 <style>
 .pos-shop-items { display: flex; gap: 16px; }
 .pos-shop-grid { flex: 1; }
-.pos-shop-cart { width: 360px; flex-shrink: 0; background: white; border-radius: 16px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); display: flex; flex-direction: column; }
-@media (max-width: 900px) { .pos-shop-items { flex-direction: column; } .pos-shop-cart { width: 100%; } }
+.pos-shop-cart { width: 440px; flex-shrink: 0; background: white; border-radius: 16px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); display: flex; flex-direction: column; }
+@media (max-width: 1100px) { .pos-shop-items { flex-direction: column; } .pos-shop-cart { width: 100%; } }
 .item-shop-table { width: 100%; border-collapse: collapse; background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.08); }
-.item-shop-table thead th { background: #f8f9fa; padding: 10px 12px; font-size: 0.8rem; text-transform: uppercase; color: #666; border-bottom: 2px solid #dee2e6; text-align: left; }
+.item-shop-table thead th { background: #f8f9fa; padding: 12px 14px; font-size: 0.85rem; text-transform: uppercase; color: #666; border-bottom: 2px solid #dee2e6; text-align: left; }
 .item-shop-table tbody tr { cursor: pointer; transition: background 0.1s; }
 .item-shop-table tbody tr:hover { background: #f0f4ff; }
 .item-shop-table tbody tr:active { background: #e8eeff; }
 .item-shop-table tbody tr.low-stock { background: #fff5f5; }
-.item-shop-table tbody td { padding: 8px 12px; border-bottom: 1px solid #f1f3f5; font-size: 0.85rem; }
-.item-shop-table tbody td .num { display: inline-block; width: 24px; height: 24px; line-height: 24px; text-align: center; border-radius: 6px; background: #667eea; color: white; font-weight: 700; font-size: 0.75rem; }
+.item-shop-table tbody td { padding: 10px 14px; border-bottom: 1px solid #f1f3f5; font-size: 0.9rem; }
+.item-shop-table tbody td .num { display: inline-block; width: 28px; height: 28px; line-height: 28px; text-align: center; border-radius: 6px; background: #667eea; color: white; font-weight: 700; font-size: 0.8rem; }
 .item-shop-table tbody td .iname { font-weight: 600; color: #333; }
-.csh-header { background: linear-gradient(135deg, #2c3e50, #34495e); color: white; padding: 14px 16px; border-radius: 16px 16px 0 0; }
-.csh-items { flex: 1; max-height: 240px; overflow-y: auto; }
-.csh-item { display: flex; align-items: center; gap: 8px; padding: 6px 16px; border-bottom: 1px solid #f1f3f5; font-size: 0.85rem; }
-.csh-item .qty-btns { display: flex; align-items: center; gap: 4px; }
-.csh-item .qty-btns button { width: 24px; height: 24px; border-radius: 6px; border: 1px solid #dee2e6; background: white; font-weight: 700; font-size: 0.8rem; cursor: pointer; line-height: 1; }
+.csh-header { background: linear-gradient(135deg, #2c3e50, #34495e); color: white; padding: 16px 20px; border-radius: 16px 16px 0 0; font-size: 1.05rem; }
+.csh-items { flex: 1; max-height: 300px; overflow-y: auto; }
+.csh-item { display: flex; align-items: center; gap: 10px; padding: 8px 20px; border-bottom: 1px solid #f1f3f5; font-size: 0.95rem; }
+.csh-item .qty-btns { display: flex; align-items: center; gap: 6px; }
+.csh-item .qty-btns button { width: 28px; height: 28px; border-radius: 6px; border: 1px solid #dee2e6; background: white; font-weight: 700; font-size: 0.9rem; cursor: pointer; line-height: 1; }
 .csh-item .qty-btns button:hover { background: #f1f3f5; }
-.csh-item .rm { margin-left: auto; background: none; border: none; color: #e74c3c; cursor: pointer; font-size: 1rem; }
-.csh-foot { padding: 12px 16px; background: #f8f9fa; border-radius: 0 0 16px 16px; }
-.csh-foot .r { display: flex; justify-content: space-between; padding: 2px 0; font-size: 0.9rem; }
-.csh-foot .r.t { font-size: 1.1rem; font-weight: 700; border-top: 2px solid #dee2e6; padding-top: 6px; margin-top: 2px; }
-.csh-foot input[type="number"] { width: 100%; padding: 6px 10px; border: 2px solid #dee2e6; border-radius: 8px; font-size: 0.9rem; text-align: right; font-weight: 600; }
-.csh-foot .go-btn { width: 100%; padding: 10px; border: none; border-radius: 10px; font-size: 1rem; font-weight: 700; cursor: pointer; background: linear-gradient(135deg, #2ecc71, #27ae60); color: white; }
+.csh-item .rm { margin-left: auto; background: none; border: none; color: #e74c3c; cursor: pointer; font-size: 1.1rem; }
+.csh-foot { padding: 14px 20px; background: #f8f9fa; border-radius: 0 0 16px 16px; }
+.csh-foot .r { display: flex; justify-content: space-between; padding: 4px 0; font-size: 0.95rem; }
+.csh-foot .r.t { font-size: 1.2rem; font-weight: 700; border-top: 2px solid #dee2e6; padding-top: 8px; margin-top: 4px; }
+.csh-foot input[type="number"] { width: 100%; padding: 8px 12px; border: 2px solid #dee2e6; border-radius: 8px; font-size: 1rem; text-align: right; font-weight: 600; }
+.csh-foot .go-btn { width: 100%; padding: 12px; border: none; border-radius: 10px; font-size: 1.05rem; font-weight: 700; cursor: pointer; background: linear-gradient(135deg, #2ecc71, #27ae60); color: white; }
 .csh-foot .go-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .csh-foot .go-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 4px 15px rgba(46,204,113,0.3); }
 </style>
@@ -342,23 +342,30 @@ function filterShopItems(v) {
     document.querySelectorAll('#shopItemTable tbody tr').forEach(el => el.style.display = el.dataset.name.includes(q)?'':'none');
 }
 async function shopCompleteSale() {
-    if (!shopCart.length) return;
-    let r = parseFloat(document.getElementById('shopAmountReceived').value)||0;
-    let t = shopCart.reduce((s,x)=>s+x.price*x.qty,0);
-    if (r<t) { alert(`Received MWK ${r.toFixed(2)} is less than total MWK ${t.toFixed(2)}`); return; }
-    let btn = document.getElementById('shopCompleteBtn'); btn.disabled = true; btn.textContent = 'Processing...';
     try {
+        if (!shopCart.length) return;
+        let r = parseFloat(document.getElementById('shopAmountReceived').value)||0;
+        let t = shopCart.reduce((s,x)=>s+x.price*x.qty,0);
+        if (r<t) { alert(`Received MWK ${r.toFixed(2)} is less than total MWK ${t.toFixed(2)}`); return; }
+        let btn = document.getElementById('shopCompleteBtn'); btn.disabled = true; btn.textContent = 'Processing...';
+        let ac = new AbortController();
+        setTimeout(() => ac.abort(), 30000);
         let resp = await fetch('{% url "point_of_sale" shop.name|slugify %}', {
-            method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken':document.querySelector('[name=csrfmiddlewaretoken]').value},
+            method:'POST', signal:ac.signal,
+            headers:{'Content-Type':'application/json','X-CSRFToken':document.querySelector('[name=csrfmiddlewaretoken]')?.value||''},
             body: JSON.stringify({action:'complete_sale', items: shopCart.map(x=>({item_id:x.id,quantity:x.qty})), customer_name: document.getElementById('shopCustomerName').value, amount_received: r})
         });
+        if (!resp.ok) {
+            let text = await resp.text();
+            let msg = 'Sale failed';
+            try { msg = JSON.parse(text).error || msg; } catch(e2) { msg = text || msg; }
+            alert(msg); btn.disabled=false; btn.innerHTML='<i class="bi bi-check-lg"></i> Complete Sale'; return;
+        }
         let data = await resp.json();
-        if (resp.ok) {
-            document.getElementById('shopReceiptNum').textContent = data.receipt_number;
-            document.getElementById('shopPrintReceipt').href = `/receipt/${data.receipt_id}/print/`;
-            document.getElementById('shopReceiptOverlay').classList.add('active');
-        } else { alert(data.error||'Sale failed'); btn.disabled=false; btn.innerHTML='<i class="bi bi-check-lg"></i> Complete Sale'; }
-    } catch(e) { alert('Error'); btn.disabled=false; btn.innerHTML='<i class="bi bi-check-lg"></i> Complete Sale'; }
+        document.getElementById('shopReceiptNum').textContent = data.receipt_number;
+        document.getElementById('shopPrintReceipt').href = `/receipt/${data.receipt_id}/print/`;
+        document.getElementById('shopReceiptOverlay').classList.add('active');
+    } catch(e) { alert('Error: '+e.message); btn.disabled=false; btn.innerHTML='<i class="bi bi-check-lg"></i> Complete Sale'; }
 }
 function shopNewSale() {
     shopCart = []; document.getElementById('shopReceiptOverlay').classList.remove('active');
