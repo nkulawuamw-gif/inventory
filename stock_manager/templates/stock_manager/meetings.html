@@ -1,0 +1,140 @@
+{% extends 'stock_manager/base.html' %}
+
+{% block content %}
+<h2 class="mb-4">{{ page_title }}</h2>
+
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="table-container">
+            <h5 class="mb-3"><i class="bi bi-plus-circle text-primary"></i> New Meeting</h5>
+            <form method="POST" action="{% url 'create_meeting' %}">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label class="form-label">Meeting Name</label>
+                    <input type="text" name="name" class="form-control" placeholder="Team Standup" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Type</label>
+                    <select name="meeting_type" class="form-select">
+                        <option value="video">Video Meeting</option>
+                        <option value="voice">Voice Only</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Description</label>
+                    <textarea name="description" class="form-control" rows="2" placeholder="Optional description"></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-camera-video"></i> Start Meeting
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="table-container">
+            <h5 class="mb-3"><i class="bi bi-box-arrow-in-right text-success"></i> Join Meeting</h5>
+            <form id="join-form" onsubmit="joinMeeting(event)">
+                <div class="mb-3">
+                    <label class="form-label">Meeting Code</label>
+                    <input type="text" id="meeting-code" class="form-control text-center fs-4" placeholder="ABC123" maxlength="6" required>
+                </div>
+                <button type="submit" class="btn btn-success w-100">
+                    <i class="bi bi-door-open"></i> Join Meeting
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="table-container">
+            <h5 class="mb-3"><i class="bi bi-people text-info"></i> Online Users</h5>
+            <div id="online-users" class="list-group">
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="table-container">
+            <h5 class="mb-3"><i class="bi bi-broadcast text-primary"></i> Active Meetings</h5>
+            {% for meeting in active_meetings %}
+            <div class="card mb-2">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-1">{{ meeting.name }}</h6>
+                            <small class="text-muted">
+                                Code: <strong>{{ meeting.meeting_code }}</strong> |
+                                Host: {{ meeting.host.get_full_name|default:meeting.host.username }} |
+                                Type: {{ meeting.get_meeting_type_display }}
+                            </small>
+                        </div>
+                        <div>
+                            {% if meeting.participants.count > 0 %}
+                            <span class="badge bg-success me-2">{{ meeting.participants.count }} online</span>
+                            {% endif %}
+                            <a href="{% url 'join_meeting' meeting.meeting_code %}" class="btn btn-sm btn-success">
+                                <i class="bi bi-box-arrow-in-right"></i> Join
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="text-muted text-center py-3">No active meetings</div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="table-container">
+            <h5 class="mb-3"><i class="bi bi-clock-history text-secondary"></i> Past Meetings</h5>
+            {% for meeting in past_meetings %}
+            <div class="d-flex justify-content-between align-items-center p-2 border-bottom">
+                <div>
+                    <strong>{{ meeting.name }}</strong>
+                    <small class="text-muted ms-2">{{ meeting.started_at|timesince }} ago</small>
+                </div>
+                <span class="badge bg-secondary">Ended</span>
+            </div>
+            {% empty %}
+            <div class="text-muted text-center py-3">No past meetings</div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<script>
+function joinMeeting(e) {
+    e.preventDefault();
+    const code = document.getElementById('meeting-code').value.toUpperCase();
+    window.location.href = `/meetings/join/${code}/`;
+}
+
+function loadOnlineUsers() {
+    fetch('{% url "online_users" %}')
+        .then(r => r.json())
+        .then(data => {
+            const container = document.getElementById('online-users');
+            container.innerHTML = '';
+            data.users.forEach(user => {
+                const item = document.createElement('div');
+                item.className = 'list-group-item d-flex justify-content-between align-items-center';
+                item.innerHTML = `
+                    <div>
+                        <span class="badge bg-success me-2">●</span>
+                        <strong>${user.username}</strong>
+                        <small class="text-muted ms-2">${user.shop}</small>
+                    </div>
+                `;
+                container.appendChild(item);
+            });
+        });
+}
+
+loadOnlineUsers();
+setInterval(loadOnlineUsers, 5000);
+</script>
+{% endblock %}

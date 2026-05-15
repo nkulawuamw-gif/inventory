@@ -1,0 +1,79 @@
+{% extends 'stock_manager/base.html' %}
+
+{% block content %}
+<h2 class="mb-4"><i class="bi bi-cart3"></i> Point of Sale - {{ shop.name }}</h2>
+
+{% for message in messages %}
+<div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+    {{ message }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endfor %}
+
+<div class="row">
+    <div class="col-md-5">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="bi bi-cash-register"></i> Record Sale</h5>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="record_sale">
+                    <div class="mb-3">
+                        <label class="form-label">Select Item</label>
+                        <select name="item_id" class="form-select" required>
+                            <option value="">-- Select Item --</option>
+                            {% for item in items %}
+                            <option value="{{ item.id }}">{{ item.name }} - Qty: {{ item.quantity }} - MWK {{ item.unit_price }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Quantity</label>
+                        <input type="number" name="quantity_sold" class="form-control" min="1" required>
+                    </div>
+                    <button type="submit" class="btn btn-success w-100"><i class="bi bi-cart-check"></i> Complete Sale</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-7">
+        <div class="card">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-receipt"></i> Today's Sales</h5>
+                <span class="badge bg-light text-dark fs-6">MWK {{ today_total|floatformat:2 }}</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead class="table-light sticky-top">
+                            <tr>
+                                <th>Select Item</th>
+                                <th class="text-end">Cost per Unit</th>
+                                <th class="text-center">Quantity Sold</th>
+                                <th class="text-end">Total Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for sale in shop_sales %}
+                            <tr>
+                                <td><strong>{{ sale.item.name }}</strong></td>
+                                <td class="text-end">MWK {{ sale.item.unit_price|floatformat:2 }}</td>
+                                <td class="text-center">{{ sale.quantity_sold }}</td>
+                                <td class="text-end">MWK {{ sale.total_amount|floatformat:2 }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="text-center text-muted py-3">No sales recorded yet</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

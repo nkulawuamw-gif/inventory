@@ -1,0 +1,106 @@
+{% extends 'stock_manager/base.html' %}
+
+{% block content %}
+<h2 class="mb-4">{{ page_title }}</h2>
+
+{% if incoming_ringing %}
+<div class="alert alert-info d-flex justify-content-between align-items-center">
+    <div>
+        <i class="bi bi-telephone-ringing"></i> Incoming call from <strong>{{ incoming_ringing.0.caller.get_full_name|default:incoming_ringing.0.caller.username }}</strong>
+    </div>
+    <a href="{% url 'call_room' incoming_ringing.0.id %}" class="btn btn-success">
+        <i class="bi bi-telephone"></i> Answer
+    </a>
+</div>
+{% endif %}
+
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="table-container">
+            <h5 class="mb-3"><i class="bi bi-telephone-outbound text-primary"></i> Start a Call</h5>
+            <div id="user-list" class="list-group">
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="table-container">
+            <h5 class="mb-3"><i class="bi bi-clock-history text-secondary"></i> Recent Calls</h5>
+            {% for call in calls %}
+            <div class="d-flex justify-content-between align-items-center p-2 border-bottom">
+                <div>
+                    {% if call.caller.id == request.user.id %}
+                    <i class="bi bi-telephone-outbound text-primary"></i>
+                    You called <strong>{{ call.callee.get_full_name|default:call.callee.username }}</strong>
+                    {% else %}
+                    <i class="bi bi-telephone-inbound text-success"></i>
+                    <strong>{{ call.caller.get_full_name|default:call.caller.username }}</strong> called you
+                    {% endif %}
+                </div>
+                <div>
+                    <span class="badge bg-{% if call.status == 'ended' %}secondary{% elif call.status == 'missed' %}danger{% elif call.status == 'accepted' %}success{% else %}warning{% endif %}">
+                        {{ call.get_status_display }}
+                    </span>
+                    <span class="badge bg-info">{{ call.get_call_type_display }}</span>
+                    <small class="text-muted ms-2">{{ call.started_at|timesince }} ago</small>
+                </div>
+            </div>
+            {% empty %}
+            <div class="text-muted text-center py-3">No calls yet</div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<script>
+function loadUsers() {
+    fetch('{% url "online_users" %}')
+        .then(r => r.json())
+        .then(data => {
+            const list = document.getElementById('user-list');
+            list.innerHTML = '';
+            data.users.forEach(user => {
+                if (user.id !== {{ request.user.id }}) {
+                    const item = document.createElement('div');
+                    item.className = 'list-group-item d-flex justify-content-between align-items-center';
+                    item.innerHTML = `
+                        <div>
+                            <span class="badge bg-success me-2">●</span>
+                            <strong>${user.username}</strong>
+                            <small class="text-muted ms-2">${user.shop}</small>
+                        </div>
+                        <div>
+                            <button class="btn btn-sm btn-outline-primary me-1" onclick="startCall(${user.id}, 'voice')">
+                                <i class="bi bi-telephone"></i> Voice
+                            </button>
+                            <button class="btn btn-sm btn-outline-success" onclick="startCall(${user.id}, 'video')">
+                                <i class="bi bi-camera-video"></i> Video
+                            </button>
+                        </div>
+                    `;
+                    list.appendChild(item);
+                }
+            });
+        });
+}
+
+function startCall(userId, type) {
+    fetch('{% url "initiate_call" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken(),
+        },
+        body: JSON.stringify({ callee_id: userId, call_type: type }),
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.status === 'initiated') {
+            window.location.href = `/calls/${data.call_id}/`;
+        }
+    });
+}
+
+loadUsers();
+setInterval(loadUsers, 5000);
+</script>
+{% endblock %}

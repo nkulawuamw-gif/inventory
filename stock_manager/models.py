@@ -1,0 +1,244 @@
+from django.db import models
+from django.contrib.auth.models import User
+from django.utils import timezone
+
+
+class Shop(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+
+    class Meta:
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name
+
+
+class UserProfile(models.Model):
+    ROLE_CHOICES = [
+        ('admin', 'Admin (All Shops)'),
+        ('shop_user', 'Shop User (Single Shop)'),
+    ]
+
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='shop_user')
+    assigned_shop = models.ForeignKey(Shop, on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_users')
+
+    class Meta:
+        verbose_name = 'User Profile'
+
+    def __str__(self):
+        return f"{self.user.username} ({self.get_role_display()})"
+
+    @property
+    def is_admin(self):
+        return self.role == 'admin'
+
+    @property
+    def assigned_shop_name(self):
+        return self.assigned_shop.name if self.assigned_shop else 'All Shops'
+
+
+class Item(models.Model):
+    name = models.CharField(max_length=200)
+    category = models.CharField(max_length=100, blank=True, default='')
+    shop = models.ForeignKey(Shop, on_delete=models.CASCADE, related_name='items')
+    quantity = models.IntegerField(default=0)
+    unit_price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['name']
+        indexes = [
+            models.Index(fields=['name']),
+        ]
+
+    def __str__(self):
+        return f"{self.name} - {self.shop.name}"
+
+    @property
+    def total_value(self):
+        return self.quantity * self.unit_price
+
+    @property
+    def is_low_stock(self):
+        return self.quantity < 5
+
+
+class Sale(models.Model):
+    item = models.ForeignKey(Item, on_delete=models.CASCADE, related_name='sales')
+    quantity_sold = models.PositiveIntegerField()
+    unit_price = models.DecimalField(max_digits=10, decimal_places=2)
+    total_amount = models.DecimalField(max_digits=10, decimal_places=2)
+    sold_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ['-sold_at']
+
+    def __str__(self):
+        return f"{self.quantity_sold}x {self.item.name} @ {self.item.shop.name}"
+
+
+class StockTransaction(models.Model):
+    TRANSACTION_TYPES = [
+        ('transfer', 'Transfer'),
+        ('damaged', 'Damaged'),
+        ('lost', 'Lost/Stolen'),
+        ('returned', 'Returned to Supplier'),
+        ('expiry', 'Expired'),
+        ('other', 'Other'),
+    ]
+
+    item = models.ForeignKey(Item, on_delete=models.CASCADE, related_name='stock_transactions')
+    source_shop = models.ForeignKey(Shop, on_delete=models.SET_NULL, null=True, related_name='source_transactions')
+    target_shop = models.ForeignKey(Shop, on_delete=models.SET_NULL, null=True, blank=True, related_name='target_transactions')
+    quantity = models.IntegerField()
+    transaction_type = models.CharField(max_length=20, choices=TRANSACTION_TYPES)
+    reason = models.TextField(blank=True, default='')
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        source = self.source_shop.name if self.source_shop else 'N/A'
+        return f"{self.get_transaction_type_display()}: {self.quantity}x {self.item.name} from {source}"
+
+    def get_target_display(self):
+        if self.target_shop:
+            return f"to {self.target_shop.name}"
+        return ""
+
+
+class UserPresence(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='presences')
+    last_seen = models.DateTimeField(auto_now=True)
+    is_online = models.BooleanField(default=False)
+    current_shop = models.ForeignKey(Shop, on_delete=models.SET_NULL, null=True, blank=True)
+
+    class Meta:
+        ordering = ['-last_seen']
+
+    def __str__(self):
+        return f"{self.user.username} ({'online' if self.is_online else 'offline'})"
+
+
+class Message(models.Model):
+    sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sent_messages')
+    receiver = models.ForeignKey(User, on_delete=models.CASCADE, related_name='received_messages')
+    body = models.TextField()
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['created_at']
+
+    def __str__(self):
+        return f"From {self.sender.username} to {self.receiver.username}: {self.body[:50]}"
+
+
+class Call(models.Model):
+    CALL_TYPES = [
+        ('voice', 'Voice Call'),
+        ('video', 'Video Call'),
+    ]
+    CALL_STATUSES = [
+        ('ringing', 'Ringing'),
+        ('accepted', 'Accepted'),
+        ('ended', 'Ended'),
+        ('missed', 'Missed'),
+    ]
+
+    caller = models.ForeignKey(User, on_delete=models.CASCADE, related_name='initiated_calls')
+    callee = models.ForeignKey(User, on_delete=models.CASCADE, related_name='received_calls')
+    call_type = models.CharField(max_length=10, choices=CALL_TYPES, default='voice')
+    status = models.CharField(max_length=10, choices=CALL_STATUSES, default='ringing')
+    started_at = models.DateTimeField(auto_now_add=True)
+    ended_at = models.DateTimeField(null=True, blank=True)
+    signaling_data = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        ordering = ['-started_at']
+
+    def __str__(self):
+        return f"{self.caller.username} -> {self.callee.username} ({self.call_type})"
+
+
+class Meeting(models.Model):
+    host = models.ForeignKey(User, on_delete=models.CASCADE, related_name='hosted_meetings')
+    name = models.CharField(max_length=200)
+    meeting_code = models.CharField(max_length=10, unique=True)
+    meeting_type = models.CharField(max_length=10, default='video')
+    description = models.TextField(blank=True, default='')
+    started_at = models.DateTimeField(auto_now_add=True)
+    ended_at = models.DateTimeField(null=True, blank=True)
+    is_active = models.BooleanField(default=True)
+    signaling_data = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        ordering = ['-started_at']
+
+    def __str__(self):
+        return f"{self.name} ({self.meeting_code})"
+
+
+class MeetingParticipant(models.Model):
+    meeting = models.ForeignKey(Meeting, on_delete=models.CASCADE, related_name='participants')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='meetings_joined')
+    joined_at = models.DateTimeField(auto_now_add=True)
+    left_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['joined_at']
+        unique_together = ['meeting', 'user']
+
+    def __str__(self):
+        return f"{self.user.username} in {self.meeting.name}"
+
+
+class BusinessPeriod(models.Model):
+    PERIOD_TYPES = [
+        ('monthly', 'Monthly'),
+        ('quarterly', 'Quarterly'),
+        ('yearly', 'Yearly'),
+        ('custom', 'Custom'),
+    ]
+
+    name = models.CharField(max_length=200)
+    period_type = models.CharField(max_length=20, choices=PERIOD_TYPES, default='monthly')
+    start_date = models.DateField()
+    end_date = models.DateField()
+    is_closed = models.BooleanField(default=False)
+    closed_at = models.DateTimeField(null=True, blank=True)
+    closed_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='closed_periods')
+    notes = models.TextField(blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-start_date']
+        verbose_name = 'Business Period'
+        verbose_name_plural = 'Business Periods'
+
+    def __str__(self):
+        status = 'Closed' if self.is_closed else 'Open'
+        return f"{self.name} ({self.start_date} - {self.end_date}) [{status}]"
+
+
+class PeriodOpeningStock(models.Model):
+    period = models.ForeignKey(BusinessPeriod, on_delete=models.CASCADE, related_name='opening_stocks')
+    item_name = models.CharField(max_length=200)
+    category = models.CharField(max_length=100, blank=True, default='')
+    shop = models.ForeignKey(Shop, on_delete=models.CASCADE)
+    quantity = models.IntegerField(default=0)
+    unit_price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Period Opening Stock'
+        verbose_name_plural = 'Period Opening Stocks'
+        unique_together = ['period', 'item_name', 'shop']
+        ordering = ['item_name']
+
+    def __str__(self):
+        return f"{self.item_name} @ {self.shop.name} ({self.period.name})"
+

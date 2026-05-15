@@ -1,0 +1,196 @@
+{% extends 'stock_manager/base.html' %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card bg-dark text-white">
+                <div class="card-body text-center p-4">
+                    <h4 class="mb-4">
+                        <i class="bi bi-{% if call.call_type == 'video' %}camera-video{% else %}telephone{% endif %}"></i>
+                        {% if call.call_type == 'video' %}Video{% else %}Voice{% endif %} Call with
+                        <strong>{{ other_user.get_full_name|default:other_user.username }}</strong>
+                    </h4>
+
+                    {% if call.call_type == 'video' %}
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <video id="remote-video" autoplay playsinline class="w-100 rounded" style="max-height: 500px; background: #111;"></video>
+                        </div>
+                    </div>
+                    <div class="position-absolute" style="bottom: 100px; right: 20px;">
+                        <video id="local-video" autoplay playsinline muted class="rounded" style="width: 200px; background: #111;"></video>
+                    </div>
+                    {% else %}
+                    <div class="mb-4">
+                        <i class="bi bi-person-circle" style="font-size: 8rem;"></i>
+                        <h3 class="mt-3">{{ other_user.get_full_name|default:other_user.username }}</h3>
+                    </div>
+                    {% endif %}
+
+                    <div id="call-status" class="mb-4">
+                        <span class="badge bg-warning fs-6">Ringing...</span>
+                    </div>
+
+                    <div class="d-flex justify-content-center gap-3">
+                        <button id="mute-btn" class="btn btn-outline-light btn-lg" onclick="toggleMute()">
+                            <i class="bi bi-mic"></i> Mute
+                        </button>
+                        {% if call.call_type == 'video' %}
+                        <button id="camera-btn" class="btn btn-outline-light btn-lg" onclick="toggleCamera()">
+                            <i class="bi bi-camera-video"></i> Camera
+                        </button>
+                        {% endif %}
+                        <button id="end-btn" class="btn btn-danger btn-lg" onclick="endCall()">
+                            <i class="bi bi-telephone-x"></i> End Call
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const callId = {{ call.id }};
+let localStream = null;
+let peerConnection = null;
+let isMuted = false;
+let isCameraOff = false;
+
+const config = {
+    iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+    ]
+};
+
+async function startCall() {
+    try {
+        localStream = await navigator.mediaDevices.getUserMedia({
+            audio: true,
+            video: {% if call.call_type == 'video' %}true{% else %}false{% endif %}
+        });
+
+        if ({% if call.call_type == 'video' %}true{% else %}false{% endif %}) {
+            document.getElementById('local-video').srcObject = localStream;
+        }
+
+        peerConnection = new RTCPeerConnection(config);
+
+        localStream.getTracks().forEach(track => {
+            peerConnection.addTrack(track);
+        });
+
+        peerConnection.ontrack = (event) => {
+            const remoteVideo = document.getElementById('remote-video');
+            if (remoteVideo) {
+                remoteVideo.srcObject = event.streams[0];
+            }
+        };
+
+        peerConnection.onicecandidate = (event) => {
+            if (event.candidate) {
+                signalPeer('ice-candidate', {
+                    candidate: event.candidate.toJSON(),
+                });
+            }
+        };
+
+        const offer = await peerConnection.createOffer();
+        await peerConnection.setLocalDescription(offer);
+
+        signalPeer('offer', { sdp: offer });
+
+        document.getElementById('call-status').innerHTML = '<span class="badge bg-warning fs-6">Ringing...</span>';
+
+    } catch (err) {
+        console.error('Error starting call:', err);
+        document.getElementById('call-status').innerHTML = '<span class="badge bg-danger fs-6">Failed to start call</span>';
+    }
+}
+
+function signalPeer(type, data) {
+    fetch(`/calls/${callId}/signal/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken(),
+        },
+        body: JSON.stringify({ type, data }),
+    });
+}
+
+async function handleRemoteSignal() {
+    const response = await fetch(`/calls/${callId}/signal/`);
+    const data = await response.json();
+
+    const signaling = data.signaling;
+
+    if (signaling.offer && !peerConnection) {
+        await startCall();
+        if (signaling.offer.sdp) {
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(signaling.offer.sdp));
+            const answer = await peerConnection.createAnswer();
+            await peerConnection.setLocalDescription(answer);
+            signalPeer('answer', { sdp: answer });
+        }
+    }
+
+    if (signaling.answer && peerConnection.localDescription) {
+        if (signaling.answer.sdp) {
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(signaling.answer.sdp));
+            document.getElementById('call-status').innerHTML = '<span class="badge bg-success fs-6">Connected</span>';
+        }
+    }
+
+    if (signaling['ice-candidate'] && peerConnection) {
+        const candidateKey = Object.keys(signaling).find(k => k.startsWith('ice-candidate'));
+        if (candidateKey) {
+            const candidate = signaling[candidateKey];
+            if (candidate && candidate.candidate) {
+                try {
+                    await peerConnection.addIceCandidate(new RTCIceCandidate(candidate.candidate));
+                } catch (e) {
+                    console.log('ICE candidate error:', e);
+                }
+            }
+        }
+    }
+}
+
+function toggleMute() {
+    isMuted = !isMuted;
+    localStream.getAudioTracks().forEach(track => {
+        track.enabled = !isMuted;
+    });
+    const btn = document.getElementById('mute-btn');
+    btn.innerHTML = isMuted ? '<i class="bi bi-mic-mute"></i> Unmute' : '<i class="bi bi-mic"></i> Mute';
+    btn.classList.toggle('btn-danger', isMuted);
+}
+
+function toggleCamera() {
+    isCameraOff = !isCameraOff;
+    localStream.getVideoTracks().forEach(track => {
+        track.enabled = !isCameraOff;
+    });
+    const btn = document.getElementById('camera-btn');
+    btn.innerHTML = isCameraOff ? '<i class="bi bi-camera-video-off"></i> Camera On' : '<i class="bi bi-camera-video"></i> Camera';
+    btn.classList.toggle('btn-danger', isCameraOff);
+}
+
+function endCall() {
+    fetch(`/calls/${callId}/end/`, { method: 'POST', headers: { 'X-CSRFToken': getCSRFToken() } });
+    if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+    }
+    if (peerConnection) {
+        peerConnection.close();
+    }
+    window.location.href = '/calls/';
+}
+
+startCall();
+setInterval(handleRemoteSignal, 1000);
+</script>
+{% endblock %}

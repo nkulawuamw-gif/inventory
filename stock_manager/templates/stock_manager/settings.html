@@ -1,0 +1,125 @@
+{% extends 'stock_manager/base.html' %}
+{% block content %}
+
+<h2 class="mb-4"><i class="bi bi-gear-wide-connected"></i> Settings</h2>
+
+<div class="row">
+  <div class="col-md-5">
+    <div class="card mb-4">
+      <div class="card-header bg-primary text-white">
+        <h5 class="mb-0"><i class="bi bi-calendar-plus"></i> Open New Business Period</h5>
+      </div>
+      <div class="card-body">
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="open_period">
+          <div class="mb-3">
+            <label class="form-label">Period Name *</label>
+            <input type="text" name="name" class="form-control" placeholder="e.g. June 2026, Q3 2026" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Period Type</label>
+            <select name="period_type" class="form-select">
+              <option value="monthly">Monthly</option>
+              <option value="quarterly">Quarterly</option>
+              <option value="yearly">Yearly</option>
+              <option value="custom">Custom</option>
+            </select>
+          </div>
+          <div class="row mb-3">
+            <div class="col-6">
+              <label class="form-label">Start Date *</label>
+              <input type="date" name="start_date" class="form-control" required>
+            </div>
+            <div class="col-6">
+              <label class="form-label">End Date *</label>
+              <input type="date" name="end_date" class="form-control" required>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Notes</label>
+            <textarea name="notes" class="form-control" rows="2" placeholder="Optional notes about this period"></textarea>
+          </div>
+          <button type="submit" class="btn btn-primary w-100">
+            <i class="bi bi-check-lg"></i> Open Period
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-7">
+    {% if active_period %}
+    <div class="alert alert-success d-flex justify-content-between align-items-center">
+      <div>
+        <strong><i class="bi bi-clock"></i> Active Period:</strong>
+        {{ active_period.name }}
+        ({{ active_period.start_date|date:"M d, Y" }} - {{ active_period.end_date|date:"M d, Y" }})
+        <br><small class="text-muted">{{ opening_count }} items carried forward as opening stock</small>
+      </div>
+      <form method="post" class="mb-0" onsubmit="return confirm('Close period &quot;{{ active_period.name }}&quot;?')">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="close_period">
+        <input type="hidden" name="period_id" value="{{ active_period.id }}">
+        <button type="submit" class="btn btn-sm btn-danger">
+          <i class="bi bi-x-circle"></i> Close Period
+        </button>
+      </form>
+    </div>
+    {% else %}
+    <div class="alert alert-info">No active business period. Open one to start tracking.</div>
+    {% endif %}
+
+    <div class="card">
+      <div class="card-header bg-dark text-white">
+        <h5 class="mb-0"><i class="bi bi-clock-history"></i> Business Periods</h5>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+          <table class="table table-hover mb-0">
+            <thead class="table-light sticky-top">
+              <tr>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Start</th>
+                <th>End</th>
+                <th>Status</th>
+                <th>Closed</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for period in periods %}
+              <tr>
+                <td><strong>{{ period.name }}</strong></td>
+                <td><span class="badge bg-secondary">{{ period.get_period_type_display }}</span></td>
+                <td>{{ period.start_date|date:"M d, Y" }}</td>
+                <td>{{ period.end_date|date:"M d, Y" }}</td>
+                <td>
+                  {% if period.is_closed %}
+                  <span class="badge bg-danger">Closed</span>
+                  {% else %}
+                  <span class="badge bg-success">Open</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if period.closed_at %}
+                  <small class="text-muted">{{ period.closed_at|date:"M d, H:i" }}</small>
+                  {% else %}
+                  <small class="text-muted">-</small>
+                  {% endif %}
+                </td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="6" class="text-center text-muted py-3">No business periods created yet</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

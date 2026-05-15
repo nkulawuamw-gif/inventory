@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ page_title|default:"Stock Manager" }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        body { background-color: #f4f6f9; }
+        .sidebar { min-height: 100vh; background: #2c3e50; font-size: 0.85rem; }
+        .sidebar a { color: #ecf0f1; text-decoration: none; padding: 8px 16px; display: block; }
+        .sidebar a:hover, .sidebar a.active { background: #34495e; border-left: 3px solid #3498db; }
+        .sidebar a i { margin-right: 6px; font-size: 0.9rem; }
+        .sidebar hr { margin: 6px 12px; }
+        .sidebar small { font-size: 0.7rem; }
+        .stat-card { border-radius: 12px; border: none; box-shadow: 0 2px 10px rgba(0,0,0,0.08); }
+        .stat-card .card-body { padding: 1.5rem; }
+        .stat-card .icon { font-size: 2.5rem; opacity: 0.8; }
+        .table-container { background: white; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); padding: 20px; }
+        .low-stock { background-color: #ffeaea !important; }
+        .low-stock td { color: #dc3545; font-weight: 600; }
+        .navbar-brand { font-weight: 700; }
+        .shop-badge { font-size: 0.85rem; }
+        .alert-error { background-color: #f8d7da; border-color: #f5c6cb; color: #721c24; }
+        .online-dot { width: 10px; height: 10px; background: #2ecc71; border-radius: 50%; display: inline-block; }
+        .offline-dot { width: 10px; height: 10px; background: #95a5a6; border-radius: 50%; display: inline-block; }
+    </style>
+</head>
+<body>
+    {% if user.is_authenticated %}
+    <form style="display:none"><input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}"></form>
+    {% endif %}
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{% url 'dashboard' %}">
+                <i class="bi bi-box-seam"></i> Stock Manager
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <form class="d-flex mx-auto" action="{% url 'search' %}" method="get" style="width: 500px;">
+                    <div class="input-group">
+                        <input class="form-control" type="search" name="q" placeholder="Search items..." value="{{ query|default:'' }}" aria-label="Search">
+                        <button class="btn btn-primary" type="submit"><i class="bi bi-search"></i> Search</button>
+                    </div>
+                </form>
+                <ul class="navbar-nav ms-auto">
+                    {% if user.is_authenticated %}
+                    {% if user_access.is_admin %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'export_csv' %}"><i class="bi bi-download"></i> Export CSV</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'admin_manage' %}"><i class="bi bi-tools"></i> Manage</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'financial_report' %}"><i class="bi bi-graph-up-arrow"></i> Financial Report</a>
+                    </li>
+                    {% endif %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="/pos/warehouse/"><i class="bi bi-cart3"></i> Point of Sale</a>
+                    </li>
+                    {% else %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="/admin/login/"><i class="bi bi-box-arrow-in-right"></i> Login</a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid">
+        <div class="row">
+            <nav class="col-md-2 d-none d-md-block sidebar p-0">
+                <div class="pt-3">
+                    <a href="{% url 'dashboard' %}" class="{% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+                        <i class="bi bi-grid-3x3-gap"></i> Main Dashboard
+                    </a>
+                    {% if user_access.is_admin %}
+                    <a href="{% url 'admin_manage' %}" class="{% if request.resolver_match.url_name == 'admin_manage' %}active{% endif %}">
+                        <i class="bi bi-tools"></i> Manage Inventory
+                    </a>
+                    <a href="{% url 'financial_report' %}" class="{% if request.resolver_match.url_name == 'financial_report' %}active{% endif %}">
+                        <i class="bi bi-graph-up-arrow"></i> Financial Report
+                    </a>
+                    <a href="{% url 'settings' %}" class="{% if request.resolver_match.url_name == 'settings' %}active{% endif %}">
+                        <i class="bi bi-gear-wide-connected"></i> Settings
+                    </a>
+                    {% endif %}
+                    <hr class="text-secondary mx-3">
+                    <a href="{% url 'messages' %}" class="{% if request.resolver_match.url_name == 'messages' %}active{% endif %}">
+                        <i class="bi bi-chat-dots"></i> Messages
+                    </a>
+                    <a href="{% url 'calls' %}" class="{% if request.resolver_match.url_name == 'calls' %}active{% endif %}">
+                        <i class="bi bi-telephone"></i> Calls
+                    </a>
+                    <a href="{% url 'meetings' %}" class="{% if request.resolver_match.url_name == 'meetings' %}active{% endif %}">
+                        <i class="bi bi-camera-video"></i> Meetings
+                    </a>
+                    <hr class="text-secondary mx-3">
+                    <small class="text-secondary px-3">SHOP INVENTORIES</small>
+                    {% if user_access.is_admin %}
+                    <a href="{% url 'shop_dashboard' 'warehouse' %}" class="{% if 'warehouse' == shop_slug %}active{% endif %}">
+                        <i class="bi bi-building"></i> Warehouse
+                    </a>
+                    {% for shop in all_shops %}
+                    {% if shop.name != 'Warehouse' %}
+                    <a href="{% url 'shop_dashboard' shop.name|slugify %}" class="{% if shop.name|slugify == shop_slug %}active{% endif %}">
+                        <i class="bi bi-shop"></i> {{ shop.name }}
+                    </a>
+                    {% endif %}
+                    {% endfor %}
+                    {% else %}
+                    {% if user_access.assigned_shop %}
+                    <a href="{% url 'shop_dashboard' user_access.assigned_shop.name|slugify %}" class="{% if shop_slug == user_access.assigned_shop.name|slugify %}active{% endif %}">
+                        <i class="bi bi-shop"></i> {{ user_access.assigned_shop.name }}
+                    </a>
+                    {% else %}
+                    <small class="text-muted px-3">No shop assigned</small>
+                    {% endif %}
+                    {% endif %}
+                </div>
+            </nav>
+
+            <main class="col-md-10 ms-sm-auto px-md-4 py-4">
+                {% if messages %}
+                {% for message in messages %}
+                <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+                {% endfor %}
+                {% endif %}
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+    </div>
+
+    {% if user.is_authenticated %}
+    <script>
+    function getCSRFToken() {
+        const el = document.querySelector('[name=csrfmiddlewaretoken]');
+        if (el) return el.value;
+        const cookie = document.cookie.match('csrftoken=([^;]*)');
+        return cookie ? cookie[1] : '';
+    }
+
+    function heartbeat() {
+        fetch('{% url "heartbeat" %}', {
+            method: 'POST',
+            headers: { 'X-CSRFToken': getCSRFToken() },
+        }).catch(() => {});
+    }
+
+    function updateUnread() {
+        fetch('{% url "unread_count" %}')
+            .then(r => r.json())
+            .then(data => {
+                const badge = document.getElementById('unread-badge');
+                if (data.unread > 0) {
+                    badge.textContent = data.unread > 9 ? '9+' : data.unread;
+                    badge.style.display = 'inline';
+                } else {
+                    badge.style.display = 'none';
+                }
+            }).catch(() => {});
+    }
+
+    heartbeat();
+    updateUnread();
+    setInterval(heartbeat, 10000);
+    setInterval(updateUnread, 5000);
+
+    window.addEventListener('beforeunload', function() {
+        navigator.sendBeacon('{% url "mark_offline" %}');
+    });
+    </script>
+    {% endif %}
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

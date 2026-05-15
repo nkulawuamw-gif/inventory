@@ -1,0 +1,343 @@
+{% extends 'stock_manager/base.html' %}
+{% load stock_filters %}
+
+{% block content %}
+<h2 class="mb-4">{{ page_title }}</h2>
+
+<div class="row mb-4">
+    <div class="col-md-2">
+        <div class="card stat-card bg-primary text-white">
+            <div class="card-body d-flex align-items-center">
+                <div class="flex-grow-1">
+                    <h6 class="card-subtitle mb-1">Total Items</h6>
+                    <h2 class="mb-0">{{ total_items }}</h2>
+                </div>
+                <i class="bi bi-box icon"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card stat-card bg-success text-white">
+            <div class="card-body d-flex align-items-center">
+                <div class="flex-grow-1">
+                    <h6 class="card-subtitle mb-1">Stock Value</h6>
+                    <h2 class="mb-0">MWK {{ total_stock_value|floatformat:2 }}</h2>
+                </div>
+                <i class="bi bi-currency-dollar icon"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card stat-card bg-info text-white">
+            <div class="card-body d-flex align-items-center">
+                <div class="flex-grow-1">
+                    <h6 class="card-subtitle mb-1">Total Sales</h6>
+                    <h2 class="mb-0">MWK {{ total_sales_amount|floatformat:2 }}</h2>
+                </div>
+                <i class="bi bi-cart-check icon"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card stat-card bg-secondary text-white">
+            <div class="card-body d-flex align-items-center">
+                <div class="flex-grow-1">
+                    <h6 class="card-subtitle mb-1">Sales Count</h6>
+                    <h2 class="mb-0">{{ total_sales_count }}</h2>
+                </div>
+                <i class="bi bi-receipt icon"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card stat-card bg-warning text-dark">
+            <div class="card-body d-flex align-items-center">
+                <div class="flex-grow-1">
+                    <h6 class="card-subtitle mb-1">Low Stock</h6>
+                    <h2 class="mb-0">{{ low_stock_count }}</h2>
+                </div>
+                <i class="bi bi-exclamation-triangle icon"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card stat-card bg-dark text-white">
+            <div class="card-body d-flex align-items-center">
+                <div class="flex-grow-1">
+                    <h6 class="card-subtitle mb-1">Shops</h6>
+                    <h2 class="mb-0">{{ all_shops.count }}</h2>
+                </div>
+                <i class="bi bi-shop icon"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="table-container">
+            <h5 class="mb-3"><i class="bi bi-bar-chart text-primary"></i> Stock Quantity by Shop</h5>
+            <canvas id="stockByShopChart"></canvas>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="table-container">
+            <h5 class="mb-3"><i class="bi bi-pie-chart text-success"></i> Stock Value by Shop</h5>
+            <canvas id="valueByShopChart"></canvas>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="table-container">
+            <h5 class="mb-3"><i class="bi bi-layers text-info"></i> Stock by Category</h5>
+            <canvas id="categoryChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const shopStockData = {{ shop_stock_data_json|safe }};
+    const shopNames = shopStockData.map(d => d.shop);
+    const shopQuantities = shopStockData.map(d => d.quantity);
+    const shopValues = {{ shop_value_data_json|safe }}.map(d => d.value);
+
+    const colors = ['#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b', '#858796', '#5a5c69', '#6f42c1'];
+
+    new Chart(document.getElementById('stockByShopChart'), {
+        type: 'bar',
+        data: {
+            labels: shopNames,
+            datasets: [{
+                label: 'Stock Quantity',
+                data: shopQuantities,
+                backgroundColor: colors.slice(0, shopNames.length),
+                borderRadius: 6,
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+        }
+    });
+
+    new Chart(document.getElementById('valueByShopChart'), {
+        type: 'bar',
+        data: {
+            labels: shopNames,
+            datasets: [{
+                label: 'Stock Value (MWK)',
+                data: shopValues,
+                backgroundColor: '#1cc88a',
+                borderRadius: 6,
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: { y: { beginAtZero: true } }
+        }
+    });
+
+    const categoryLabels = {{ category_labels_json|safe }};
+    const categoryValues = {{ category_values_json|safe }};
+
+    new Chart(document.getElementById('categoryChart'), {
+        type: 'bar',
+        data: {
+            labels: categoryLabels,
+            datasets: [{
+                label: 'Quantity',
+                data: categoryValues,
+                backgroundColor: '#36b9cc',
+                borderRadius: 6,
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+        }
+    });
+});
+</script>
+
+<div class="table-container mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="mb-0"><i class="bi bi-graph-up text-success"></i> Sales Summary by Shop</h5>
+        <span class="badge bg-success fs-6">Grand Total: MWK {{ total_sales_amount|floatformat:2 }} ({{ total_sales_count }} sales)</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Shop</th>
+                    <th class="text-center">Total Sales</th>
+                    <th class="text-end">Sales Amount</th>
+                    <th class="text-center">Percentage</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for data in shop_sales_data %}
+                <tr>
+                    <td><strong>{{ data.shop.name }}</strong></td>
+                    <td class="text-center">{{ data.count }}</td>
+                    <td class="text-end"><strong>MWK {{ data.total_amount|floatformat:2 }}</strong></td>
+                    <td class="text-center">
+                        {% if total_sales_amount > 0 %}
+                        <div class="progress" style="height: 20px;">
+                            <div class="progress-bar bg-success" role="progressbar" style="width: {% widthratio data.total_amount total_sales_amount 100 %}%">
+                                {% widthratio data.total_amount total_sales_amount 100 %}%
+                            </div>
+                        </div>
+                        {% else %}
+                        <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" class="text-center text-muted py-3">No sales recorded yet</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="table-container mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="mb-0"><i class="bi bi-building text-primary"></i> Warehouse Inventory
+        {% if active_period %}<span class="badge bg-info ms-2">{{ active_period.name }}</span>{% endif %}
+    </h5>
+        <div class="d-flex gap-2">
+            <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addWarehouseItemModal">
+                <i class="bi bi-plus-circle"></i> Add Items
+            </button>
+            <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#bulkImportModal">
+                <i class="bi bi-file-earmark-arrow-up"></i> Bulk Import
+            </button>
+            <a href="{% url 'export_csv' %}" class="btn btn-sm btn-outline-success"><i class="bi bi-download"></i> Export CSV</a>
+            <a href="{% url 'download_template' %}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-file-earmark"></i> Download Template</a>
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>#</th>
+                    <th>Item</th>
+                    <th>Category</th>
+                    <th class="text-center">Opening</th>
+                    <th class="text-center">Stocked In</th>
+                    <th class="text-center">Stocked Out</th>
+                    <th class="text-center">Balance</th>
+                    <th class="text-end">Avg Unit Cost</th>
+                    <th class="text-end">Total Cost</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in inventory_data %}
+                <tr {% if item.total_qty < 5 %}class="low-stock"{% endif %}>
+                    <td class="text-muted">{{ forloop.counter }}</td>
+                    <td><strong>{{ item.name }}</strong></td>
+                    <td><span class="badge bg-secondary">{{ item.category|default:"-" }}</span></td>
+                    <td class="text-center text-info"><strong>{{ item.opening_qty }}</strong></td>
+                    <td class="text-center text-success"><strong>{{ item.total_stocked_in }}</strong></td>
+                    <td class="text-center text-danger"><strong>{{ item.total_stocked_out }}</strong></td>
+                    <td class="text-center"><strong>{{ item.total_qty }}</strong></td>
+                    <td class="text-end">MWK {{ item.avg_unit_price|floatformat:2 }}</td>
+                    <td class="text-end"><strong>MWK {{ item.total_value|floatformat:2 }}</strong></td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="9" class="text-center text-muted py-4">No items in inventory</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            {% if inventory_data %}
+            <tfoot class="table-light">
+                <tr>
+                    <td colspan="3" class="text-end"><strong>Grand Totals</strong></td>
+                    <td class="text-center text-info"><strong>{{ inventory_data|sum_field:'opening_qty' }}</strong></td>
+                    <td class="text-center"><strong>{{ inventory_data|sum_field:'total_stocked_in' }}</strong></td>
+                    <td class="text-center text-danger"><strong>{{ inventory_data|sum_field:'total_stocked_out' }}</strong></td>
+                    <td class="text-center"><strong>{{ inventory_data|sum_field:'total_qty' }}</strong></td>
+                    <td></td>
+                    <td class="text-end"><strong>MWK {{ total_stock_value|floatformat:2 }}</strong></td>
+                </tr>
+            </tfoot>
+            {% endif %}
+        </table>
+    </div>
+</div>
+
+<!-- Add Warehouse Item Modal -->
+<div class="modal fade" id="addWarehouseItemModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title"><i class="bi bi-box-seam"></i> Add Item to Warehouse</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{% url 'dashboard' %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="add_warehouse_item">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Item Name *</label>
+                        <input type="text" name="item_name" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Category</label>
+                        <input type="text" name="category" class="form-control">
+                    </div>
+                    <div class="row">
+                        <div class="col-6 mb-3">
+                            <label class="form-label">Quantity *</label>
+                            <input type="number" name="quantity" class="form-control" min="0" required>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <label class="form-label">Unit Price (MWK) *</label>
+                            <input type="number" name="unit_price" class="form-control" step="0.01" min="0" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Add to Warehouse</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Bulk Import Modal -->
+<div class="modal fade" id="bulkImportModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="bi bi-file-earmark-arrow-up"></i> Bulk Import Items</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{% url 'dashboard_bulk_import' %}" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="alert alert-info mb-3">
+                        <strong>Expected columns:</strong> Item, Category, Stocked In, Stocked Out, Balance, Avg Unit Cost, Total Cost
+                        <br><small>Only "Item", "Category", "Stocked In", and "Avg Unit Cost" are required. Items will be added to Warehouse automatically.</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">CSV File *</label>
+                        <input type="file" name="csv_file" class="form-control" accept=".csv" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success"><i class="bi bi-upload"></i> Import Items</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
