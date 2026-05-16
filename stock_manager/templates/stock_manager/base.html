@@ -395,20 +395,6 @@
             header.className = 'confirm-header';
             okBtn.className = 'btn-confirm';
             box.classList.remove('shake');
-            const overlay = document.getElementById('confirmOverlay');
-            const box = document.getElementById('confirmBox');
-            const header = document.getElementById('confirmHeader');
-            const icon = document.getElementById('confirmIcon');
-            const title = document.getElementById('confirmTitle');
-            const subtitle = document.getElementById('confirmSubtitle');
-            const message = document.getElementById('confirmMessage');
-            const subMsg = document.getElementById('confirmSubMessage');
-            const cancelBtn = document.getElementById('confirmCancel');
-            const okBtn = document.getElementById('confirmOk');
-
-            header.className = 'confirm-header';
-            okBtn.className = 'btn-confirm';
-            box.classList.remove('shake');
 
             const type = opts.type || 'danger';
             header.classList.add(type);
@@ -483,16 +469,16 @@
                 {% csrf_token %}
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label class="form-label">Current Password *</label>
-                        <input type="password" name="current_password" class="form-control" required>
+                        <label class="form-label" for="currentPassword">Current Password *</label>
+                        <input type="password" name="current_password" id="currentPassword" class="form-control" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">New Password *</label>
-                        <input type="password" name="new_password" class="form-control" required minlength="4">
+                        <label class="form-label" for="newPassword">New Password *</label>
+                        <input type="password" name="new_password" id="newPassword" class="form-control" required minlength="4">
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Confirm New Password *</label>
-                        <input type="password" name="confirm_password" class="form-control" required minlength="4">
+                        <label class="form-label" for="confirmPassword">Confirm New Password *</label>
+                        <input type="password" name="confirm_password" id="confirmPassword" class="form-control" required minlength="4">
                     </div>
                 </div>
                 <div class="modal-footer">

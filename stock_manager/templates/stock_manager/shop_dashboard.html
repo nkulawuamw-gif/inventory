@@ -128,8 +128,8 @@
                     {% csrf_token %}
                     <input type="hidden" name="action" value="transfer_item">
                     <div class="mb-3">
-                        <label class="form-label">Select Warehouse Item</label>
-                        <select name="item_id" class="form-select" required>
+                        <label class="form-label" for="whItemSelect">Select Warehouse Item</label>
+                        <select name="item_id" id="whItemSelect" class="form-select" required>
                             <option value="">-- Select Item --</option>
                             {% for item in items %}
                             <option value="{{ item.id }}">{{ item.name }} - Open: {{ opening_by_item|lookup:item.id|default:0 }} | Current: {{ item.quantity }}</option>
@@ -137,8 +137,8 @@
                         </select>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Transfer To Shop</label>
-                        <select name="target_shop" class="form-select" required>
+                        <label class="form-label" for="transferShop">Transfer To Shop</label>
+                        <select name="target_shop" id="transferShop" class="form-select" required>
                             <option value="">-- Select Shop --</option>
                             {% for s in other_shops %}
                             <option value="{{ s.id }}">{{ s.name }}</option>
@@ -146,8 +146,8 @@
                         </select>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Quantity to Transfer</label>
-                        <input type="number" name="quantity_transfer" class="form-control" value="1" min="1" required>
+                        <label class="form-label" for="transferQty">Quantity to Transfer</label>
+                        <input type="number" name="quantity_transfer" id="transferQty" class="form-control" value="1" min="1" required>
                     </div>
                     <button type="submit" class="btn btn-warning w-100"><i class="bi bi-truck"></i> Transfer Stock</button>
                 </form>
@@ -288,7 +288,7 @@
             <div class="r"><span>Subtotal</span><span id="shopSubtotal">MWK 0.00</span></div>
             <div class="r t"><span>Total</span><span id="shopTotal">MWK 0.00</span></div>
             <div class="mt-2 mb-1">
-                <label class="small text-muted">Amount Received</label>
+                <label class="small text-muted" for="shopAmountReceived">Amount Received</label>
                 <input type="number" id="shopAmountReceived" min="0" step="100" value="0" oninput="shopCalcChange()">
             </div>
             <div class="r"><span>Change</span><span id="shopChange" class="text-success">MWK 0.00</span></div>
@@ -581,16 +581,16 @@ function shopNewSale() {
                 <div class="modal-body">
                     <p><strong>{{ item.name }}</strong></p>
                     <div class="mb-3">
-                        <label class="form-label">Category</label>
-                        <input type="text" name="category" class="form-control" value="{{ item.category }}">
+                        <label class="form-label" for="whEditCat{{ item.id }}">Category</label>
+                        <input type="text" name="category" id="whEditCat{{ item.id }}" class="form-control" value="{{ item.category }}">
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Quantity</label>
-                        <input type="number" name="quantity" class="form-control" value="{{ item.quantity }}" min="0" required>
+                        <label class="form-label" for="whEditQty{{ item.id }}">Quantity</label>
+                        <input type="number" name="quantity" id="whEditQty{{ item.id }}" class="form-control" value="{{ item.quantity }}" min="0" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Unit Price (MWK)</label>
-                        <input type="number" step="0.01" name="unit_price" class="form-control" value="{{ item.unit_price }}" min="0" required>
+                        <label class="form-label" for="whEditPrice{{ item.id }}">Unit Price (MWK)</label>
+                        <input type="number" step="0.01" name="unit_price" id="whEditPrice{{ item.id }}" class="form-control" value="{{ item.unit_price }}" min="0" required>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -640,21 +640,21 @@ function shopNewSale() {
                 <input type="hidden" name="action" value="add_warehouse_item">
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label class="form-label">Item Name *</label>
-                        <input type="text" name="item_name" class="form-control" required>
+                        <label class="form-label" for="addItemName">Item Name *</label>
+                        <input type="text" name="item_name" id="addItemName" class="form-control" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Category</label>
-                        <input type="text" name="category" class="form-control">
+                        <label class="form-label" for="addCategory">Category</label>
+                        <input type="text" name="category" id="addCategory" class="form-control">
                     </div>
                     <div class="row">
                         <div class="col-6 mb-3">
-                            <label class="form-label">Quantity *</label>
-                            <input type="number" name="quantity" class="form-control" min="0" required>
+                            <label class="form-label" for="addQty">Quantity *</label>
+                            <input type="number" name="quantity" id="addQty" class="form-control" min="0" required>
                         </div>
                         <div class="col-6 mb-3">
-                            <label class="form-label">Unit Price (MWK) *</label>
-                            <input type="number" name="unit_price" class="form-control" step="0.01" min="0" required>
+                            <label class="form-label" for="addUnitPrice">Unit Price (MWK) *</label>
+                            <input type="number" name="unit_price" id="addUnitPrice" class="form-control" step="0.01" min="0" required>
                         </div>
                     </div>
                 </div>
@@ -683,8 +683,8 @@ function shopNewSale() {
                         <br><small>Only "Item", "Category", "Stocked In", and "Avg Unit Cost" are required. Items will be added to Warehouse automatically.</small>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">CSV File *</label>
-                        <input type="file" name="csv_file" class="form-control" accept=".csv" required>
+                        <label class="form-label" for="importCsv">CSV File *</label>
+                        <input type="file" name="csv_file" id="importCsv" class="form-control" accept=".csv" required>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -717,8 +717,8 @@ function shopNewSale() {
                         </ol>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">CSV File *</label>
-                        <input type="file" name="csv_file" class="form-control" accept=".csv" required>
+                        <label class="form-label" for="transferCsv">CSV File *</label>
+                        <input type="file" name="csv_file" id="transferCsv" class="form-control" accept=".csv" required>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -764,8 +764,8 @@ function shopNewSale() {
                 <input type="hidden" name="action" value="transfer_selected">
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label class="form-label">Target Shop *</label>
-                        <select name="target_shop" class="form-select" required>
+                        <label class="form-label" for="transferTargetShop">Target Shop *</label>
+                        <select name="target_shop" id="transferTargetShop" class="form-select" required>
                             <option value="">— Select Shop —</option>
                             {% for shop in all_shops %}
                             {% if not shop.is_warehouse %}
@@ -775,8 +775,8 @@ function shopNewSale() {
                         </select>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Quantity to Transfer (per item) *</label>
-                        <input type="number" name="transfer_qty" class="form-control" min="1" step="any" required>
+                        <label class="form-label" for="transferSelectedQty">Quantity to Transfer (per item) *</label>
+                        <input type="number" name="transfer_qty" id="transferSelectedQty" class="form-control" min="1" step="any" required>
                         <div class="form-text">Same quantity will be transferred for each selected item.</div>
                     </div>
                     <p>You are about to transfer stock for <strong id="whTransferCountModal">0</strong> item(s).</p>

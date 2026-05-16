@@ -26,30 +26,30 @@
           {% csrf_token %}
           <input type="hidden" name="action" value="save_company">
           <div class="mb-3">
-            <label class="form-label">Company Name *</label>
-            <input type="text" name="company_name" class="form-control" value="{{ company.company_name }}" required>
+            <label class="form-label" for="company_name">Company Name *</label>
+            <input type="text" name="company_name" id="company_name" class="form-control" value="{{ company.company_name }}" required>
           </div>
           <div class="mb-3">
-            <label class="form-label">Address</label>
-            <textarea name="address" class="form-control" rows="2">{{ company.address }}</textarea>
+            <label class="form-label" for="address">Address</label>
+            <textarea name="address" id="address" class="form-control" rows="2">{{ company.address }}</textarea>
           </div>
           <div class="row mb-3">
             <div class="col-6">
-              <label class="form-label">Phone</label>
-              <input type="text" name="phone" class="form-control" value="{{ company.phone }}">
+              <label class="form-label" for="phone">Phone</label>
+              <input type="text" name="phone" id="phone" class="form-control" value="{{ company.phone }}">
             </div>
             <div class="col-6">
-              <label class="form-label">Email</label>
-              <input type="email" name="email" class="form-control" value="{{ company.email }}">
+              <label class="form-label" for="company_email">Email</label>
+              <input type="email" name="email" id="company_email" class="form-control" value="{{ company.email }}">
             </div>
           </div>
           <div class="mb-3">
-            <label class="form-label">Tax ID</label>
-            <input type="text" name="tax_id" class="form-control" value="{{ company.tax_id }}">
+            <label class="form-label" for="tax_id">Tax ID</label>
+            <input type="text" name="tax_id" id="tax_id" class="form-control" value="{{ company.tax_id }}">
           </div>
           <div class="mb-3">
-            <label class="form-label">Receipt Footer</label>
-            <input type="text" name="receipt_footer" class="form-control" value="{{ company.receipt_footer }}">
+            <label class="form-label" for="receipt_footer">Receipt Footer</label>
+            <input type="text" name="receipt_footer" id="receipt_footer" class="form-control" value="{{ company.receipt_footer }}">
           </div>
           <button type="submit" class="btn btn-dark w-100">
             <i class="bi bi-check-lg"></i> Save
@@ -73,27 +73,27 @@
           {% csrf_token %}
           <input type="hidden" name="action" value="save_whatsapp">
           <div class="mb-3">
-            <label class="form-label">WhatsApp Business Phone Number</label>
-            <input type="text" name="phone_number" class="form-control" value="{{ whatsapp.phone_number }}" placeholder="e.g. 265999000000">
+            <label class="form-label" for="wa_phone_number">WhatsApp Business Phone Number</label>
+            <input type="text" name="phone_number" id="wa_phone_number" class="form-control" value="{{ whatsapp.phone_number }}" placeholder="e.g. 265999000000">
             <div class="form-text">Include country code. No + or spaces.</div>
           </div>
           <div class="mb-3">
-            <label class="form-label">Business Name</label>
-            <input type="text" name="business_name" class="form-control" value="{{ whatsapp.business_name }}">
+            <label class="form-label" for="wa_business_name">Business Name</label>
+            <input type="text" name="business_name" id="wa_business_name" class="form-control" value="{{ whatsapp.business_name }}">
           </div>
           <div class="mb-3">
-            <label class="form-label">Greeting Message</label>
-            <textarea name="greeting_message" class="form-control" rows="2">{{ whatsapp.greeting_message }}</textarea>
+            <label class="form-label" for="wa_greeting_message">Greeting Message</label>
+            <textarea name="greeting_message" id="wa_greeting_message" class="form-control" rows="2">{{ whatsapp.greeting_message }}</textarea>
             <div class="form-text">Auto-reply sent when a customer messages for the first time.</div>
           </div>
           <div class="mb-3">
-            <label class="form-label">Webhook Secret</label>
-            <input type="text" name="webhook_secret" class="form-control" value="{{ whatsapp.webhook_secret }}">
+            <label class="form-label" for="wa_webhook_secret">Webhook Secret</label>
+            <input type="text" name="webhook_secret" id="wa_webhook_secret" class="form-control" value="{{ whatsapp.webhook_secret }}">
             <div class="form-text">Used to verify incoming webhook requests from WhatsApp API.</div>
           </div>
           <div class="mb-3">
-            <label class="form-label">API Key (for WhatsApp Business API)</label>
-            <input type="password" name="api_key" class="form-control" value="{{ whatsapp.api_key }}">
+            <label class="form-label" for="wa_api_key">API Key (for WhatsApp Business API)</label>
+            <input type="password" name="api_key" id="wa_api_key" class="form-control" value="{{ whatsapp.api_key }}">
             <div class="form-text">Optional. Required for sending replies via WhatsApp Business API.</div>
           </div>
           {% if whatsapp.phone_number %}
@@ -131,12 +131,12 @@
           {% csrf_token %}
           <input type="hidden" name="action" value="open_period">
           <div class="mb-3">
-            <label class="form-label">Period Name *</label>
-            <input type="text" name="name" class="form-control" placeholder="e.g. June 2026, Q3 2026" required>
+            <label class="form-label" for="period_name">Period Name *</label>
+            <input type="text" name="name" id="period_name" class="form-control" placeholder="e.g. June 2026, Q3 2026" required>
           </div>
           <div class="mb-3">
-            <label class="form-label">Period Type</label>
-            <select name="period_type" class="form-select">
+            <label class="form-label" for="period_type">Period Type</label>
+            <select name="period_type" id="period_type" class="form-select">
               <option value="monthly">Monthly</option>
               <option value="quarterly">Quarterly</option>
               <option value="yearly">Yearly</option>
@@ -145,17 +145,17 @@
           </div>
           <div class="row mb-3">
             <div class="col-6">
-              <label class="form-label">Start Date *</label>
-              <input type="date" name="start_date" class="form-control" required>
+              <label class="form-label" for="start_date">Start Date *</label>
+              <input type="date" name="start_date" id="start_date" class="form-control" required>
             </div>
             <div class="col-6">
-              <label class="form-label">End Date *</label>
-              <input type="date" name="end_date" class="form-control" required>
+              <label class="form-label" for="end_date">End Date *</label>
+              <input type="date" name="end_date" id="end_date" class="form-control" required>
             </div>
           </div>
           <div class="mb-3">
-            <label class="form-label">Notes</label>
-            <textarea name="notes" class="form-control" rows="2" placeholder="Optional notes about this period"></textarea>
+            <label class="form-label" for="period_notes">Notes</label>
+            <textarea name="notes" id="period_notes" class="form-control" rows="2" placeholder="Optional notes about this period"></textarea>
           </div>
           <button type="submit" class="btn btn-primary w-100">
             <i class="bi bi-check-lg"></i> Open Period
@@ -253,8 +253,8 @@
           {% csrf_token %}
           <input type="hidden" name="action" value="add_shop">
           <div class="mb-3">
-            <label class="form-label">Shop Name *</label>
-            <input type="text" name="name" class="form-control" placeholder="e.g. New Shop" required>
+            <label class="form-label" for="shop_name">Shop Name *</label>
+            <input type="text" name="name" id="shop_name" class="form-control" placeholder="e.g. New Shop" required>
           </div>
           <button type="submit" class="btn btn-success w-100">
             <i class="bi bi-plus-circle"></i> Add Shop
@@ -272,8 +272,8 @@
           {% csrf_token %}
           <input type="hidden" name="action" value="delete_shop">
           <div class="mb-3">
-            <label class="form-label">Select Shop *</label>
-            <select name="shop_id" class="form-select" required>
+            <label class="form-label" for="delete_shop_id">Select Shop *</label>
+            <select name="shop_id" id="delete_shop_id" class="form-select" required>
               <option value="">-- Choose a shop --</option>
               {% for shop in all_shops %}
               <option value="{{ shop.id }}">{{ shop.name }}</option>
@@ -347,37 +347,37 @@
           {% csrf_token %}
           <input type="hidden" name="action" value="add_user">
           <div class="mb-3">
-            <label class="form-label">Username *</label>
-            <input type="text" name="username" class="form-control" placeholder="e.g. johndoe" required>
+            <label class="form-label" for="username">Username *</label>
+            <input type="text" name="username" id="username" class="form-control" placeholder="e.g. johndoe" required>
           </div>
           <div class="mb-3">
-            <label class="form-label">Email</label>
-            <input type="email" name="email" class="form-control" placeholder="e.g. john@example.com">
+            <label class="form-label" for="user_email">Email</label>
+            <input type="email" name="email" id="user_email" class="form-control" placeholder="e.g. john@example.com">
           </div>
           <div class="row mb-3">
             <div class="col-6">
-              <label class="form-label">First Name</label>
-              <input type="text" name="first_name" class="form-control" placeholder="John">
+              <label class="form-label" for="first_name">First Name</label>
+              <input type="text" name="first_name" id="first_name" class="form-control" placeholder="John">
             </div>
             <div class="col-6">
-              <label class="form-label">Last Name</label>
-              <input type="text" name="last_name" class="form-control" placeholder="Doe">
+              <label class="form-label" for="last_name">Last Name</label>
+              <input type="text" name="last_name" id="last_name" class="form-control" placeholder="Doe">
             </div>
           </div>
           <div class="mb-3">
-            <label class="form-label">Password *</label>
-            <input type="password" name="password" class="form-control" placeholder="Enter password" required>
+            <label class="form-label" for="user_password">Password *</label>
+            <input type="password" name="password" id="user_password" class="form-control" placeholder="Enter password" required>
           </div>
           <div class="mb-3">
-            <label class="form-label">Role</label>
-            <select name="role" class="form-select">
+            <label class="form-label" for="user_role">Role</label>
+            <select name="role" id="user_role" class="form-select">
               <option value="shop_user">Shop User</option>
               <option value="admin">Admin (All Shops)</option>
             </select>
           </div>
           <div class="mb-3">
-            <label class="form-label">Assigned Shop</label>
-            <select name="shop_id" class="form-select">
+            <label class="form-label" for="assigned_shop">Assigned Shop</label>
+            <select name="shop_id" id="assigned_shop" class="form-select">
               <option value="">-- No shop (admin) --</option>
               {% for shop in all_shops %}
               <option value="{{ shop.id }}">{{ shop.name }}</option>
@@ -447,8 +447,8 @@
           {% csrf_token %}
           <input type="hidden" name="action" value="reset_password">
           <div class="mb-3">
-            <label class="form-label">Select User *</label>
-            <select name="user_id" class="form-select" required>
+            <label class="form-label" for="reset_user_id">Select User *</label>
+            <select name="user_id" id="reset_user_id" class="form-select" required>
               <option value="">-- Choose a user --</option>
               {% for u in users %}
               <option value="{{ u.id }}">{{ u.get_full_name|default:u.username }} ({{ u.username }})</option>
@@ -456,8 +456,8 @@
             </select>
           </div>
           <div class="mb-3">
-            <label class="form-label">New Password *</label>
-            <input type="text" name="new_password" class="form-control" placeholder="Enter new password" required minlength="4">
+            <label class="form-label" for="new_password">New Password *</label>
+            <input type="text" name="new_password" id="new_password" class="form-control" placeholder="Enter new password" required minlength="4">
           </div>
           <button type="submit" class="btn btn-warning w-100 text-dark">
             <i class="bi bi-key"></i> Reset Password
@@ -475,8 +475,8 @@
           {% csrf_token %}
           <input type="hidden" name="action" value="delete_user">
           <div class="mb-3">
-            <label class="form-label">Select User *</label>
-            <select name="user_id" class="form-select" required>
+            <label class="form-label" for="delete_user_id">Select User *</label>
+            <select name="user_id" id="delete_user_id" class="form-select" required>
               <option value="">-- Choose a user --</option>
               {% for u in users %}
               <option value="{{ u.id }}">{{ u.get_full_name|default:u.username }} ({{ u.username }})</option>
@@ -517,12 +517,12 @@
           {% csrf_token %}
           <input type="hidden" name="action" value="save_landing_hero">
           <div class="mb-3">
-            <label class="form-label">Hero Title</label>
-            <input type="text" name="hero_title" class="form-control" value="{{ landing_data.hero.title|default:'Welcome to VARNISHIELA BEAUTY PALOUR' }}">
+            <label class="form-label" for="hero_title">Hero Title</label>
+            <input type="text" name="hero_title" id="hero_title" class="form-control" value="{{ landing_data.hero.title|default:'Welcome to VARNISHIELA BEAUTY PALOUR' }}">
           </div>
           <div class="mb-3">
-            <label class="form-label">Hero Subtitle</label>
-            <textarea name="hero_subtitle" class="form-control" rows="3">{{ landing_data.hero.subtitle|default:'Your trusted destination for authentic hygiene and beauty products. Feel fresh, smell amazing, and shine every day.' }}</textarea>
+            <label class="form-label" for="hero_subtitle">Hero Subtitle</label>
+            <textarea name="hero_subtitle" id="hero_subtitle" class="form-control" rows="3">{{ landing_data.hero.subtitle|default:'Your trusted destination for authentic hygiene and beauty products. Feel fresh, smell amazing, and shine every day.' }}</textarea>
           </div>
           <button type="submit" class="btn btn-dark w-100"><i class="bi bi-check-lg"></i> Save Hero</button>
         </form>
@@ -542,24 +542,24 @@
           {% csrf_token %}
           <input type="hidden" name="action" value="save_landing_about">
           <div class="mb-3">
-            <label class="form-label">Section Tag</label>
-            <input type="text" name="about_tag" class="form-control" value="{{ landing_data.about.tag|default:'About Us' }}">
+            <label class="form-label" for="about_tag">Section Tag</label>
+            <input type="text" name="about_tag" id="about_tag" class="form-control" value="{{ landing_data.about.tag|default:'About Us' }}">
           </div>
           <div class="mb-3">
-            <label class="form-label">Heading</label>
-            <input type="text" name="about_heading" class="form-control" value="{{ landing_data.about.heading|default:'Who We Are' }}">
+            <label class="form-label" for="about_heading">Heading</label>
+            <input type="text" name="about_heading" id="about_heading" class="form-control" value="{{ landing_data.about.heading|default:'Who We Are' }}">
           </div>
           <div class="mb-3">
-            <label class="form-label">Paragraph 1</label>
-            <textarea name="about_text_1" class="form-control" rows="3">{{ landing_data.about.text_1|default:'VARNISHIELA BEAUTY PALOUR is a trusted name in personal care and beauty products. We are passionate about helping you look and feel your best with high-quality hygiene essentials at affordable prices.' }}</textarea>
+            <label class="form-label" for="about_text_1">Paragraph 1</label>
+            <textarea name="about_text_1" id="about_text_1" class="form-control" rows="3">{{ landing_data.about.text_1|default:'VARNISHIELA BEAUTY PALOUR is a trusted name in personal care and beauty products. We are passionate about helping you look and feel your best with high-quality hygiene essentials at affordable prices.' }}</textarea>
           </div>
           <div class="mb-3">
-            <label class="form-label">Paragraph 2</label>
-            <textarea name="about_text_2" class="form-control" rows="3">{{ landing_data.about.text_2|default:'From body lotions to premium perfumes, every product in our collection is carefully selected to meet the highest standards of quality and safety. Your confidence is our craft.' }}</textarea>
+            <label class="form-label" for="about_text_2">Paragraph 2</label>
+            <textarea name="about_text_2" id="about_text_2" class="form-control" rows="3">{{ landing_data.about.text_2|default:'From body lotions to premium perfumes, every product in our collection is carefully selected to meet the highest standards of quality and safety. Your confidence is our craft.' }}</textarea>
           </div>
           <div class="mb-3">
-            <label class="form-label">Features (one per line)</label>
-            <textarea name="about_features" class="form-control" rows="4">{% if landing_data.about.features %}{% for f in landing_data.about.features %}{{ f }}
+            <label class="form-label" for="about_features">Features (one per line)</label>
+            <textarea name="about_features" id="about_features" class="form-control" rows="4">{% if landing_data.about.features %}{% for f in landing_data.about.features %}{{ f }}
 {% endfor %}{% else %}100% Authentic Products
 Affordable Prices
 Fast & Reliable Delivery
@@ -583,16 +583,16 @@ Customer Happiness Guaranteed{% endif %}</textarea>
           {% csrf_token %}
           <input type="hidden" name="action" value="save_landing_products">
           <div class="mb-3">
-            <label class="form-label">Section Tag</label>
-            <input type="text" name="products_tag" class="form-control" value="{{ landing_data.products.tag|default:'Our Collection' }}">
+            <label class="form-label" for="products_tag">Section Tag</label>
+            <input type="text" name="products_tag" id="products_tag" class="form-control" value="{{ landing_data.products.tag|default:'Our Collection' }}">
           </div>
           <div class="mb-3">
-            <label class="form-label">Heading</label>
-            <input type="text" name="products_heading" class="form-control" value="{{ landing_data.products.heading|default:'Shop by Category' }}">
+            <label class="form-label" for="products_heading">Heading</label>
+            <input type="text" name="products_heading" id="products_heading" class="form-control" value="{{ landing_data.products.heading|default:'Shop by Category' }}">
           </div>
           <div class="mb-3">
-            <label class="form-label">Subtitle</label>
-            <textarea name="products_subtitle" class="form-control" rows="2">{{ landing_data.products.subtitle|default:'Explore our range of premium hygiene and beauty products' }}</textarea>
+            <label class="form-label" for="products_subtitle">Subtitle</label>
+            <textarea name="products_subtitle" id="products_subtitle" class="form-control" rows="2">{{ landing_data.products.subtitle|default:'Explore our range of premium hygiene and beauty products' }}</textarea>
           </div>
           <button type="submit" class="btn btn-dark w-100"><i class="bi bi-check-lg"></i> Save Products</button>
         </form>
@@ -612,20 +612,20 @@ Customer Happiness Guaranteed{% endif %}</textarea>
           {% csrf_token %}
           <input type="hidden" name="action" value="save_landing_why">
           <div class="mb-3">
-            <label class="form-label">Section Tag</label>
-            <input type="text" name="why_tag" class="form-control" value="{{ landing_data.why.tag|default:'Why Choose Us' }}">
+            <label class="form-label" for="why_tag">Section Tag</label>
+            <input type="text" name="why_tag" id="why_tag" class="form-control" value="{{ landing_data.why.tag|default:'Why Choose Us' }}">
           </div>
           <div class="mb-3">
-            <label class="form-label">Heading</label>
-            <input type="text" name="why_heading" class="form-control" value="{{ landing_data.why.heading|default:'We Care About Your Confidence' }}">
+            <label class="form-label" for="why_heading">Heading</label>
+            <input type="text" name="why_heading" id="why_heading" class="form-control" value="{{ landing_data.why.heading|default:'We Care About Your Confidence' }}">
           </div>
           <div class="mb-3">
-            <label class="form-label">Subtitle</label>
-            <textarea name="why_subtitle" class="form-control" rows="2">{{ landing_data.why.subtitle|default:'Here is why our customers trust us' }}</textarea>
+            <label class="form-label" for="why_subtitle">Subtitle</label>
+            <textarea name="why_subtitle" id="why_subtitle" class="form-control" rows="2">{{ landing_data.why.subtitle|default:'Here is why our customers trust us' }}</textarea>
           </div>
           <div class="mb-3">
-            <label class="form-label">Cards (one per line, format: icon_name | Title | Description)</label>
-            <textarea name="why_cards" class="form-control" rows="5">{% if landing_data.why.cards %}{% for c in landing_data.why.cards %}{{ c.icon }} | {{ c.title }} | {{ c.text }}
+            <label class="form-label" for="why_cards">Cards (one per line, format: icon_name | Title | Description)</label>
+            <textarea name="why_cards" id="why_cards" class="form-control" rows="5">{% if landing_data.why.cards %}{% for c in landing_data.why.cards %}{{ c.icon }} | {{ c.title }} | {{ c.text }}
 {% endfor %}{% else %}fa-medal | High Quality | Every product meets strict quality standards.
 fa-wallet | Affordable Prices | Premium care doesn&apos;t have to break the bank.
 fa-handshake | Trusted Shop | Established reputation for honesty and reliability.
@@ -650,46 +650,46 @@ fa-heart | Customer Satisfaction | Your happiness is our top priority.{% endif %
           {% csrf_token %}
           <input type="hidden" name="action" value="save_landing_contact">
           <div class="mb-3">
-            <label class="form-label">Section Tag</label>
-            <input type="text" name="contact_tag" class="form-control" value="{{ landing_data.contact.tag|default:'Get In Touch' }}">
+            <label class="form-label" for="contact_tag">Section Tag</label>
+            <input type="text" name="contact_tag" id="contact_tag" class="form-control" value="{{ landing_data.contact.tag|default:'Get In Touch' }}">
           </div>
           <div class="mb-3">
-            <label class="form-label">Heading</label>
-            <input type="text" name="contact_heading" class="form-control" value="{{ landing_data.contact.heading|default:'Contact Us' }}">
+            <label class="form-label" for="contact_heading">Heading</label>
+            <input type="text" name="contact_heading" id="contact_heading" class="form-control" value="{{ landing_data.contact.heading|default:'Contact Us' }}">
           </div>
           <div class="mb-3">
-            <label class="form-label">Subtitle</label>
-            <textarea name="contact_subtitle" class="form-control" rows="2">{{ landing_data.contact.subtitle|default:'We would love to hear from you' }}</textarea>
+            <label class="form-label" for="contact_subtitle">Subtitle</label>
+            <textarea name="contact_subtitle" id="contact_subtitle" class="form-control" rows="2">{{ landing_data.contact.subtitle|default:'We would love to hear from you' }}</textarea>
           </div>
           <div class="row mb-3">
             <div class="col-6">
-              <label class="form-label">WhatsApp Number</label>
-              <input type="text" name="contact_whatsapp" class="form-control" value="{{ landing_data.contact.whatsapp|default:'+265 883 994 035' }}">
+              <label class="form-label" for="contact_whatsapp">WhatsApp Number</label>
+              <input type="text" name="contact_whatsapp" id="contact_whatsapp" class="form-control" value="{{ landing_data.contact.whatsapp|default:'+265 883 994 035' }}">
             </div>
             <div class="col-6">
-              <label class="form-label">Phone Number</label>
-              <input type="text" name="contact_phone" class="form-control" value="{{ landing_data.contact.phone|default:'+265 883 994 035' }}">
+              <label class="form-label" for="contact_phone">Phone Number</label>
+              <input type="text" name="contact_phone" id="contact_phone" class="form-control" value="{{ landing_data.contact.phone|default:'+265 883 994 035' }}">
             </div>
           </div>
           <div class="row mb-3">
             <div class="col-6">
-              <label class="form-label">Location</label>
-              <input type="text" name="contact_location" class="form-control" value="{{ landing_data.contact.location|default:'Blantyre, Malawi' }}">
+              <label class="form-label" for="contact_location">Location</label>
+              <input type="text" name="contact_location" id="contact_location" class="form-control" value="{{ landing_data.contact.location|default:'Blantyre, Malawi' }}">
             </div>
             <div class="col-6">
-              <label class="form-label">Email</label>
-              <input type="text" name="contact_email" class="form-control" value="{{ landing_data.contact.email|default:'info@varnishiela.com' }}">
+              <label class="form-label" for="contact_email">Email</label>
+              <input type="text" name="contact_email" id="contact_email" class="form-control" value="{{ landing_data.contact.email|default:'info@varnishiela.com' }}">
             </div>
           </div>
           <hr>
           <h6>Call to Action Box</h6>
           <div class="mb-3">
-            <label class="form-label">CTA Heading</label>
-            <input type="text" name="cta_heading" class="form-control" value="{{ landing_data.contact.cta_heading|default:'Ready to Glow?' }}">
+            <label class="form-label" for="cta_heading">CTA Heading</label>
+            <input type="text" name="cta_heading" id="cta_heading" class="form-control" value="{{ landing_data.contact.cta_heading|default:'Ready to Glow?' }}">
           </div>
           <div class="mb-3">
-            <label class="form-label">CTA Text</label>
-            <textarea name="cta_text" class="form-control" rows="2">{{ landing_data.contact.cta_text|default:'Place your order today and experience the VARNISHIELA difference. Fast delivery across Malawi.' }}</textarea>
+            <label class="form-label" for="cta_text">CTA Text</label>
+            <textarea name="cta_text" id="cta_text" class="form-control" rows="2">{{ landing_data.contact.cta_text|default:'Place your order today and experience the VARNISHIELA difference. Fast delivery across Malawi.' }}</textarea>
           </div>
           <button type="submit" class="btn btn-dark w-100"><i class="bi bi-check-lg"></i> Save Contact</button>
         </form>
@@ -709,12 +709,12 @@ fa-heart | Customer Satisfaction | Your happiness is our top priority.{% endif %
           {% csrf_token %}
           <input type="hidden" name="action" value="save_landing_footer">
           <div class="mb-3">
-            <label class="form-label">Brand Name</label>
-            <input type="text" name="footer_brand" class="form-control" value="{{ landing_data.footer.brand|default:'VARNISHIELA' }}">
+            <label class="form-label" for="footer_brand">Brand Name</label>
+            <input type="text" name="footer_brand" id="footer_brand" class="form-control" value="{{ landing_data.footer.brand|default:'VARNISHIELA' }}">
           </div>
           <div class="mb-3">
-            <label class="form-label">Description</label>
-            <textarea name="footer_description" class="form-control" rows="3">{{ landing_data.footer.description|default:'Your trusted beauty &amp; hygiene store. Quality products for a confident you.' }}</textarea>
+            <label class="form-label" for="footer_description">Description</label>
+            <textarea name="footer_description" id="footer_description" class="form-control" rows="3">{{ landing_data.footer.description|default:'Your trusted beauty &amp; hygiene store. Quality products for a confident you.' }}</textarea>
           </div>
           <button type="submit" class="btn btn-dark w-100"><i class="bi bi-check-lg"></i> Save Footer</button>
         </form>

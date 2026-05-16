@@ -7,13 +7,13 @@
     <div class="card-body">
         <form method="get" class="row g-2 align-items-end">
             <div class="col-md-3">
-                <label class="form-label small">Search (receipt # / customer)</label>
-                <input type="text" name="q" class="form-control" placeholder="Search..." value="{{ query }}">
+                <label class="form-label small" for="q">Search (receipt # / customer)</label>
+                <input type="text" name="q" id="q" class="form-control" placeholder="Search..." value="{{ query }}">
             </div>
             {% if user_is_admin %}
             <div class="col-md-2">
-                <label class="form-label small">Shop</label>
-                <select name="shop" class="form-select">
+                <label class="form-label small" for="shop">Shop</label>
+                <select name="shop" id="shop" class="form-select">
                     <option value="">All Shops</option>
                     {% for shop in all_shops %}
                     <option value="{{ shop.id }}" {% if selected_shop == shop.id|stringformat:"s" %}selected{% endif %}>{{ shop.name }}</option>
@@ -22,12 +22,12 @@
             </div>
             {% endif %}
             <div class="col-md-{% if user_is_admin %}2{% else %}3{% endif %}">
-                <label class="form-label small">From</label>
-                <input type="date" name="date_from" class="form-control" value="{{ date_from }}">
+                <label class="form-label small" for="dateFrom">From</label>
+                <input type="date" name="date_from" id="dateFrom" class="form-control" value="{{ date_from }}">
             </div>
             <div class="col-md-{% if user_is_admin %}2{% else %}3{% endif %}">
-                <label class="form-label small">To</label>
-                <input type="date" name="date_to" class="form-control" value="{{ date_to }}">
+                <label class="form-label small" for="dateTo">To</label>
+                <input type="date" name="date_to" id="dateTo" class="form-control" value="{{ date_to }}">
             </div>
             <div class="col-md-3">
                 <button type="submit" class="btn btn-primary w-100"><i class="bi bi-search"></i> Search</button>

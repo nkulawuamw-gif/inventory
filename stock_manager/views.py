@@ -285,6 +285,7 @@ def dashboard(request):
             'shop': shop,
             'total_amount': shop_total,
             'count': shop_count,
+            'sales_persons': shop.assigned_users.select_related('user').all(),
         })
 
     shop_stock_data = []
@@ -506,28 +507,56 @@ def shop_dashboard(request, shop_slug):
         opening_stock = get_period_opening_stock(active_period, shop=shop)
 
     if request.method == 'POST':
-        action = request.POST.get('action')
+        if request.content_type == 'application/json':
+            try:
+                data = json.loads(request.body)
+            except Exception:
+                return JsonResponse({'success': False, 'error': 'Invalid JSON body'}, status=400)
+        else:
+            data = request.POST
+        action = data.get('action')
 
         if action == 'record_sale' and not is_warehouse:
-            item_id = request.POST.get('item_id', '')
-            qty_sold = request.POST.get('quantity_sold', 0)
+            item_id = data.get('item_id', '')
+            qty_sold = data.get('quantity_sold', 0)
 
-            if item_id and int(qty_sold) >= 0:
-                item = get_object_or_404(Item, id=item_id, shop=shop)
+            try:
                 qty_sold = int(qty_sold)
-                if qty_sold > item.quantity:
-                    messages.error(request, f'Not enough stock! Only {item.quantity} available')
-                else:
-                    total_amount = item.unit_price * qty_sold
-                    Sale.objects.create(
-                        item=item,
-                        quantity_sold=qty_sold,
-                        unit_price=item.unit_price,
-                        total_amount=total_amount,
-                    )
-                    item.quantity -= qty_sold
-                    item.save()
-                    messages.success(request, f'Recorded sale: {qty_sold}x {item.name} (MWK {total_amount:,.2f})')
+            except (ValueError, TypeError):
+                return JsonResponse({'success': False, 'error': 'Invalid quantity'}, status=400)
+
+            if not item_id:
+                return JsonResponse({'success': False, 'error': 'No item selected'}, status=400)
+
+            if qty_sold < 0:
+                return JsonResponse({'success': False, 'error': 'Quantity cannot be negative'}, status=400)
+
+            try:
+                item = Item.objects.get(id=item_id, shop=shop)
+            except Item.DoesNotExist:
+                return JsonResponse({'success': False, 'error': 'Item not found'}, status=404)
+
+            if qty_sold > item.quantity:
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Not enough stock! Only {item.quantity} available'
+                }, status=400)
+
+            total_amount = item.unit_price * qty_sold
+            Sale.objects.create(
+                item=item,
+                quantity_sold=qty_sold,
+                unit_price=item.unit_price,
+                total_amount=total_amount,
+            )
+            item.quantity -= qty_sold
+            item.save()
+
+            return JsonResponse({
+                'success': True,
+                'message': f'Recorded sale: {qty_sold}x {item.name} (MWK {total_amount:,.2f})',
+                'total': total_amount,
+            })
 
         elif action == 'add_warehouse_item' and is_warehouse:
             item_name = request.POST.get('item_name', '').strip()
