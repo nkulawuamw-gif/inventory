@@ -9,6 +9,7 @@
     <button type="button" class="btn btn-outline-primary rounded-pill px-3" id="tabPeriods" onclick="showSection('periods')"><i class="bi bi-calendar-range"></i> Manage Business Period</button>
     <button type="button" class="btn btn-outline-primary rounded-pill px-3" id="tabShops" onclick="showSection('shops')"><i class="bi bi-shop"></i> Manage Shops</button>
     <button type="button" class="btn btn-outline-primary rounded-pill px-3" id="tabSalesmen" onclick="showSection('salesmen')"><i class="bi bi-people"></i> Manage Sales Person</button>
+    <button type="button" class="btn btn-outline-primary rounded-pill px-3" id="tabLanding" onclick="showSection('landing')"><i class="bi bi-house-door"></i> Landing Page</button>
 </div>
 
 <div id="settingsPage">
@@ -490,6 +491,258 @@
     </div>
   </div>
 </div>
+</div>
+
+<div class="settings-section" id="section-landing" style="display:none">
+
+<div class="d-flex gap-2 mb-3 flex-wrap">
+  <button type="button" class="btn btn-dark rounded-pill px-3" id="landingTabHero" onclick="showLandingSection('hero')"><i class="bi bi-megaphone"></i> Hero</button>
+  <button type="button" class="btn btn-outline-dark rounded-pill px-3" id="landingTabAbout" onclick="showLandingSection('about')"><i class="bi bi-info-circle"></i> About</button>
+  <button type="button" class="btn btn-outline-dark rounded-pill px-3" id="landingTabProducts" onclick="showLandingSection('products')"><i class="bi bi-box"></i> Products</button>
+  <button type="button" class="btn btn-outline-dark rounded-pill px-3" id="landingTabWhy" onclick="showLandingSection('why')"><i class="bi bi-question-circle"></i> Why Us</button>
+  <button type="button" class="btn btn-outline-dark rounded-pill px-3" id="landingTabContact" onclick="showLandingSection('contact')"><i class="bi bi-telephone"></i> Contact</button>
+  <button type="button" class="btn btn-outline-dark rounded-pill px-3" id="landingTabFooter" onclick="showLandingSection('footer')"><i class="bi bi-layout-three-columns"></i> Footer</button>
+  <a href="{% url 'landing' %}" target="_blank" class="btn btn-outline-secondary rounded-pill px-3 ms-auto"><i class="bi bi-box-arrow-up-right"></i> Preview</a>
+</div>
+
+<div id="landingPageSettings">
+
+<div class="landing-sub-section" id="lsec-hero">
+<div class="row">
+  <div class="col-md-8 mx-auto">
+    <div class="card">
+      <div class="card-header bg-dark text-white"><h5 class="mb-0"><i class="bi bi-megaphone"></i> Hero Section</h5></div>
+      <div class="card-body">
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="save_landing_hero">
+          <div class="mb-3">
+            <label class="form-label">Hero Title</label>
+            <input type="text" name="hero_title" class="form-control" value="{{ landing_data.hero.title|default:'Welcome to VARNISHIELA BEAUTY PALOUR' }}">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Hero Subtitle</label>
+            <textarea name="hero_subtitle" class="form-control" rows="3">{{ landing_data.hero.subtitle|default:'Your trusted destination for authentic hygiene and beauty products. Feel fresh, smell amazing, and shine every day.' }}</textarea>
+          </div>
+          <button type="submit" class="btn btn-dark w-100"><i class="bi bi-check-lg"></i> Save Hero</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<div class="landing-sub-section" id="lsec-about" style="display:none">
+<div class="row">
+  <div class="col-md-8 mx-auto">
+    <div class="card">
+      <div class="card-header bg-dark text-white"><h5 class="mb-0"><i class="bi bi-info-circle"></i> About Section</h5></div>
+      <div class="card-body">
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="save_landing_about">
+          <div class="mb-3">
+            <label class="form-label">Section Tag</label>
+            <input type="text" name="about_tag" class="form-control" value="{{ landing_data.about.tag|default:'About Us' }}">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Heading</label>
+            <input type="text" name="about_heading" class="form-control" value="{{ landing_data.about.heading|default:'Who We Are' }}">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Paragraph 1</label>
+            <textarea name="about_text_1" class="form-control" rows="3">{{ landing_data.about.text_1|default:'VARNISHIELA BEAUTY PALOUR is a trusted name in personal care and beauty products. We are passionate about helping you look and feel your best with high-quality hygiene essentials at affordable prices.' }}</textarea>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Paragraph 2</label>
+            <textarea name="about_text_2" class="form-control" rows="3">{{ landing_data.about.text_2|default:'From body lotions to premium perfumes, every product in our collection is carefully selected to meet the highest standards of quality and safety. Your confidence is our craft.' }}</textarea>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Features (one per line)</label>
+            <textarea name="about_features" class="form-control" rows="4">{% if landing_data.about.features %}{% for f in landing_data.about.features %}{{ f }}
+{% endfor %}{% else %}100% Authentic Products
+Affordable Prices
+Fast & Reliable Delivery
+Customer Happiness Guaranteed{% endif %}</textarea>
+          </div>
+          <button type="submit" class="btn btn-dark w-100"><i class="bi bi-check-lg"></i> Save About</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<div class="landing-sub-section" id="lsec-products" style="display:none">
+<div class="row">
+  <div class="col-md-8 mx-auto">
+    <div class="card">
+      <div class="card-header bg-dark text-white"><h5 class="mb-0"><i class="bi bi-box"></i> Products Section</h5></div>
+      <div class="card-body">
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="save_landing_products">
+          <div class="mb-3">
+            <label class="form-label">Section Tag</label>
+            <input type="text" name="products_tag" class="form-control" value="{{ landing_data.products.tag|default:'Our Collection' }}">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Heading</label>
+            <input type="text" name="products_heading" class="form-control" value="{{ landing_data.products.heading|default:'Shop by Category' }}">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Subtitle</label>
+            <textarea name="products_subtitle" class="form-control" rows="2">{{ landing_data.products.subtitle|default:'Explore our range of premium hygiene and beauty products' }}</textarea>
+          </div>
+          <button type="submit" class="btn btn-dark w-100"><i class="bi bi-check-lg"></i> Save Products</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<div class="landing-sub-section" id="lsec-why" style="display:none">
+<div class="row">
+  <div class="col-md-8 mx-auto">
+    <div class="card">
+      <div class="card-header bg-dark text-white"><h5 class="mb-0"><i class="bi bi-question-circle"></i> Why Us Section</h5></div>
+      <div class="card-body">
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="save_landing_why">
+          <div class="mb-3">
+            <label class="form-label">Section Tag</label>
+            <input type="text" name="why_tag" class="form-control" value="{{ landing_data.why.tag|default:'Why Choose Us' }}">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Heading</label>
+            <input type="text" name="why_heading" class="form-control" value="{{ landing_data.why.heading|default:'We Care About Your Confidence' }}">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Subtitle</label>
+            <textarea name="why_subtitle" class="form-control" rows="2">{{ landing_data.why.subtitle|default:'Here is why our customers trust us' }}</textarea>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Cards (one per line, format: icon_name | Title | Description)</label>
+            <textarea name="why_cards" class="form-control" rows="5">{% if landing_data.why.cards %}{% for c in landing_data.why.cards %}{{ c.icon }} | {{ c.title }} | {{ c.text }}
+{% endfor %}{% else %}fa-medal | High Quality | Every product meets strict quality standards.
+fa-wallet | Affordable Prices | Premium care doesn&apos;t have to break the bank.
+fa-handshake | Trusted Shop | Established reputation for honesty and reliability.
+fa-rocket | Fast Service | Quick processing and timely delivery every time.
+fa-heart | Customer Satisfaction | Your happiness is our top priority.{% endif %}</textarea>
+          </div>
+          <button type="submit" class="btn btn-dark w-100"><i class="bi bi-check-lg"></i> Save Why Us</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<div class="landing-sub-section" id="lsec-contact" style="display:none">
+<div class="row">
+  <div class="col-md-8 mx-auto">
+    <div class="card">
+      <div class="card-header bg-dark text-white"><h5 class="mb-0"><i class="bi bi-telephone"></i> Contact Section</h5></div>
+      <div class="card-body">
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="save_landing_contact">
+          <div class="mb-3">
+            <label class="form-label">Section Tag</label>
+            <input type="text" name="contact_tag" class="form-control" value="{{ landing_data.contact.tag|default:'Get In Touch' }}">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Heading</label>
+            <input type="text" name="contact_heading" class="form-control" value="{{ landing_data.contact.heading|default:'Contact Us' }}">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Subtitle</label>
+            <textarea name="contact_subtitle" class="form-control" rows="2">{{ landing_data.contact.subtitle|default:'We would love to hear from you' }}</textarea>
+          </div>
+          <div class="row mb-3">
+            <div class="col-6">
+              <label class="form-label">WhatsApp Number</label>
+              <input type="text" name="contact_whatsapp" class="form-control" value="{{ landing_data.contact.whatsapp|default:'+265 883 994 035' }}">
+            </div>
+            <div class="col-6">
+              <label class="form-label">Phone Number</label>
+              <input type="text" name="contact_phone" class="form-control" value="{{ landing_data.contact.phone|default:'+265 883 994 035' }}">
+            </div>
+          </div>
+          <div class="row mb-3">
+            <div class="col-6">
+              <label class="form-label">Location</label>
+              <input type="text" name="contact_location" class="form-control" value="{{ landing_data.contact.location|default:'Blantyre, Malawi' }}">
+            </div>
+            <div class="col-6">
+              <label class="form-label">Email</label>
+              <input type="text" name="contact_email" class="form-control" value="{{ landing_data.contact.email|default:'info@varnishiela.com' }}">
+            </div>
+          </div>
+          <hr>
+          <h6>Call to Action Box</h6>
+          <div class="mb-3">
+            <label class="form-label">CTA Heading</label>
+            <input type="text" name="cta_heading" class="form-control" value="{{ landing_data.contact.cta_heading|default:'Ready to Glow?' }}">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">CTA Text</label>
+            <textarea name="cta_text" class="form-control" rows="2">{{ landing_data.contact.cta_text|default:'Place your order today and experience the VARNISHIELA difference. Fast delivery across Malawi.' }}</textarea>
+          </div>
+          <button type="submit" class="btn btn-dark w-100"><i class="bi bi-check-lg"></i> Save Contact</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<div class="landing-sub-section" id="lsec-footer" style="display:none">
+<div class="row">
+  <div class="col-md-8 mx-auto">
+    <div class="card">
+      <div class="card-header bg-dark text-white"><h5 class="mb-0"><i class="bi bi-layout-three-columns"></i> Footer Section</h5></div>
+      <div class="card-body">
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="save_landing_footer">
+          <div class="mb-3">
+            <label class="form-label">Brand Name</label>
+            <input type="text" name="footer_brand" class="form-control" value="{{ landing_data.footer.brand|default:'VARNISHIELA' }}">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Description</label>
+            <textarea name="footer_description" class="form-control" rows="3">{{ landing_data.footer.description|default:'Your trusted beauty &amp; hygiene store. Quality products for a confident you.' }}</textarea>
+          </div>
+          <button type="submit" class="btn btn-dark w-100"><i class="bi bi-check-lg"></i> Save Footer</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+</div>
+
+<style>
+.landing-sub-section .card { border: 1px solid #dee2e6; }
+.landing-sub-section .card-header { border-radius: calc(0.375rem - 1px) calc(0.375rem - 1px) 0 0; }
+</style>
+
+<script>
+function showLandingSection(name) {
+    document.querySelectorAll('.landing-sub-section').forEach(function(s) { s.style.display = 'none'; });
+    document.getElementById('lsec-' + name).style.display = '';
+    document.querySelectorAll('#section-landing .d-flex.gap-2 button').forEach(function(b) {
+        b.className = b.className.replace('btn-dark', 'btn-outline-dark');
+    });
+    var btn = document.getElementById('landingTab' + name.charAt(0).toUpperCase() + name.slice(1));
+    if (btn) btn.className = btn.className.replace('btn-outline-dark', 'btn-dark');
+}
+</script>
+
 </div>
 
 <div class="settings-save-bar" id="settingsSaveBar">

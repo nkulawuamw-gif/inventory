@@ -285,6 +285,8 @@ class CompanyProfile(models.Model):
     email = models.EmailField(blank=True, default='')
     tax_id = models.CharField(max_length=100, blank=True, default='')
     receipt_footer = models.CharField(max_length=300, blank=True, default='Thank you for your business!')
+    hero_title = models.CharField(max_length=300, blank=True, default='')
+    hero_tagline = models.TextField(blank=True, default='')
 
     class Meta:
         verbose_name = 'Company Profile'
@@ -336,6 +338,31 @@ class WhatsAppSetting(models.Model):
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
         cache.delete('whatsapp_setting')
+
+
+class LandingPageContent(models.Model):
+    data = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        verbose_name = 'Landing Page Content'
+        verbose_name_plural = 'Landing Page Content'
+
+    def __str__(self):
+        return 'Landing Page Settings'
+
+    @classmethod
+    def get_content(cls):
+        obj = cache.get('landing_page_content')
+        if obj is None:
+            obj = cls.objects.first()
+            if obj is None:
+                obj = cls.objects.create()
+            cache.set('landing_page_content', obj, 3600)
+        return obj
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        cache.delete('landing_page_content')
 
 
 class WhatsAppMessage(models.Model):

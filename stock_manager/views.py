@@ -11,7 +11,7 @@ from django.contrib.auth.models import User
 from django.db import connection
 from django.utils import timezone
 from collections import defaultdict
-from .models import Shop, Item, Sale, StockTransaction, UserProfile, BusinessPeriod, PeriodOpeningStock, Receipt, ReceiptItem, CompanyProfile, WhatsAppSetting, WhatsAppMessage
+from .models import Shop, Item, Sale, StockTransaction, UserProfile, BusinessPeriod, PeriodOpeningStock, Receipt, ReceiptItem, CompanyProfile, WhatsAppSetting, WhatsAppMessage, LandingPageContent
 from .middleware import shop_access_required
 
 
@@ -1439,6 +1439,72 @@ def settings_view(request):
             else:
                 messages.error(request, 'Company name is required.')
 
+        elif action.startswith('save_landing'):
+            content = LandingPageContent.get_content()
+            data = content.data
+
+            if action == 'save_landing_hero':
+                data['hero'] = {
+                    'title': request.POST.get('hero_title', '').strip(),
+                    'subtitle': request.POST.get('hero_subtitle', '').strip(),
+                }
+
+            elif action == 'save_landing_about':
+                features = request.POST.get('about_features', '').strip()
+                data['about'] = {
+                    'tag': request.POST.get('about_tag', '').strip(),
+                    'heading': request.POST.get('about_heading', '').strip(),
+                    'text_1': request.POST.get('about_text_1', '').strip(),
+                    'text_2': request.POST.get('about_text_2', '').strip(),
+                    'features': [f.strip() for f in features.split('\n') if f.strip()],
+                }
+
+            elif action == 'save_landing_products':
+                data['products'] = {
+                    'tag': request.POST.get('products_tag', '').strip(),
+                    'heading': request.POST.get('products_heading', '').strip(),
+                    'subtitle': request.POST.get('products_subtitle', '').strip(),
+                }
+
+            elif action == 'save_landing_why':
+                cards_text = request.POST.get('why_cards', '').strip()
+                cards = []
+                for line in cards_text.split('\n'):
+                    line = line.strip()
+                    if line:
+                        parts = [p.strip() for p in line.split('|')]
+                        if len(parts) >= 3:
+                            cards.append({'icon': parts[0], 'title': parts[1], 'text': parts[2]})
+                data['why'] = {
+                    'tag': request.POST.get('why_tag', '').strip(),
+                    'heading': request.POST.get('why_heading', '').strip(),
+                    'subtitle': request.POST.get('why_subtitle', '').strip(),
+                    'cards': cards,
+                }
+
+            elif action == 'save_landing_contact':
+                data['contact'] = {
+                    'tag': request.POST.get('contact_tag', '').strip(),
+                    'heading': request.POST.get('contact_heading', '').strip(),
+                    'subtitle': request.POST.get('contact_subtitle', '').strip(),
+                    'whatsapp': request.POST.get('contact_whatsapp', '').strip(),
+                    'phone': request.POST.get('contact_phone', '').strip(),
+                    'location': request.POST.get('contact_location', '').strip(),
+                    'email': request.POST.get('contact_email', '').strip(),
+                    'cta_heading': request.POST.get('cta_heading', '').strip(),
+                    'cta_text': request.POST.get('cta_text', '').strip(),
+                }
+
+            elif action == 'save_landing_footer':
+                data['footer'] = {
+                    'brand': request.POST.get('footer_brand', '').strip(),
+                    'description': request.POST.get('footer_description', '').strip(),
+                }
+
+            content.data = data
+            content.save()
+            messages.success(request, 'Landing page settings saved.')
+
         elif action == 'save_whatsapp':
             setting = WhatsAppSetting.get_profile()
             setting.phone_number = request.POST.get('phone_number', '').strip()
@@ -1459,12 +1525,16 @@ def settings_view(request):
     opening_count = PeriodOpeningStock.objects.filter(period=active_period).count() if active_period else 0
     users = User.objects.filter(is_superuser=False).select_related('profile__assigned_shop').order_by('username')
 
+    landing_content = LandingPageContent.get_content()
+    landing_data = landing_content.data
+
     context = {
         'periods': periods,
         'active_period': active_period,
         'opening_count': opening_count,
         'users': users,
         'page_title': 'Settings',
+        'landing_data': landing_data,
     }
     return render(request, 'stock_manager/settings.html', context)
 
@@ -1571,7 +1641,9 @@ def financial_report(request):
 
 
 def landing_view(request):
-    return render(request, 'stock_manager/landing.html')
+    company = CompanyProfile.get_profile()
+    landing = LandingPageContent.get_content()
+    return render(request, 'stock_manager/landing.html', {'company': company, 'landing': landing})
 
 
 def login_view(request):
