@@ -114,7 +114,7 @@
                                     <span class="badge bg-light text-dark">Other</span>
                                     {% endif %}
                                 </td>
-                                <td><strong>{{ tx.item.name }}</strong></td>
+                                <td><strong class="item-clickable" style="cursor:pointer;">{{ tx.item.name }}</strong></td>
                                 <td>{{ tx.source_shop.name|default:"-" }}</td>
                                 <td>{% if tx.target_shop %}{{ tx.target_shop.name }}{% else %}-{% endif %}</td>
                                 <td class="text-center"><strong>{{ tx.quantity }}</strong></td>
@@ -206,7 +206,7 @@
                 {% for item in items %}
                 <tr class="item-row{% if forloop.counter > 10 %} d-none{% endif %}{% if item.is_low_stock %} low-stock{% endif %}" style="cursor:pointer;" data-bs-toggle="modal" data-bs-target="#editModal{{ item.id }}">
                     <td><input type="checkbox" class="item-checkbox" value="{{ item.id }}" onclick="event.stopPropagation()"></td>
-                    <td><strong>{{ item.name }}</strong></td>
+                    <td><strong class="item-clickable" style="cursor:pointer;">{{ item.name }}</strong></td>
                     <td><span class="badge bg-secondary">{{ item.category|default:"-" }}</span></td>
                     <td>{{ item.shop.name }}</td>
                     <td class="text-center">{{ item.quantity }}</td>

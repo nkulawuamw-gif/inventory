@@ -65,6 +65,7 @@
         .table { font-size: 0.75rem; }
         .table td, .table th { padding: 0.25rem 0.3rem !important; }
         .table .badge { font-size: 0.65rem; padding: 0.2em 0.4em; }
+        .item-highlight { background: #cce5ff !important; }
         .table .btn { font-size: 0.65rem; padding: 0.1rem 0.3rem !important; }
         .form-control, .form-select { font-size: 0.8rem; padding: 0.25rem 0.4rem; }
         .input-group-sm .form-control { font-size: 0.75rem; }
@@ -506,5 +507,15 @@
    title="Chat on WhatsApp">
   <i class="bi bi-whatsapp" style="font-size:1.8rem;"></i>
 </a>
+<script>
+document.addEventListener('click', function(e) {
+    var target = e.target.closest('.item-clickable');
+    if (target) {
+        var prev = document.querySelector('.item-highlight');
+        if (prev) prev.classList.remove('item-highlight');
+        target.closest('tr').classList.add('item-highlight');
+    }
+});
+</script>
 </body>
 </html>

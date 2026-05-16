@@ -25,7 +25,7 @@
                 <tbody>
                     {% for item in search_results %}
                     <tr class="search-row{% if forloop.counter > 10 %} d-none{% endif %}">
-                        <td><strong>{{ item.name }}</strong></td>
+                        <td><strong class="item-clickable" style="cursor:pointer;">{{ item.name }}</strong></td>
                         {% for shop in all_shops %}
                         <td class="text-center">
                             {% if shop.name in item.shops %}
