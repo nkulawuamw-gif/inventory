@@ -157,14 +157,18 @@
 
     <div class="col-md-8">
         <div class="card">
-            <div class="card-header bg-dark text-white">
-                <h5 class="mb-0"><i class="bi bi-list-ul"></i> Warehouse Stock Tracking</h5>
+            <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-list-ul"></i> Warehouse Stock Tracking
+                    <span class="badge bg-light text-dark ms-2">{{ total_items }} items / {{ total_qty }} balance</span>
+                </h5>
+                <button class="btn btn-sm btn-outline-light" id="whStockViewAll" onclick="toggleWHStock()">View All</button>
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
                     <table class="table table-sm table-hover mb-0">
                         <thead class="table-light">
                             <tr>
+                                <th class="text-center" style="width:36px">#</th>
                                 <th>Item</th>
                                 <th>Category</th>
                                 <th class="text-center text-info">Opening</th>
@@ -175,9 +179,10 @@
                         </thead>
                         <tbody>
                             {% for item in items %}
-                            <tr {% if item.is_low_stock %}class="low-stock"{% endif %}>
+                            <tr class="wh-stock-row{% if forloop.counter > 10 %} d-none{% endif %}{% if item.is_low_stock %} low-stock{% endif %}" style="cursor:pointer;" data-bs-toggle="modal" data-bs-target="#editWHModal{{ item.id }}">
                                 {% with stocked_out=stock_out_by_item|lookup:item.id|default:0 %}
                                 {% with open_qty=opening_by_item|lookup:item.id|default:0 %}
+                                <td class="text-center text-muted">{{ forloop.counter }}</td>
                                 <td><strong>{{ item.name }}</strong></td>
                                 <td><span class="badge bg-secondary">{{ item.category|default:"-" }}</span></td>
                                 <td class="text-center text-info"><strong>{{ open_qty }}</strong></td>
@@ -192,7 +197,7 @@
                         {% if items %}
                         <tfoot class="table-light">
                             <tr>
-                                <td colspan="2" class="text-end"><strong>Totals</strong></td>
+                                <td colspan="3" class="text-end"><strong>Totals</strong></td>
                                 <td class="text-center text-info"><strong>-</strong></td>
                                 <td class="text-center"><strong>{{ warehouse_stocked_in }}</strong></td>
                                 <td class="text-center text-danger"><strong>{{ warehouse_stocked_out }}</strong></td>
@@ -388,8 +393,9 @@ function shopNewSale() {
 </div>
 
 <div class="card mb-4">
-    <div class="card-header bg-dark text-white">
+    <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
         <h5 class="mb-0"><i class="bi bi-clock-history"></i> Recent Sales - {{ shop.name }}</h5>
+        <button class="btn btn-sm btn-outline-light" onclick="toggleShopSales()">View All</button>
     </div>
     <div class="card-body p-0">
         <div class="table-responsive" style="max-height: 280px; overflow-y: auto;">
@@ -405,7 +411,7 @@ function shopNewSale() {
                 </thead>
                 <tbody>
                     {% for sale in shop_sales %}
-                    <tr>
+                    <tr class="shop-sale-row{% if forloop.counter > 10 %} d-none{% endif %}">
                         <td><strong>{{ sale.item.name }}</strong></td>
                         <td class="text-center">{{ sale.quantity_sold }}</td>
                         <td class="text-end">MWK {{ sale.unit_price|floatformat:2 }}</td>
@@ -425,14 +431,18 @@ function shopNewSale() {
 {% endif %}
 
 <div class="card mb-4">
-    <div class="card-header bg-dark text-white">
-        <h5 class="mb-0"><i class="bi bi-arrow-left-right"></i> Stock Transactions - {{ shop.name }}</h5>
+    <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="bi bi-arrow-left-right"></i> Stock Transitions - {{ shop.name }}
+            <span class="badge bg-light text-dark ms-2">{{ total_transactions }} txns / {{ total_transferred_qty }} units</span>
+        </h5>
+        <button class="btn btn-sm btn-outline-light" onclick="toggleTX()">View All</button>
     </div>
     <div class="card-body p-0">
         <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
             <table class="table table-sm table-hover mb-0">
                 <thead class="table-light sticky-top">
                     <tr>
+                        <th class="text-center" style="width:36px">#</th>
                         <th>Date</th>
                         <th>Item</th>
                         <th>Type</th>
@@ -444,7 +454,8 @@ function shopNewSale() {
                 </thead>
                 <tbody>
                     {% for tx in stock_transactions %}
-                    <tr>
+                    <tr class="tx-row{% if forloop.counter > 10 %} d-none{% endif %}">
+                        <td class="text-center text-muted">{{ forloop.counter }}</td>
                         <td>{{ tx.created_at|date:"M d, H:i" }}</td>
                         <td><strong>{{ tx.item.name }}</strong></td>
                         <td><span class="badge bg-secondary">{{ tx.get_transaction_type_display }}</span></td>
@@ -455,7 +466,7 @@ function shopNewSale() {
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="7" class="text-center text-muted py-3">No stock transactions yet</td>
+                        <td colspan="8" class="text-center text-muted py-3">No stock transactions yet</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -474,8 +485,10 @@ function shopNewSale() {
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h5 class="mb-0"><i class="bi bi-building text-primary"></i> Warehouse Inventory
         {% if active_period %}<span class="badge bg-info ms-2">{{ active_period.name }}</span>{% endif %}
+        <span class="badge bg-light text-dark ms-2">{{ total_items }} items / MWK {{ total_value|floatformat:0 }}</span>
         </h5>
         <div class="d-flex gap-2">
+            <button class="btn btn-sm btn-outline-primary" id="whInvViewAll" onclick="toggleWHInv()">View All</button>
             <button type="button" class="btn btn-sm btn-warning d-none" id="whBulkTransferBtn" data-bs-toggle="modal" data-bs-target="#whBulkTransferModal"><i class="bi bi-truck"></i> Transfer Selected (<span id="whTransferCount">0</span>)</button>
             <button type="button" class="btn btn-sm btn-danger d-none" id="whBulkDeleteBtn" data-bs-toggle="modal" data-bs-target="#whBulkDeleteModal"><i class="bi bi-trash"></i> Delete Selected (<span id="whSelectedCount">0</span>)</button>
             <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addWarehouseItemModal">
@@ -491,11 +504,12 @@ function shopNewSale() {
             <a href="{% url 'download_template' %}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-file-earmark"></i> Download Template</a>
         </div>
     </div>
-    <div class="table-responsive" style="font-size: 0.85rem;">
+    <div class="table-responsive">
         <table class="table table-hover align-middle mb-0">
             <thead class="table-light">
                 <tr>
-                    <th style="width:36px"><input type="checkbox" id="whSelectAll"></th>
+                    <th style="width:28px"><input type="checkbox" id="whSelectAll" style="width:13px;height:13px;"></th>
+                    <th class="text-center" style="width:30px">#</th>
                     <th>Item Name</th>
                     <th>Category</th>
                     <th class="text-center text-info">Opening</th>
@@ -512,8 +526,9 @@ function shopNewSale() {
                 {% for item in items %}
                 {% with stocked_out=stock_out_by_item|lookup:item.id|default:0 %}
                 {% with open_qty=opening_by_item|lookup:item.id|default:0 %}
-                <tr {% if item.is_low_stock %}class="low-stock"{% endif %}>
-                    <td><input type="checkbox" class="wh-item-checkbox" value="{{ item.id }}"></td>
+                <tr class="wh-inv-row{% if forloop.counter > 10 %} d-none{% endif %}{% if item.is_low_stock %} low-stock{% endif %}" style="cursor:pointer;" data-bs-toggle="modal" data-bs-target="#editWHModal{{ item.id }}">
+                    <td><input type="checkbox" class="wh-item-checkbox" value="{{ item.id }}" onclick="event.stopPropagation()"></td>
+                    <td class="text-center text-muted">{{ forloop.counter }}</td>
                     <td><strong>{{ item.name }}</strong></td>
                     <td><span class="badge bg-secondary">{{ item.category|default:"-" }}</span></td>
                     <td class="text-center text-info">{{ open_qty }}</td>
@@ -542,7 +557,7 @@ function shopNewSale() {
                 {% endwith %}
                 {% empty %}
                 <tr>
-                    <td colspan="11" class="text-center text-muted py-4">No items in Warehouse</td>
+                    <td colspan="12" class="text-center text-muted py-4">No items in Warehouse</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -1005,6 +1020,58 @@ if (whBulkTransferForm) {
         });
     });
 
+    });
+}
+
+function toggleTX() {
+    var el = document.querySelector('.card-header button[onclick*="toggleTX"]');
+    var rows = document.querySelectorAll('.tx-row');
+    var hidden = document.querySelectorAll('.tx-row.d-none');
+    if (hidden.length) {
+        for (var i = 0; i < hidden.length; i++) hidden[i].classList.remove('d-none');
+        el.textContent = 'Show Less';
+    } else {
+        for (var i = 0; i < rows.length; i++) { if (i >= 10) rows[i].classList.add('d-none'); }
+        el.textContent = 'View All';
+    }
+}
+function toggleWHStock() {
+    var el = document.getElementById('whStockViewAll');
+    var rows = document.querySelectorAll('.wh-stock-row');
+    var hidden = document.querySelectorAll('.wh-stock-row.d-none');
+    if (hidden.length) {
+        for (var i = 0; i < hidden.length; i++) hidden[i].classList.remove('d-none');
+        el.textContent = 'Show Less';
+    } else {
+        for (var i = 0; i < rows.length; i++) { if (i >= 10) rows[i].classList.add('d-none'); }
+        el.textContent = 'View All';
+    }
+}
+function toggleWHInv() {
+    var el = document.getElementById('whInvViewAll');
+    var rows = document.querySelectorAll('.wh-inv-row');
+    var hidden = document.querySelectorAll('.wh-inv-row.d-none');
+    if (hidden.length) {
+        for (var i = 0; i < hidden.length; i++) hidden[i].classList.remove('d-none');
+        el.textContent = 'Show Less';
+    } else {
+        for (var i = 0; i < rows.length; i++) { if (i >= 10) rows[i].classList.add('d-none'); }
+        el.textContent = 'View All';
+    }
+}
+
+function toggleShopSales() {
+    var el = document.querySelector('[onclick*="toggleShopSales"]');
+    var rows = document.querySelectorAll('.shop-sale-row');
+    var hidden = document.querySelectorAll('.shop-sale-row.d-none');
+    if (hidden.length) {
+        for (var i = 0; i < hidden.length; i++) hidden[i].classList.remove('d-none');
+        el.textContent = 'Show Less';
+    } else {
+        for (var i = 0; i < rows.length; i++) { if (i >= 10) rows[i].classList.add('d-none'); }
+        el.textContent = 'View All';
+    }
+}
 function whEditDuplicate(itemId) {
     const dupModal = bootstrap.Modal.getInstance(document.getElementById('whDuplicateModal'));
     if (dupModal) dupModal.hide();

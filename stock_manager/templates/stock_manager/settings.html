@@ -187,8 +187,9 @@
     {% endif %}
 
     <div class="card">
-      <div class="card-header bg-dark text-white">
+      <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
         <h5 class="mb-0"><i class="bi bi-clock-history"></i> Business Periods</h5>
+        <button class="btn btn-sm btn-outline-light" onclick="togglePeriods()">View All</button>
       </div>
       <div class="card-body p-0">
         <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
@@ -205,7 +206,7 @@
             </thead>
             <tbody>
               {% for period in periods %}
-              <tr>
+              <tr class="period-row{% if forloop.counter > 10 %} d-none{% endif %}">
                 <td><strong>{{ period.name }}</strong></td>
                 <td><span class="badge bg-secondary">{{ period.get_period_type_display }}</span></td>
                 <td>{{ period.start_date|date:"M d, Y" }}</td>
@@ -288,8 +289,9 @@
 
   <div class="col-md-7">
     <div class="card">
-      <div class="card-header bg-dark text-white">
+      <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
         <h5 class="mb-0"><i class="bi bi-shop"></i> All Shops</h5>
+        <button class="btn btn-sm btn-outline-light" onclick="toggleShops()">View All</button>
       </div>
       <div class="card-body p-0">
         <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
@@ -304,7 +306,7 @@
             </thead>
             <tbody>
               {% for shop in all_shops %}
-              <tr>
+              <tr class="shop-row{% if forloop.counter > 10 %} d-none{% endif %}">
                 <td>{{ forloop.counter }}</td>
                 <td><strong>{{ shop.name }}</strong></td>
                 <td>{{ shop.assigned_users.count }}</td>
@@ -391,8 +393,9 @@
 
   <div class="col-md-7">
     <div class="card" style="margin-bottom: 1px;">
-      <div class="card-header bg-dark text-white">
+      <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
         <h5 class="mb-0"><i class="bi bi-people"></i> All Salesmen</h5>
+        <button class="btn btn-sm btn-outline-light" onclick="toggleSalesmen()">View All</button>
       </div>
       <div class="card-body p-0">
         <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
@@ -409,7 +412,7 @@
             </thead>
             <tbody>
               {% for u in users %}
-              <tr>
+              <tr class="salesman-row{% if forloop.counter > 10 %} d-none{% endif %}">
                 <td>{{ forloop.counter }}</td>
                 <td><strong>{{ u.username }}</strong></td>
                 <td>{{ u.get_full_name|default:"-" }}</td>
@@ -547,6 +550,42 @@ function saveAllSettings() {
             }
         });
     });
+}
+function togglePeriods() {
+    var el = document.querySelector('[onclick*="togglePeriods"]');
+    var rows = document.querySelectorAll('.period-row');
+    var hidden = document.querySelectorAll('.period-row.d-none');
+    if (hidden.length) {
+        for (var i = 0; i < hidden.length; i++) hidden[i].classList.remove('d-none');
+        el.textContent = 'Show Less';
+    } else {
+        for (var i = 0; i < rows.length; i++) { if (i >= 10) rows[i].classList.add('d-none'); }
+        el.textContent = 'View All';
+    }
+}
+function toggleShops() {
+    var el = document.querySelector('[onclick*="toggleShops"]');
+    var rows = document.querySelectorAll('.shop-row');
+    var hidden = document.querySelectorAll('.shop-row.d-none');
+    if (hidden.length) {
+        for (var i = 0; i < hidden.length; i++) hidden[i].classList.remove('d-none');
+        el.textContent = 'Show Less';
+    } else {
+        for (var i = 0; i < rows.length; i++) { if (i >= 10) rows[i].classList.add('d-none'); }
+        el.textContent = 'View All';
+    }
+}
+function toggleSalesmen() {
+    var el = document.querySelector('[onclick*="toggleSalesmen"]');
+    var rows = document.querySelectorAll('.salesman-row');
+    var hidden = document.querySelectorAll('.salesman-row.d-none');
+    if (hidden.length) {
+        for (var i = 0; i < hidden.length; i++) hidden[i].classList.remove('d-none');
+        el.textContent = 'Show Less';
+    } else {
+        for (var i = 0; i < rows.length; i++) { if (i >= 10) rows[i].classList.add('d-none'); }
+        el.textContent = 'View All';
+    }
 }
 </script>
 {% endblock %}

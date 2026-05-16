@@ -38,7 +38,10 @@
 
 <div class="table-container">
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <h5 class="mb-0"><i class="bi bi-receipt"></i> All Receipts</h5>
+        <div class="d-flex gap-2 align-items-center">
+            <h5 class="mb-0"><i class="bi bi-receipt"></i> All Receipts</h5>
+            <button class="btn btn-sm btn-outline-primary" onclick="toggleSales()">View All</button>
+        </div>
         <span class="badge bg-primary fs-6">Total: MWK {{ total_sales|floatformat:2 }}</span>
     </div>
     <div class="table-responsive">
@@ -56,7 +59,7 @@
             </thead>
             <tbody>
                 {% for r in receipts %}
-                <tr>
+                <tr class="sale-row{% if forloop.counter > 10 %} d-none{% endif %}">
                     <td><strong>{{ r.receipt_number }}</strong></td>
                     <td>{{ r.created_at|date:"M d, Y H:i" }}</td>
                     <td>{{ r.shop.name }}</td>
@@ -79,4 +82,18 @@
     </div>
     <div class="text-muted small mt-2">Showing up to 100 most recent receipts</div>
 </div>
+<script>
+function toggleSales() {
+    var el = document.querySelector('[onclick*="toggleSales"]');
+    var rows = document.querySelectorAll('.sale-row');
+    var hidden = document.querySelectorAll('.sale-row.d-none');
+    if (hidden.length) {
+        for (var i = 0; i < hidden.length; i++) hidden[i].classList.remove('d-none');
+        el.textContent = 'Show Less';
+    } else {
+        for (var i = 0; i < rows.length; i++) { if (i >= 10) rows[i].classList.add('d-none'); }
+        el.textContent = 'View All';
+    }
+}
+</script>
 {% endblock %}

@@ -67,7 +67,10 @@
 
 <div class="table-container mb-4">
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <h5 class="mb-0"><i class="bi bi-receipt text-primary"></i> Shop Financial Breakdown</h5>
+        <div class="d-flex gap-2 align-items-center">
+            <h5 class="mb-0"><i class="bi bi-receipt text-primary"></i> Shop Financial Breakdown</h5>
+            <button class="btn btn-sm btn-outline-primary" onclick="toggleReport()">View All</button>
+        </div>
         <form method="GET" class="d-flex gap-2">
             <select name="shop" class="form-select form-select-sm" style="width: 200px;">
                 <option value="">All Shops</option>
@@ -93,7 +96,7 @@
             </thead>
             <tbody>
                 {% for data in shop_financials %}
-                <tr>
+                <tr class="report-row{% if forloop.counter > 10 %} d-none{% endif %}">
                     <td class="text-muted">{{ forloop.counter }}</td>
                     <td><strong>{{ data.shop.name }}</strong></td>
                     <td class="text-end text-info"><strong>MWK {{ data.opening_value|floatformat:2 }}</strong></td>
@@ -139,4 +142,18 @@
         </table>
     </div>
 </div>
+<script>
+function toggleReport() {
+    var el = document.querySelector('[onclick*="toggleReport"]');
+    var rows = document.querySelectorAll('.report-row');
+    var hidden = document.querySelectorAll('.report-row.d-none');
+    if (hidden.length) {
+        for (var i = 0; i < hidden.length; i++) hidden[i].classList.remove('d-none');
+        el.textContent = 'Show Less';
+    } else {
+        for (var i = 0; i < rows.length; i++) { if (i >= 10) rows[i].classList.add('d-none'); }
+        el.textContent = 'View All';
+    }
+}
+</script>
 {% endblock %}

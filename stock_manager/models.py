@@ -13,6 +13,10 @@ class Shop(models.Model):
     def __str__(self):
         return self.name
 
+    @property
+    def is_warehouse(self):
+        return self.name.strip().lower() == 'warehouse'
+
 
 class UserProfile(models.Model):
     ROLE_CHOICES = [

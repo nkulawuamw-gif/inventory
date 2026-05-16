@@ -164,7 +164,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <div class="table-container mb-4">
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <h5 class="mb-0"><i class="bi bi-graph-up text-success"></i> Sales Summary by Shop</h5>
+        <div class="d-flex gap-2 align-items-center">
+            <h5 class="mb-0"><i class="bi bi-graph-up text-success"></i> Sales Summary by Shop</h5>
+            <button class="btn btn-sm btn-outline-success" onclick="toggleDash()">View All</button>
+        </div>
         <span class="badge bg-success fs-6">Grand Total: MWK {{ total_sales_amount|floatformat:2 }} ({{ total_sales_count }} sales)</span>
     </div>
     <div class="table-responsive">
@@ -179,7 +182,7 @@ document.addEventListener('DOMContentLoaded', function() {
             </thead>
             <tbody>
                 {% for data in shop_sales_data %}
-                <tr>
+                <tr class="dash-row{% if forloop.counter > 10 %} d-none{% endif %}">
                     <td><strong>{{ data.shop.name }}</strong></td>
                     <td class="text-center">{{ data.count }}</td>
                     <td class="text-end"><strong>MWK {{ data.total_amount|floatformat:2 }}</strong></td>
@@ -206,4 +209,18 @@ document.addEventListener('DOMContentLoaded', function() {
 </div>
 
 
+<script>
+function toggleDash() {
+    var el = document.querySelector('[onclick*="toggleDash"]');
+    var rows = document.querySelectorAll('.dash-row');
+    var hidden = document.querySelectorAll('.dash-row.d-none');
+    if (hidden.length) {
+        for (var i = 0; i < hidden.length; i++) hidden[i].classList.remove('d-none');
+        el.textContent = 'Show Less';
+    } else {
+        for (var i = 0; i < rows.length; i++) { if (i >= 10) rows[i].classList.add('d-none'); }
+        el.textContent = 'View All';
+    }
+}
+</script>
 {% endblock %}

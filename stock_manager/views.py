@@ -387,19 +387,17 @@ def process_csv_import(csv_file):
                 continue
 
             try:
-                quantity = int(qty_raw.replace(',', ''))
+                quantity = int(qty_raw.replace(',', '')) if qty_raw else 0
             except ValueError:
                 try:
                     quantity = int(float(qty_raw.replace(',', '')))
                 except ValueError:
-                    errors.append(f'Row {i}: Invalid quantity "{qty_raw}"')
-                    continue
+                    quantity = 0
 
             try:
-                unit_price = float(price_raw.replace(',', ''))
+                unit_price = float(price_raw.replace(',', '')) if price_raw else 0
             except ValueError:
-                errors.append(f'Row {i}: Invalid price "{price_raw}"')
-                continue
+                unit_price = 0
 
             try:
                 shop = Shop.objects.get(name__iexact=shop_name)
@@ -514,7 +512,7 @@ def shop_dashboard(request, shop_slug):
             item_id = request.POST.get('item_id', '')
             qty_sold = request.POST.get('quantity_sold', 0)
 
-            if item_id and int(qty_sold) > 0:
+            if item_id and int(qty_sold) >= 0:
                 item = get_object_or_404(Item, id=item_id, shop=shop)
                 qty_sold = int(qty_sold)
                 if qty_sold > item.quantity:
@@ -599,13 +597,12 @@ def shop_dashboard(request, shop_slug):
                         errors.append(f'Row {i}: invalid quantity "{qty_str}"')
                         continue
                     if qty <= 0:
-                        errors.append(f'Row {i}: quantity must be positive')
                         continue
-                    target_shop = Shop.objects.filter(name__iexact=target_shop_name).first()
+                    target_shop = Shop.objects.filter(name__iexact=target_shop_name.strip()).first()
                     if not target_shop:
                         errors.append(f'Row {i}: shop "{target_shop_name}" not found')
                         continue
-                    if target_shop.name == 'Warehouse':
+                    if target_shop.is_warehouse:
                         errors.append(f'Row {i}: cannot transfer to Warehouse')
                         continue
                     source_item = Item.objects.filter(name__iexact=item_name, shop=shop).first()
@@ -641,7 +638,8 @@ def shop_dashboard(request, shop_slug):
                 if total:
                     messages.success(request, f'Bulk transfer complete: {total} item(s) transferred')
                 if errors:
-                    messages.error(request, f'{len(errors)} error(s). First: {errors[0]}')
+                    for err in errors:
+                        messages.error(request, err)
             except Exception as e:
                 messages.error(request, f'Error processing file: {str(e)}')
             return redirect('shop_dashboard', shop_slug=shop_slug)
@@ -698,41 +696,42 @@ def shop_dashboard(request, shop_slug):
                 qty = int(qty_str)
             except (ValueError, TypeError):
                 qty = 0
-            if qty <= 0:
-                messages.error(request, 'Invalid transfer quantity')
-            elif not target_shop_id:
+            if not target_shop_id:
                 messages.error(request, 'No target shop selected')
             else:
                 target_shop = get_object_or_404(Shop, id=target_shop_id)
-                for iid in item_ids:
-                    try:
-                        iid = int(iid)
-                    except (ValueError, TypeError):
-                        continue
-                    item = Item.objects.filter(id=iid, shop=shop).first()
-                    if not item:
-                        errors.append(f'Item ID {iid} not found')
-                        continue
-                    if item.quantity < qty:
-                        errors.append(f'Not enough stock for "{item.name}" (available: {item.quantity}, needed: {qty})')
-                        continue
-                    target_item = Item.objects.filter(shop=target_shop, name__iexact=item.name).first()
-                    if target_item:
-                        target_item.quantity += qty
-                        target_item.save()
-                    else:
-                        target_item = Item.objects.create(shop=target_shop, name=item.name, category=item.category, quantity=qty, unit_price=item.unit_price)
-                    item.quantity -= qty
-                    item.save()
-                    StockTransaction.objects.create(
-                        item=item, source_shop=shop, target_shop=target_shop,
-                        quantity=qty, transaction_type='transfer'
-                    )
-                    StockTransaction.objects.create(
-                        item=target_item, source_shop=shop, target_shop=target_shop,
-                        quantity=qty, transaction_type='stock_in'
-                    )
-                    success_count += 1
+                if target_shop.is_warehouse:
+                    messages.error(request, 'Cannot transfer to Warehouse')
+                else:
+                    for iid in item_ids:
+                        try:
+                            iid = int(iid)
+                        except (ValueError, TypeError):
+                            continue
+                        item = Item.objects.filter(id=iid, shop=shop).first()
+                        if not item:
+                            errors.append(f'Item ID {iid} not found')
+                            continue
+                        if item.quantity < qty:
+                            errors.append(f'Not enough stock for "{item.name}" (available: {item.quantity}, needed: {qty})')
+                            continue
+                        target_item = Item.objects.filter(shop=target_shop, name__iexact=item.name).first()
+                        if target_item:
+                            target_item.quantity += qty
+                            target_item.save()
+                        else:
+                            target_item = Item.objects.create(shop=target_shop, name=item.name, category=item.category, quantity=qty, unit_price=item.unit_price)
+                        item.quantity -= qty
+                        item.save()
+                        StockTransaction.objects.create(
+                            item=item, source_shop=shop, target_shop=target_shop,
+                            quantity=qty, transaction_type='transfer'
+                        )
+                        StockTransaction.objects.create(
+                            item=target_item, source_shop=shop, target_shop=target_shop,
+                            quantity=qty, transaction_type='stock_in'
+                        )
+                        success_count += 1
                 if success_count:
                     messages.success(request, f'Transferred {success_count} item(s) to {target_shop.name}')
                 for err in errors:
@@ -744,7 +743,7 @@ def shop_dashboard(request, shop_slug):
             target_shop_id = request.POST.get('target_shop', '')
             qty_transfer = request.POST.get('quantity_transfer', 0)
 
-            if item_id and target_shop_id and int(qty_transfer) > 0:
+            if item_id and target_shop_id and int(qty_transfer) >= 0:
                 item = get_object_or_404(Item, id=item_id, shop=shop)
                 target_shop = get_object_or_404(Shop, id=target_shop_id)
                 qty_transfer = int(qty_transfer)
@@ -788,6 +787,9 @@ def shop_dashboard(request, shop_slug):
         Q(source_shop=shop) | Q(target_shop=shop)
     ).select_related('item', 'source_shop', 'target_shop').order_by('-created_at')[:50]
 
+    total_transactions = len(stock_transactions)
+    total_transferred_qty = sum(tx.quantity for tx in stock_transactions)
+
     if is_warehouse:
         other_shops = Shop.objects.exclude(name='Warehouse')
         warehouse_stocked_in = 0
@@ -829,6 +831,8 @@ def shop_dashboard(request, shop_slug):
             'warehouse_item_list': items,
             'active_period': active_period,
             'stock_transactions': stock_transactions,
+            'total_transactions': total_transactions,
+            'total_transferred_qty': total_transferred_qty,
             'is_warehouse': True,
             'page_title': f'{shop.name} Inventory',
         }
@@ -847,6 +851,8 @@ def shop_dashboard(request, shop_slug):
             'shop_sales': shop_sales,
             'today_total': today_total,
             'stock_transactions': stock_transactions,
+            'total_transactions': total_transactions,
+            'total_transferred_qty': total_transferred_qty,
             'active_period': active_period,
             'is_warehouse': False,
             'page_title': f'{shop.name} Inventory',
