@@ -178,6 +178,35 @@ def dashboard(request):
                 messages.error(request, 'Missing item name, quantity, or Warehouse shop not found')
             return redirect('dashboard')
 
+        elif action == 'edit_warehouse_item':
+            item_id = request.POST.get('item_id')
+            quantity = request.POST.get('quantity', 0)
+            unit_price = request.POST.get('unit_price', 0)
+            category = request.POST.get('category', '').strip()
+            try:
+                item = Item.objects.get(id=item_id, shop__name='Warehouse')
+                item.quantity = int(quantity)
+                item.unit_price = float(unit_price)
+                item.category = category
+                item.save()
+                messages.success(request, f'Updated "{item.name}" in Warehouse')
+            except Item.DoesNotExist:
+                messages.error(request, 'Item not found')
+            except (ValueError, TypeError):
+                messages.error(request, 'Invalid quantity or price')
+            return redirect('dashboard')
+
+        elif action == 'delete_warehouse_item':
+            item_id = request.POST.get('item_id')
+            try:
+                item = Item.objects.get(id=item_id, shop__name='Warehouse')
+                name = item.name
+                item.delete()
+                messages.success(request, f'Deleted "{name}" from Warehouse')
+            except Item.DoesNotExist:
+                messages.error(request, 'Item not found or already deleted')
+            return redirect('dashboard')
+
     if user_is_admin:
         inventory_data = get_shop_inventory_data(opening_stock)
     else:
@@ -502,6 +531,214 @@ def shop_dashboard(request, shop_slug):
                     item.save()
                     messages.success(request, f'Recorded sale: {qty_sold}x {item.name} (MWK {total_amount:,.2f})')
 
+        elif action == 'add_warehouse_item' and is_warehouse:
+            item_name = request.POST.get('item_name', '').strip()
+            category = request.POST.get('category', '').strip()
+            qty = request.POST.get('quantity', 0)
+            unit_price = request.POST.get('unit_price', 0)
+            confirm_dup = request.POST.get('confirm_duplicate') == '1'
+            if item_name and qty:
+                try:
+                    qty = int(qty)
+                    unit_price = float(unit_price)
+                except (ValueError, TypeError):
+                    qty = 0
+                    unit_price = 0
+                existing = Item.objects.filter(name__iexact=item_name, shop=shop).first()
+                if existing and not confirm_dup:
+                    request.session['wh_duplicate'] = {
+                        'item_name': item_name,
+                        'category': category,
+                        'quantity': qty,
+                        'unit_price': unit_price,
+                        'existing_id': existing.id,
+                        'existing_qty': existing.quantity,
+                        'existing_price': float(existing.unit_price),
+                    }
+                    return redirect('shop_dashboard', shop_slug=shop_slug)
+                if existing:
+                    existing.quantity += qty
+                    existing.unit_price = unit_price
+                    if category:
+                        existing.category = category
+                    existing.save()
+                    messages.success(request, f'Updated "{item_name}" in Warehouse')
+                else:
+                    Item.objects.create(
+                        shop=shop, name=item_name, category=category or '',
+                        quantity=qty, unit_price=unit_price,
+                    )
+                    messages.success(request, f'Added "{item_name}" to Warehouse')
+            request.session.pop('wh_duplicate', None)
+            return redirect('shop_dashboard', shop_slug=shop_slug)
+
+        elif action == 'dismiss_duplicate' and is_warehouse:
+            request.session.pop('wh_duplicate', None)
+            return redirect('shop_dashboard', shop_slug=shop_slug)
+
+        elif action == 'bulk_transfer' and is_warehouse:
+            csv_file = request.FILES.get('csv_file')
+            if not csv_file:
+                messages.error(request, 'No file uploaded')
+                return redirect('shop_dashboard', shop_slug=shop_slug)
+            try:
+                decoded = csv_file.read().decode('utf-8-sig').splitlines()
+                reader = __import__('csv').DictReader(decoded)
+                total = 0
+                errors = []
+                for i, row in enumerate(reader, start=2):
+                    item_name = (row.get('Item Name') or '').strip()
+                    target_shop_name = (row.get('Target Shop') or '').strip()
+                    qty_str = (row.get('Quantity') or '').strip()
+                    if not item_name or not target_shop_name or not qty_str:
+                        errors.append(f'Row {i}: missing fields')
+                        continue
+                    try:
+                        qty = int(qty_str)
+                    except ValueError:
+                        errors.append(f'Row {i}: invalid quantity "{qty_str}"')
+                        continue
+                    if qty <= 0:
+                        errors.append(f'Row {i}: quantity must be positive')
+                        continue
+                    target_shop = Shop.objects.filter(name__iexact=target_shop_name).first()
+                    if not target_shop:
+                        errors.append(f'Row {i}: shop "{target_shop_name}" not found')
+                        continue
+                    if target_shop.name == 'Warehouse':
+                        errors.append(f'Row {i}: cannot transfer to Warehouse')
+                        continue
+                    source_item = Item.objects.filter(name__iexact=item_name, shop=shop).first()
+                    if not source_item:
+                        errors.append(f'Row {i}: item "{item_name}" not found in Warehouse')
+                        continue
+                    if qty > source_item.quantity:
+                        errors.append(f'Row {i}: insufficient stock for "{item_name}" (have {source_item.quantity}, need {qty})')
+                        continue
+                    target_item, created = Item.objects.get_or_create(
+                        name=source_item.name,
+                        shop=target_shop,
+                        defaults={
+                            'quantity': qty,
+                            'unit_price': source_item.unit_price,
+                            'category': source_item.category,
+                        }
+                    )
+                    if not created:
+                        target_item.quantity += qty
+                        target_item.save()
+                    source_item.quantity -= qty
+                    source_item.save()
+                    StockTransaction.objects.create(
+                        item=source_item,
+                        source_shop=shop,
+                        target_shop=target_shop,
+                        quantity=qty,
+                        transaction_type='transfer',
+                        reason=f'Bulk transfer to {target_shop.name}',
+                    )
+                    total += 1
+                if total:
+                    messages.success(request, f'Bulk transfer complete: {total} item(s) transferred')
+                if errors:
+                    messages.error(request, f'{len(errors)} error(s). First: {errors[0]}')
+            except Exception as e:
+                messages.error(request, f'Error processing file: {str(e)}')
+            return redirect('shop_dashboard', shop_slug=shop_slug)
+
+        elif action == 'edit_warehouse_item' and is_warehouse:
+            item_id = request.POST.get('item_id')
+            category = request.POST.get('category', '').strip()
+            qty = request.POST.get('quantity', 0)
+            unit_price = request.POST.get('unit_price', 0)
+            try:
+                item = Item.objects.get(id=item_id, shop=shop)
+                item.category = category or ''
+                item.quantity = int(qty)
+                item.unit_price = float(unit_price)
+                item.save()
+                messages.success(request, f'Updated "{item.name}"')
+            except (Item.DoesNotExist, ValueError, TypeError):
+                messages.error(request, 'Invalid item or values')
+            return redirect('shop_dashboard', shop_slug=shop_slug)
+
+        elif action == 'delete_warehouse_item' and is_warehouse:
+            item_id = request.POST.get('item_id')
+            try:
+                item = Item.objects.get(id=item_id, shop=shop)
+                name = item.name
+                item.delete()
+                messages.success(request, f'Deleted "{name}" from Warehouse')
+            except Item.DoesNotExist:
+                messages.error(request, 'Item not found')
+            return redirect('shop_dashboard', shop_slug=shop_slug)
+
+        elif action == 'bulk_delete_warehouse' and is_warehouse:
+            item_ids = request.POST.getlist('item_ids')
+            valid_ids = []
+            for iid in item_ids:
+                try:
+                    valid_ids.append(int(iid))
+                except (ValueError, TypeError):
+                    pass
+            if valid_ids:
+                count, _ = Item.objects.filter(id__in=valid_ids, shop=shop).delete()
+                messages.success(request, f'Deleted {count} items from Warehouse')
+            else:
+                messages.error(request, 'No valid items selected')
+            return redirect('shop_dashboard', shop_slug=shop_slug)
+
+        elif action == 'transfer_selected' and is_warehouse:
+            item_ids = request.POST.getlist('item_ids')
+            target_shop_id = request.POST.get('target_shop', '')
+            qty_str = request.POST.get('transfer_qty', '0')
+            errors = []
+            success_count = 0
+            try:
+                qty = int(qty_str)
+            except (ValueError, TypeError):
+                qty = 0
+            if qty <= 0:
+                messages.error(request, 'Invalid transfer quantity')
+            elif not target_shop_id:
+                messages.error(request, 'No target shop selected')
+            else:
+                target_shop = get_object_or_404(Shop, id=target_shop_id)
+                for iid in item_ids:
+                    try:
+                        iid = int(iid)
+                    except (ValueError, TypeError):
+                        continue
+                    item = Item.objects.filter(id=iid, shop=shop).first()
+                    if not item:
+                        errors.append(f'Item ID {iid} not found')
+                        continue
+                    if item.quantity < qty:
+                        errors.append(f'Not enough stock for "{item.name}" (available: {item.quantity}, needed: {qty})')
+                        continue
+                    target_item = Item.objects.filter(shop=target_shop, name__iexact=item.name).first()
+                    if target_item:
+                        target_item.quantity += qty
+                        target_item.save()
+                    else:
+                        target_item = Item.objects.create(shop=target_shop, name=item.name, category=item.category, quantity=qty, unit_price=item.unit_price)
+                    item.quantity -= qty
+                    item.save()
+                    StockTransaction.objects.create(
+                        item=item, source_shop=shop, target_shop=target_shop,
+                        quantity=qty, transaction_type='transfer'
+                    )
+                    StockTransaction.objects.create(
+                        item=target_item, source_shop=shop, target_shop=target_shop,
+                        quantity=qty, transaction_type='stock_in'
+                    )
+                    success_count += 1
+                if success_count:
+                    messages.success(request, f'Transferred {success_count} item(s) to {target_shop.name}')
+                for err in errors:
+                    messages.error(request, err)
+            return redirect('shop_dashboard', shop_slug=shop_slug)
+
         elif action == 'transfer_item' and is_warehouse:
             item_id = request.POST.get('item_id', '')
             target_shop_id = request.POST.get('target_shop', '')
@@ -536,7 +773,6 @@ def shop_dashboard(request, shop_slug):
                         transaction_type='transfer',
                         reason=f'Warehouse transfer to {target_shop.name}',
                     )
-                    auto_deduct_from_warehouse(item.name, target_shop, qty_transfer, float(item.unit_price), item.category)
                     messages.success(request, f'Transferred {qty_transfer}x {item.name} to {target_shop.name}')
 
         return redirect('shop_dashboard', shop_slug=shop_slug)
@@ -559,12 +795,22 @@ def shop_dashboard(request, shop_slug):
         stock_out_by_item = {}
         opening_by_item = {}
         for item in items:
-            stocked_out = StockTransaction.objects.filter(item__shop=shop, item__name__iexact=item.name, transaction_type='transfer').aggregate(total=Sum('quantity'))['total'] or 0
+            stocked_out = StockTransaction.objects.filter(item=item, source_shop=shop, transaction_type='transfer').aggregate(total=Sum('quantity'))['total'] or 0
             warehouse_stocked_out += stocked_out
             warehouse_stocked_in += item.quantity + stocked_out
             stock_out_by_item[item.id] = stocked_out
             open_data = opening_stock.get(item.name.lower(), {})
             opening_by_item[item.id] = open_data.get('quantity', 0)
+
+        warehouse_item_map = {}
+        for wi in items:
+            warehouse_item_map[wi.name.lower()] = wi
+
+        total_value_by_item = {}
+        for item in items:
+            open_qty = opening_by_item.get(item.id, 0)
+            stocked_in = item.quantity + stock_out_by_item.get(item.id, 0)
+            total_value_by_item[item.id] = (open_qty + stocked_in) * float(item.unit_price)
 
         context = {
             'shop': shop,
@@ -578,6 +824,9 @@ def shop_dashboard(request, shop_slug):
             'warehouse_stocked_out': warehouse_stocked_out,
             'stock_out_by_item': stock_out_by_item,
             'opening_by_item': opening_by_item,
+            'total_value_by_item': total_value_by_item,
+            'warehouse_item_map': warehouse_item_map,
+            'warehouse_item_list': items,
             'active_period': active_period,
             'stock_transactions': stock_transactions,
             'is_warehouse': True,
@@ -1228,6 +1477,19 @@ def download_template(request):
 
 
 @shop_access_required
+def download_bulk_transfer_template(request):
+    csv = __import__('csv')
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="warehouse_bulk_transfer_template.csv"'
+    writer = csv.writer(response)
+    writer.writerow(['Item Name', 'Target Shop', 'Quantity'])
+    writer.writerow(['Sugar', 'Blantyre 1', 5])
+    writer.writerow(['Rice', 'Lilongwe', 3])
+    writer.writerow(['Soap', 'Mzuzu', 10])
+    return response
+
+
+@shop_access_required
 def financial_report(request):
     profile = get_user_profile(request.user)
     user_is_admin = profile is None or profile.is_admin
@@ -1302,10 +1564,28 @@ def financial_report(request):
     return render(request, 'stock_manager/financial_report.html', context)
 
 
-@login_required
+def landing_view(request):
+    return render(request, 'stock_manager/landing.html')
+
+
+def login_view(request):
+    if request.user.is_authenticated:
+        return redirect('dashboard')
+    from django.contrib.auth.forms import AuthenticationForm
+    from django.contrib.auth import login as auth_login
+    form = AuthenticationForm(request, data=request.POST or None)
+    if request.method == 'POST' and form.is_valid():
+        auth_login(request, form.get_user())
+        next_url = request.GET.get('next', 'dashboard')
+        return redirect(next_url)
+    company = CompanyProfile.get_profile()
+    return render(request, 'stock_manager/login.html', {'form': form, 'company': company})
+
+
 def logout_view(request):
     auth_logout(request)
-    return redirect('admin:index')
+    next_url = request.GET.get('next', 'login')
+    return redirect(next_url)
 
 
 @login_required

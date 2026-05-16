@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>{{ page_title|default:"Stock Manager" }}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
@@ -25,6 +25,43 @@
         .alert-error { background-color: #f8d7da; border-color: #f5c6cb; color: #721c24; }
         .online-dot { width: 10px; height: 10px; background: #2ecc71; border-radius: 50%; display: inline-block; }
         .offline-dot { width: 10px; height: 10px; background: #95a5a6; border-radius: 50%; display: inline-block; }
+        @media (max-width: 767px) {
+            .sidebar { position: fixed; z-index: 1040; width: 260px; transform: translateX(-100%); transition: transform 0.3s ease; top: 56px; }
+            .sidebar.show { transform: translateX(0); }
+            main { margin-left: 0 !important; padding: 12px !important; }
+            .table-container { padding: 10px; border-radius: 8px; }
+            .stat-card .card-body { padding: 0.8rem; }
+            .stat-card .icon { font-size: 1.5rem; }
+            .stat-card h2 { font-size: 1.2rem; }
+            .stat-card h6 { font-size: 0.7rem; }
+            .d-flex.gap-2 { flex-wrap: wrap; gap: 4px !important; }
+            .d-flex.gap-2 .btn { font-size: 0.75rem; padding: 4px 8px; }
+            .navbar form { width: 100% !important; margin: 8px 0 !important; }
+            .table-responsive { font-size: 0.7rem !important; }
+            .table-responsive .btn { font-size: 0.65rem !important; padding: 2px 6px !important; }
+            .modal-dialog { margin: 8px; }
+            .confirm-box { width: 95vw !important; }
+            .confirm-footer { flex-direction: column; gap: 8px; }
+            .confirm-footer button { width: 100%; }
+            [style*="position:fixed"][style*="bottom:20px"][style*="right:20px"] { bottom: 12px !important; right: 12px !important; width: 48px !important; height: 48px !important; }
+            [style*="position:fixed"][style*="bottom:20px"][style*="right:20px"] i { font-size: 1.4rem !important; }
+            .btn-group { flex-wrap: wrap; }
+            h2 { font-size: 1.3rem !important; }
+            h5 { font-size: 0.95rem !important; }
+            .badge { font-size: 0.65rem !important; }
+            input, select, textarea { font-size: 16px !important; }
+            .row.mb-4 > div { margin-bottom: 8px; }
+            .pos-shop-items { flex-direction: column !important; }
+            .pos-shop-cart { width: 100% !important; }
+            .offcanvas-sidebar-btn { display: inline-block !important; }
+            nav.navbar .container-fluid { flex-wrap: nowrap; }
+        }
+        .offcanvas-sidebar-btn { display: none; }
+        @media (max-width: 575px) {
+            .stat-card .card-body { padding: 0.6rem; }
+            .table-container { padding: 6px; }
+            main { padding: 8px !important; }
+        }
     </style>
     <style>
         .confirm-overlay {
@@ -96,47 +133,69 @@
     {% if user.is_authenticated %}
     <form style="display:none"><input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}"></form>
     {% endif %}
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="{% url 'dashboard' %}">
-                <i class="bi bi-box-seam"></i> Stock Manager
-            </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <form class="d-flex mx-auto" action="{% url 'search' %}" method="get" style="width: 500px;">
-                    <div class="input-group">
+    <nav class="navbar navbar-dark bg-dark fixed-top" style="z-index: 1030;">
+        <div class="container-fluid px-2">
+            <div class="d-flex align-items-center gap-1">
+                <button class="btn btn-dark btn-sm d-md-none offcanvas-sidebar-btn" id="sidebarToggle" style="display:none">
+                    <i class="bi bi-list" style="font-size:1.4rem;"></i>
+                </button>
+                <a class="navbar-brand py-0" href="{% url 'dashboard' %}" style="font-size:1rem;">
+                    <i class="bi bi-box-seam"></i> Stock Manager
+                </a>
+                <a href="{% url 'logout' %}?next={% url 'landing' %}" class="btn btn-outline-light btn-sm py-0 ms-1" title="Back to Store Home">
+                    <i class="bi bi-house-door"></i>
+                </a>
+            </div>
+            <div class="d-flex align-items-center gap-1">
+                <button class="navbar-toggler border-0 p-1" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                    <span class="navbar-toggler-icon" style="width:1.2rem;height:1.2rem;"></span>
+                </button>
+            </div>
+        </div>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <div class="container-fluid px-2 pb-2">
+                <form class="d-flex w-100" action="{% url 'search' %}" method="get">
+                    <div class="input-group input-group-sm">
                         <input class="form-control" type="search" name="q" placeholder="Search items..." value="{{ query|default:'' }}" aria-label="Search">
-                        <button class="btn btn-primary" type="submit"><i class="bi bi-search"></i> Search</button>
+                        <button class="btn btn-primary" type="submit"><i class="bi bi-search"></i></button>
                     </div>
                 </form>
-                <ul class="navbar-nav ms-auto">
+                <ul class="navbar-nav mt-2">
                     {% if user.is_authenticated %}
                     {% if user_access.is_admin %}
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'export_csv' %}"><i class="bi bi-download"></i> Export CSV</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'admin_manage' %}"><i class="bi bi-tools"></i> Manage</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'financial_report' %}"><i class="bi bi-graph-up-arrow"></i> Financial Report</a>
-                    </li>
+                    <li class="nav-item"><a class="nav-link py-1" href="{% url 'dashboard' %}"><i class="bi bi-grid-3x3-gap"></i> Dashboard</a></li>
+                    <li class="nav-item"><a class="nav-link py-1" href="{% url 'admin_manage' %}"><i class="bi bi-tools"></i> Manage</a></li>
+                    <li class="nav-item"><a class="nav-link py-1" href="{% url 'financial_report' %}"><i class="bi bi-graph-up-arrow"></i> Financial Report</a></li>
+                    <li class="nav-item"><a class="nav-link py-1" href="{% url 'sales_history' %}"><i class="bi bi-clock-history"></i> Sales</a></li>
+                    <li class="nav-item"><a class="nav-link py-1" href="{% url 'messages' %}"><i class="bi bi-chat-dots"></i> Messages</a></li>
+                    <li class="nav-item"><a class="nav-link py-1" href="{% url 'calls' %}"><i class="bi bi-telephone"></i> Calls</a></li>
+                    <li class="nav-item"><a class="nav-link py-1" href="{% url 'meetings' %}"><i class="bi bi-camera-video"></i> Meetings</a></li>
+                    <li class="nav-item"><a class="nav-link py-1" href="{% url 'whatsapp_inbox' %}"><i class="bi bi-whatsapp text-success"></i> WhatsApp</a></li>
+                    <li class="nav-item"><a class="nav-link py-1" href="{% url 'settings' %}"><i class="bi bi-gear-wide-connected"></i> Settings</a></li>
+                    <li class="nav-item"><a class="nav-link py-1" href="{% url 'export_csv' %}"><i class="bi bi-download"></i> Export CSV</a></li>
+                    <li><hr class="text-secondary mx-2 my-1"></li>
+                    {% for shop in all_shops %}
+                    <li class="nav-item"><a class="nav-link py-1" href="{% url 'shop_dashboard' shop.name|slugify %}"><i class="bi bi-shop"></i> {{ shop.name }}</a></li>
+                    {% endfor %}
+                    <li><hr class="text-secondary mx-2 my-1"></li>
+                    <li class="nav-item"><a class="nav-link py-1 text-danger" href="{% url 'logout' %}"><i class="bi bi-box-arrow-left"></i> Logout</a></li>
+                    {% else %}
+                    {% if user_access.assigned_shop %}
+                    <li class="nav-item"><a class="nav-link py-1" href="{% url 'shop_dashboard' user_access.assigned_shop.name|slugify %}"><i class="bi bi-shop"></i> {{ user_access.assigned_shop.name }}</a></li>
+                    {% endif %}
+                    <li class="nav-item"><a class="nav-link py-1" href="{% url 'logout' %}"><i class="bi bi-box-arrow-left"></i> Logout</a></li>
                     {% endif %}
                     {% else %}
-                    <li class="nav-item">
-                        <a class="nav-link" href="/admin/login/"><i class="bi bi-box-arrow-in-right"></i> Login</a>
-                    </li>
+                    <li class="nav-item"><a class="nav-link" href="/admin/login/"><i class="bi bi-box-arrow-in-right"></i> Login</a></li>
                     {% endif %}
                 </ul>
             </div>
         </div>
     </nav>
 
-    <div class="container-fluid">
+    <div class="container-fluid" style="padding-top:60px;">
         <div class="row">
-            <nav class="col-md-2 d-none d-md-block sidebar p-0">
+            <nav class="col-md-2 d-none d-md-block sidebar p-0" id="mainSidebar">
                 <div class="pt-3">
                     {% if user_access.is_admin %}
                     <a href="{% url 'dashboard' %}" class="{% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
@@ -208,7 +267,7 @@
                 </div>
             </nav>
 
-            <main class="col-md-10 ms-sm-auto px-md-4 py-4">
+            <main class="col-12 col-md-10 ms-sm-auto px-md-4 py-4">
                 {% if messages %}
                 {% for message in messages %}
                 <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show">
@@ -285,6 +344,21 @@
     </div>
 
     <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const toggle = document.getElementById('sidebarToggle');
+        const sidebar = document.getElementById('mainSidebar');
+        if (toggle && sidebar) {
+            toggle.addEventListener('click', function() {
+                sidebar.classList.toggle('show');
+            });
+            document.addEventListener('click', function(e) {
+                if (window.innerWidth < 768 && sidebar.classList.contains('show') && !sidebar.contains(e.target) && e.target !== toggle && !toggle.contains(e.target)) {
+                    sidebar.classList.remove('show');
+                }
+            });
+        }
+    });
+
     function showConfirm(opts) {
         return new Promise((resolve) => {
             const overlay = document.getElementById('confirmOverlay');

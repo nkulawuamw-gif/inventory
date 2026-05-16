@@ -4,7 +4,8 @@ from . import communication_views as comm
 from . import whatsapp_views as wa
 
 urlpatterns = [
-    path('', views.dashboard, name='dashboard'),
+    path('', views.landing_view, name='landing'),
+    path('dashboard/', views.dashboard, name='dashboard'),
     path('pos/<slug:shop_slug>/', views.point_of_sale, name='point_of_sale'),
     path('sales-history/', views.sales_history, name='sales_history'),
     path('receipt/<int:receipt_id>/print/', views.print_receipt, name='print_receipt'),
@@ -12,6 +13,7 @@ urlpatterns = [
     path('financial-report/', views.financial_report, name='financial_report'),
     path('settings/', views.settings_view, name='settings'),
     path('download-template/', views.download_template, name='download_template'),
+    path('download-bulk-transfer-template/', views.download_bulk_transfer_template, name='download_bulk_transfer_template'),
     path('search/', views.search_items, name='search'),
     path('export-csv/', views.export_csv, name='export_csv'),
     path('dashboard-bulk-import/', views.dashboard_bulk_import, name='dashboard_bulk_import'),
@@ -38,6 +40,7 @@ urlpatterns = [
     path('whatsapp/', wa.whatsapp_inbox, name='whatsapp_inbox'),
     path('whatsapp/webhook/', wa.whatsapp_webhook, name='whatsapp_webhook'),
 
+    path('login/', views.login_view, name='login'),
     path('logout/', views.logout_view, name='logout'),
     path('change-password/', views.change_password, name='change_password'),
     path('<slug:shop_slug>/', views.shop_dashboard, name='shop_dashboard'),

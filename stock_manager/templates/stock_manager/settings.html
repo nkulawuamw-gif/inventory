@@ -522,24 +522,31 @@ function showSection(name) {
     btn.className = btn.className.replace('btn-outline-primary', 'btn-primary');
 }
 function saveAllSettings() {
-    const forms = document.querySelectorAll('#settingsPage .settings-section:not([style*="display: none"]) form');
+    const forms = document.querySelectorAll('#settingsPage .settings-section:not([style*="display:none"]) form');
     let hasChanges = false;
+    let submitted = 0;
+    const totalForms = forms.length;
+    if (totalForms === 0) { alert('No forms to save.'); return; }
     forms.forEach(function(form) {
         const inputs = form.querySelectorAll('input:not([type=hidden]), select, textarea');
         let formHasData = false;
         inputs.forEach(function(input) {
-            if (input.value.trim()) {
-                formHasData = true;
-                hasChanges = true;
+            if (input.value.trim()) { formHasData = true; hasChanges = true; }
+        });
+        if (!formHasData) { submitted++; return; }
+        var formData = new FormData(form);
+        fetch(window.location.href, {
+            method: 'POST',
+            body: formData,
+            headers: { 'X-CSRFToken': formData.get('csrfmiddlewaretoken') }
+        }).then(function(r) { return r.text(); }).then(function() {
+            submitted++;
+            if (submitted >= totalForms) {
+                if (hasChanges) { window.location.reload(); }
+                else { alert('No changes to save.'); }
             }
         });
-        if (formHasData) {
-            form.querySelector('button[type="submit"]').click();
-        }
     });
-    if (!hasChanges) {
-        alert('No changes to save.');
-    }
 }
 </script>
 {% endblock %}
