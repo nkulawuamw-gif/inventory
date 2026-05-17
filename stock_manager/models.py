@@ -342,6 +342,7 @@ class WhatsAppSetting(models.Model):
 
 class LandingPageContent(models.Model):
     data = models.JSONField(default=dict, blank=True)
+    image = models.ImageField(upload_to="landing/", blank=True, null=True)
 
     class Meta:
         verbose_name = 'Landing Page Content'

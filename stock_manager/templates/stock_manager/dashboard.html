@@ -166,7 +166,7 @@ document.addEventListener('DOMContentLoaded', function() {
     <div class="d-flex justify-content-between align-items-center mb-3">
         <div class="d-flex gap-2 align-items-center">
             <h5 class="mb-0"><i class="bi bi-graph-up text-success"></i> Sales Summary by Shop</h5>
-            <button class="btn btn-sm btn-outline-success" onclick="toggleDash()">View All</button>
+            <button class="btn btn-sm btn-outline-success" data-bs-toggle="modal" data-bs-target="#dashModal">View All</button>
         </div>
         <span class="badge bg-success fs-6">Grand Total: MWK {{ total_sales_amount|floatformat:2 }} ({{ total_sales_count }} sales)</span>
     </div>
@@ -212,17 +212,66 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
 <script>
-function toggleDash() {
-    var el = document.querySelector('[onclick*="toggleDash"]');
-    var rows = document.querySelectorAll('.dash-row');
-    var hidden = document.querySelectorAll('.dash-row.d-none');
-    if (hidden.length) {
-        for (var i = 0; i < hidden.length; i++) hidden[i].classList.remove('d-none');
-        el.textContent = 'Show Less';
-    } else {
-        for (var i = 0; i < rows.length; i++) { if (i >= 10) rows[i].classList.add('d-none'); }
-        el.textContent = 'View All';
-    }
-}
 </script>
+
+<!-- Sales Summary Modal -->
+<div class="modal fade" id="dashModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title"><i class="bi bi-graph-up text-success"></i> Sales Summary by Shop</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Shop</th>
+                                <th>Sales Person</th>
+                                <th class="text-center">Total Sales</th>
+                                <th class="text-end">Sales Amount</th>
+                                <th class="text-center">Percentage</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for data in shop_sales_data %}
+                            <tr>
+                                <td><strong>{{ data.shop.name }}</strong></td>
+                                <td>
+                                    {% if data.sales_persons %}
+                                    {% for sp in data.sales_persons %}{{ sp.user.get_full_name|default:sp.user.username }}{% if not forloop.last %}, {% endif %}{% endfor %}
+                                    {% else %}
+                                    <span class="text-muted">—</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">{{ data.count }}</td>
+                                <td class="text-end"><strong>MWK {{ data.total_amount|floatformat:2 }}</strong></td>
+                                <td class="text-center">
+                                    {% if total_sales_amount > 0 %}
+                                    <div class="progress" style="height: 20px;">
+                                        <div class="progress-bar bg-success" role="progressbar" style="width: {% widthratio data.total_amount total_sales_amount 100 %}%">
+                                            {% widthratio data.total_amount total_sales_amount 100 %}%
+                                        </div>
+                                    </div>
+                                    {% else %}
+                                    <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-3">No sales recorded yet</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

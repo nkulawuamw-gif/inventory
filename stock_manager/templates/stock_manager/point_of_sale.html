@@ -214,7 +214,7 @@ async function completeSale() {
     const received = parseFloat(document.getElementById('amountReceived').value) || 0;
     const total = cart.reduce((s, x) => s + x.price * x.qty, 0);
     if (received < total) {
-        alert(`Amount received (MWK ${received.toFixed(2)}) is less than total (MWK ${total.toFixed(2)})`);
+        showToast(`Amount received (MWK ${received.toFixed(2)}) is less than total (MWK ${total.toFixed(2)})`, 'error');
         return;
     }
 
@@ -245,15 +245,16 @@ async function completeSale() {
             document.getElementById('receiptNum').textContent = data.receipt_number;
             document.getElementById('receiptOverlay').classList.add('active');
             document.getElementById('printReceiptBtn').href = `/receipt/${data.receipt_id}/print/`;
+            showToast(`Sale complete! Receipt: ${data.receipt_number}`, 'success');
         } else {
             console.error('Sale error:', data);
-            alert(data.error || 'Sale failed');
+            showToast(data.error || 'Sale failed', 'error');
             btn.disabled = false;
             btn.innerHTML = '<i class="bi bi-check-lg"></i> Complete Sale';
         }
     } catch (e) {
         console.error('Fetch/JSON error:', e);
-        alert('Error processing sale. Check console for details.');
+        showToast('Error processing sale. Check console for details.', 'error');
         btn.disabled = false;
         btn.innerHTML = '<i class="bi bi-check-lg"></i> Complete Sale';
     }

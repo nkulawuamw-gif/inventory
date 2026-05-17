@@ -62,11 +62,20 @@
             .table-container { padding: 6px; }
             main { padding: 8px !important; }
         }
-        .table { font-size: 0.75rem; }
-        .table td, .table th { padding: 0.25rem 0.3rem !important; }
-        .table .badge { font-size: 0.65rem; padding: 0.2em 0.4em; }
+        @media (orientation: landscape) and (max-height: 600px) {
+            main { padding-bottom: 80px !important; }
+        }
+        .table { font-size: 0.7rem; }
+        .table td, .table th { padding: 0.2rem 0.25rem !important; white-space: normal; word-break: break-word; }
+        .table .badge { font-size: 0.6rem; padding: 0.15em 0.3em; }
         .item-highlight { background: #cce5ff !important; }
-        .table .btn { font-size: 0.65rem; padding: 0.1rem 0.3rem !important; }
+        .table .btn { font-size: 0.6rem; padding: 0.08rem 0.25rem !important; }
+        .table td.text-end, .table th.text-end { white-space: nowrap; }
+        .table td.text-center, .table th.text-center { white-space: nowrap; }
+        .table thead th { white-space: nowrap; }
+        .table-container { overflow: hidden; }
+        .table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; max-height: 380px; overflow-y: auto; }
+        .modal .table-responsive { max-height: none; }
         .form-control, .form-select { font-size: 0.8rem; padding: 0.25rem 0.4rem; }
         .input-group-sm .form-control { font-size: 0.75rem; }
         .btn-sm { font-size: 0.7rem; padding: 0.15rem 0.4rem; }
@@ -81,6 +90,19 @@
         .pos-shop-cart { font-size: 0.8rem; }
     </style>
     <style>
+        .toast-container { position: fixed; top: 70px; right: 20px; z-index: 99999; display: flex; flex-direction: column; gap: 8px; max-width: 420px; }
+        .toast-notification { display: flex; align-items: center; gap: 12px; padding: 14px 18px; border-radius: 12px; color: white; font-weight: 500; font-size: 0.9rem; box-shadow: 0 8px 24px rgba(0,0,0,0.15); animation: toastIn 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275); min-width: 300px; }
+        .toast-notification .toast-icon { font-size: 1.3rem; flex-shrink: 0; }
+        .toast-notification .toast-msg { flex: 1; }
+        .toast-notification .toast-close { background: none; border: none; color: rgba(255,255,255,0.7); font-size: 1.2rem; cursor: pointer; padding: 0 4px; line-height: 1; }
+        .toast-notification .toast-close:hover { color: white; }
+        .toast-notification.toast-success { background: linear-gradient(135deg, #2ecc71, #27ae60); }
+        .toast-notification.toast-error { background: linear-gradient(135deg, #e74c3c, #c0392b); }
+        .toast-notification.toast-warning { background: linear-gradient(135deg, #f39c12, #e67e22); }
+        .toast-notification.toast-info { background: linear-gradient(135deg, #3498db, #2980b9); }
+        @keyframes toastIn { 0% { transform: translateX(120%) scale(0.8); opacity: 0; } 100% { transform: translateX(0) scale(1); opacity: 1; } }
+        @keyframes toastOut { 0% { transform: translateX(0) scale(1); opacity: 1; } 100% { transform: translateX(120%) scale(0.8); opacity: 0; } }
+        .toast-notification.removing { animation: toastOut 0.3s ease forwards; }
         .confirm-overlay {
             display: none; position: fixed; inset: 0;
             background: rgba(0,0,0,0.5); backdrop-filter: blur(4px);
@@ -187,7 +209,7 @@
                     <li class="nav-item"><a class="nav-link py-1" href="{% url 'admin_manage' %}"><i class="bi bi-tools"></i> Manage</a></li>
                     <li class="nav-item"><a class="nav-link py-1" href="{% url 'financial_report' %}"><i class="bi bi-graph-up-arrow"></i> Financial Report</a></li>
                     <li class="nav-item"><a class="nav-link py-1" href="{% url 'sales_history' %}"><i class="bi bi-clock-history"></i> Sales</a></li>
-                    <li class="nav-item"><a class="nav-link py-1" href="{% url 'messages' %}"><i class="bi bi-chat-dots"></i> Messages</a></li>
+                    <li class="nav-item"><a class="nav-link py-1" href="{% url 'chat' %}"><i class="bi bi-chat-dots"></i> Chat</a></li>
                     <li class="nav-item"><a class="nav-link py-1" href="{% url 'calls' %}"><i class="bi bi-telephone"></i> Calls</a></li>
                     <li class="nav-item"><a class="nav-link py-1" href="{% url 'meetings' %}"><i class="bi bi-camera-video"></i> Meetings</a></li>
                     <li class="nav-item"><a class="nav-link py-1" href="{% url 'whatsapp_inbox' %}"><i class="bi bi-whatsapp text-success"></i> WhatsApp</a></li>
@@ -231,8 +253,8 @@
                     <a href="{% url 'sales_history' %}" class="{% if request.resolver_match.url_name == 'sales_history' %}active{% endif %}">
                         <i class="bi bi-clock-history"></i> Sales History
                     </a>
-                    <a href="{% url 'messages' %}" class="{% if request.resolver_match.url_name == 'messages' %}active{% endif %}">
-                        <i class="bi bi-chat-dots"></i> Messages
+                    <a href="{% url 'chat' %}" class="{% if request.resolver_match.url_name == 'chat' %}active{% endif %}">
+                        <i class="bi bi-chat-dots"></i> Chat
                     </a>
                     <a href="{% url 'calls' %}" class="{% if request.resolver_match.url_name == 'calls' %}active{% endif %}">
                         <i class="bi bi-telephone"></i> Calls
@@ -288,21 +310,35 @@
             </nav>
 
             <main class="col-12 col-md-10 ms-sm-auto px-md-4 py-4">
-                {% if messages %}
-                {% for message in messages %}
-                <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show">
-                    {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                </div>
-                {% endfor %}
-                {% endif %}
                 {% block content %}{% endblock %}
             </main>
         </div>
     </div>
 
-    {% if user.is_authenticated %}
+    <div class="toast-container" id="toastContainer"></div>
+
     <script>
+    function showToast(message, type, duration) {
+        type = type || 'info';
+        duration = duration || 4000;
+        var container = document.getElementById('toastContainer');
+        var icons = { success: 'bi-check-circle-fill', error: 'bi-x-circle-fill', warning: 'bi-exclamation-circle-fill', info: 'bi-info-circle-fill' };
+        var icon = icons[type] || icons.info;
+        var toast = document.createElement('div');
+        toast.className = 'toast-notification toast-' + type;
+        toast.innerHTML = '<span class="toast-icon"><i class="bi ' + icon + '"></i></span><span class="toast-msg">' + message + '</span><button class="toast-close" onclick="this.closest(\'.toast-notification\').remove()">&times;</button>';
+        container.appendChild(toast);
+        setTimeout(function() {
+            toast.classList.add('removing');
+            setTimeout(function() { if (toast.parentNode) toast.remove(); }, 300);
+        }, duration);
+    }
+    {% if messages %}
+    {% for message in messages %}
+    showToast('{{ message|escapejs }}', '{% if message.tags == "error" %}error{% else %}{{ message.tags }}{% endif %}');
+    {% endfor %}
+    {% endif %}
+
     function getCSRFToken() {
         const el = document.querySelector('[name=csrfmiddlewaretoken]');
         if (el) return el.value;
@@ -340,7 +376,6 @@
         navigator.sendBeacon('{% url "mark_offline" %}');
     });
     </script>
-    {% endif %}
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>

@@ -46,3 +46,16 @@ const observer = new IntersectionObserver((entries) => {
 }, { threshold: 0.15 });
 
 document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+
+// ===== IMAGE SLIDESHOW =====
+(function(){
+  const s = document.getElementById('heroSlider');
+  if (!s) return;
+  const sl = s.querySelectorAll('.slide');
+  let i = 0;
+  setInterval(() => {
+    sl[i].classList.remove('active');
+    i = (i + 1) % sl.length;
+    sl[i].classList.add('active');
+  }, 3000);
+})();

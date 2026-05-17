@@ -171,7 +171,7 @@
       <div>
         <strong><i class="bi bi-clock"></i> Active Period:</strong>
         {{ active_period.name }}
-        ({{ active_period.start_date|date:"M d, Y" }} - {{ active_period.end_date|date:"M d, Y" }})
+        ({{ active_period.start_date|date:"d/m/y" }} - {{ active_period.end_date|date:"d/m/y" }})
         <br><small class="text-muted">{{ opening_count }} items carried forward as opening stock</small>
       </div>
       <form method="post" class="mb-0" data-confirm data-confirm-type="danger" data-confirm-title="Close Period?" data-confirm-message="This will close &quot;{{ active_period.name }}&quot;. Future transactions will be recorded in a new period." data-confirm-text="Yes, Close Period" data-confirm-submessage="">
@@ -190,7 +190,7 @@
     <div class="card">
       <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
         <h5 class="mb-0"><i class="bi bi-clock-history"></i> Business Periods</h5>
-        <button class="btn btn-sm btn-outline-light" onclick="togglePeriods()">View All</button>
+        <button class="btn btn-sm btn-outline-light" data-bs-toggle="modal" data-bs-target="#periodsModal">View All</button>
       </div>
       <div class="card-body p-0">
         <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
@@ -210,8 +210,8 @@
               <tr class="period-row{% if forloop.counter > 10 %} d-none{% endif %}">
                 <td><strong>{{ period.name }}</strong></td>
                 <td><span class="badge bg-secondary">{{ period.get_period_type_display }}</span></td>
-                <td>{{ period.start_date|date:"M d, Y" }}</td>
-                <td>{{ period.end_date|date:"M d, Y" }}</td>
+                <td>{{ period.start_date|date:"d/m/y" }}</td>
+                <td>{{ period.end_date|date:"d/m/y" }}</td>
                 <td>
                   {% if period.is_closed %}
                   <span class="badge bg-danger">Closed</span>
@@ -221,7 +221,7 @@
                 </td>
                 <td>
                   {% if period.closed_at %}
-                  <small class="text-muted">{{ period.closed_at|date:"M d, H:i" }}</small>
+                  <small class="text-muted">{{ period.closed_at|date:"d/m/y H:i" }}</small>
                   {% else %}
                   <small class="text-muted">-</small>
                   {% endif %}
@@ -292,7 +292,7 @@
     <div class="card">
       <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
         <h5 class="mb-0"><i class="bi bi-shop"></i> All Shops</h5>
-        <button class="btn btn-sm btn-outline-light" onclick="toggleShops()">View All</button>
+        <button class="btn btn-sm btn-outline-light" data-bs-toggle="modal" data-bs-target="#shopsModal">View All</button>
       </div>
       <div class="card-body p-0">
         <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
@@ -396,7 +396,7 @@
     <div class="card" style="margin-bottom: 1px;">
       <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
         <h5 class="mb-0"><i class="bi bi-people"></i> All Salesmen</h5>
-        <button class="btn btn-sm btn-outline-light" onclick="toggleSalesmen()">View All</button>
+        <button class="btn btn-sm btn-outline-light" data-bs-toggle="modal" data-bs-target="#salesmenModal">View All</button>
       </div>
       <div class="card-body p-0">
         <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
@@ -804,41 +804,168 @@ function saveAllSettings() {
         });
     });
 }
-function togglePeriods() {
-    var el = document.querySelector('[onclick*="togglePeriods"]');
-    var rows = document.querySelectorAll('.period-row');
-    var hidden = document.querySelectorAll('.period-row.d-none');
-    if (hidden.length) {
-        for (var i = 0; i < hidden.length; i++) hidden[i].classList.remove('d-none');
-        el.textContent = 'Show Less';
-    } else {
-        for (var i = 0; i < rows.length; i++) { if (i >= 10) rows[i].classList.add('d-none'); }
-        el.textContent = 'View All';
-    }
-}
-function toggleShops() {
-    var el = document.querySelector('[onclick*="toggleShops"]');
-    var rows = document.querySelectorAll('.shop-row');
-    var hidden = document.querySelectorAll('.shop-row.d-none');
-    if (hidden.length) {
-        for (var i = 0; i < hidden.length; i++) hidden[i].classList.remove('d-none');
-        el.textContent = 'Show Less';
-    } else {
-        for (var i = 0; i < rows.length; i++) { if (i >= 10) rows[i].classList.add('d-none'); }
-        el.textContent = 'View All';
-    }
-}
-function toggleSalesmen() {
-    var el = document.querySelector('[onclick*="toggleSalesmen"]');
-    var rows = document.querySelectorAll('.salesman-row');
-    var hidden = document.querySelectorAll('.salesman-row.d-none');
-    if (hidden.length) {
-        for (var i = 0; i < hidden.length; i++) hidden[i].classList.remove('d-none');
-        el.textContent = 'Show Less';
-    } else {
-        for (var i = 0; i < rows.length; i++) { if (i >= 10) rows[i].classList.add('d-none'); }
-        el.textContent = 'View All';
-    }
-}
 </script>
+
+<!-- All Business Periods Modal -->
+<div class="modal fade" id="periodsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title"><i class="bi bi-clock-history"></i> All Business Periods</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light sticky-top">
+                            <tr>
+                                <th>Name</th>
+                                <th>Type</th>
+                                <th>Start</th>
+                                <th>End</th>
+                                <th>Status</th>
+                                <th>Closed</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for period in periods %}
+                            <tr>
+                                <td><strong>{{ period.name }}</strong></td>
+                                <td><span class="badge bg-secondary">{{ period.get_period_type_display }}</span></td>
+                                <td>{{ period.start_date|date:"d/m/y" }}</td>
+                                <td>{{ period.end_date|date:"d/m/y" }}</td>
+                                <td>
+                                    {% if period.is_closed %}
+                                    <span class="badge bg-danger">Closed</span>
+                                    {% else %}
+                                    <span class="badge bg-success">Open</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if period.closed_at %}
+                                    <small class="text-muted">{{ period.closed_at|date:"d/m/y H:i" }}</small>
+                                    {% else %}
+                                    <small class="text-muted">-</small>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="text-center text-muted py-3">No business periods created yet</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- All Shops Modal -->
+<div class="modal fade" id="shopsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title"><i class="bi bi-shop"></i> All Shops</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light sticky-top">
+                            <tr>
+                                <th>#</th>
+                                <th>Shop Name</th>
+                                <th>Assigned People</th>
+                                <th>Sales Person</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for shop in all_shops %}
+                            <tr>
+                                <td>{{ forloop.counter }}</td>
+                                <td><strong>{{ shop.name }}</strong></td>
+                                <td>{{ shop.assigned_users.count }}</td>
+                                <td>
+                                    {% with users=shop.assigned_users.all %}
+                                    {% if users %}
+                                    {% for u in users %}{{ u.user.get_full_name|default:u.user.username }}{% if not forloop.last %}, {% endif %}{% endfor %}
+                                    {% else %}
+                                    <span class="text-muted">—</span>
+                                    {% endif %}
+                                    {% endwith %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="text-center text-muted py-3">No shops created yet</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- All Salesmen Modal -->
+<div class="modal fade" id="salesmenModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title"><i class="bi bi-people"></i> All Salesmen</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light sticky-top">
+                            <tr>
+                                <th>#</th>
+                                <th>Username</th>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Role</th>
+                                <th>Shop</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for u in users %}
+                            <tr>
+                                <td>{{ forloop.counter }}</td>
+                                <td><strong>{{ u.username }}</strong></td>
+                                <td>{{ u.get_full_name|default:"-" }}</td>
+                                <td>{{ u.email|default:"-" }}</td>
+                                <td>
+                                    {% if u.profile.is_admin %}
+                                    <span class="badge bg-warning text-dark">Admin</span>
+                                    {% else %}
+                                    <span class="badge bg-info text-white">Shop User</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ u.profile.assigned_shop.name|default:"All Shops" }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="text-center text-muted py-3">No users created yet</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

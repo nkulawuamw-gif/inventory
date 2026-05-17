@@ -14,7 +14,7 @@ ACCESS_DENIED = {
     'settings': 'You do not have access to settings.',
     'download_template': 'You do not have access to download templates.',
     'dashboard_bulk_import': 'You do not have access to bulk import.',
-    'messages': 'You do not have access to messages.',
+    'chat': 'You do not have access to chat.',
     'calls': 'You do not have access to calls.',
     'meetings': 'You do not have access to meetings.',
     'send_message': 'You do not have access to messaging.',

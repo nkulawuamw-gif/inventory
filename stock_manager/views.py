@@ -1,4 +1,5 @@
 import json
+from decimal import Decimal
 import math
 from datetime import date
 from django.shortcuts import render, get_object_or_404, redirect
@@ -814,7 +815,7 @@ def shop_dashboard(request, shop_slug):
 
     stock_transactions = StockTransaction.objects.filter(
         Q(source_shop=shop) | Q(target_shop=shop)
-    ).select_related('item', 'source_shop', 'target_shop').order_by('-created_at')[:50]
+    ).select_related('item', 'source_shop', 'target_shop').order_by('-created_at')
 
     total_transactions = len(stock_transactions)
     total_transferred_qty = sum(tx.quantity for tx in stock_transactions)
@@ -932,9 +933,12 @@ def point_of_sale(request, shop_slug):
                     return JsonResponse({'error': 'No items in cart'}, status=400)
 
                 customer_name = data.get('customer_name', '').strip()
-                amount_received = float(data.get('amount_received', 0))
+                try:
+                    amount_received = Decimal(str(data.get('amount_received', 0)))
+                except Exception:
+                    return JsonResponse({'error': 'Invalid amount received'}, status=400)
 
-                subtotal = 0.0
+                subtotal = Decimal('0.00')
                 line_items = []
                 errors = []
 
@@ -951,15 +955,18 @@ def point_of_sale(request, shop_slug):
                     if qty > item.quantity:
                         errors.append(f'Not enough stock for {item.name}: have {item.quantity}, need {qty}')
                         continue
-                    line_total = float(item.unit_price) * qty
+                    unit_price = item.unit_price
+                    line_total = unit_price * qty
                     subtotal += line_total
-                    line_items.append({'item': item, 'qty': qty, 'unit_price': float(item.unit_price), 'total': line_total})
+                    line_items.append({'item': item, 'qty': qty, 'unit_price': unit_price, 'total': line_total})
 
                 if errors:
                     return JsonResponse({'error': '; '.join(errors)}, status=400)
 
                 total = subtotal
-                change = max(0, amount_received - total)
+                if amount_received < total:
+                    return JsonResponse({'error': f'Amount received (MWK {amount_received:.2f}) is less than total (MWK {total:.2f})'}, status=400)
+                change = amount_received - total
 
                 receipt = Receipt.objects.create(
                     receipt_number=generate_receipt_number(),
@@ -1530,6 +1537,8 @@ def settings_view(request):
                     'description': request.POST.get('footer_description', '').strip(),
                 }
 
+            if request.FILES.get('landing_image'):
+                content.image = request.FILES['landing_image']
             content.data = data
             content.save()
             messages.success(request, 'Landing page settings saved.')
@@ -1682,7 +1691,9 @@ def login_view(request):
     from django.contrib.auth import login as auth_login
     form = AuthenticationForm(request, data=request.POST or None)
     if request.method == 'POST' and form.is_valid():
-        auth_login(request, form.get_user())
+        user = form.get_user()
+        auth_login(request, user)
+        messages.success(request, f'Welcome back, {user.username}!')
         next_url = request.GET.get('next', 'dashboard')
         return redirect(next_url)
     company = CompanyProfile.get_profile()

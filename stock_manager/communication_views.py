@@ -1,11 +1,12 @@
 import json
 import string
 import random
+from django.db.models import Q, Max
+from django.contrib.auth.models import User
 from django.shortcuts import render, get_object_or_404, redirect
 from django.http import JsonResponse
-from django.contrib.auth.decorators import login_required  # keep for reference, but all views use shop_access_required now
-from django.contrib.auth.models import User
-from django.db.models import Q, Max
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from datetime import timedelta
@@ -57,12 +58,18 @@ def get_online_users(request):
 
 
 @shop_access_required
-def messages_view(request):
+def chat_view(request):
+    threshold = timezone.now() - timedelta(seconds=60)
+    online_ids = set(UserPresence.objects.filter(
+        is_online=True, last_seen__gte=threshold
+    ).values_list('user_id', flat=True))
+
+    contacts = {}
+
     conversations = Message.objects.filter(
         Q(receiver=request.user) | Q(sender=request.user)
     ).values('sender', 'receiver').annotate(last_message=Max('created_at'))
 
-    contacts = {}
     for conv in conversations:
         other_id = conv['sender'] if conv['receiver'] == request.user.id else conv['receiver']
         other_user = User.objects.get(id=other_id)
@@ -71,10 +78,26 @@ def messages_view(request):
             shop_name = 'Admin'
         elif hasattr(other_user, 'profile') and other_user.profile.assigned_shop:
             shop_name = other_user.profile.assigned_shop.name
+        display_name = shop_name or other_user.get_full_name() or other_user.username
+
+        last = Message.objects.filter(
+            (Q(sender=request.user, receiver=other_user) |
+             Q(sender=other_user, receiver=request.user))
+        ).order_by('-created_at').first()
+
+        unread = Message.objects.filter(sender=other_user, receiver=request.user, is_read=False).count()
+
+        body_preview = ''
+        if last:
+            body_preview = last.body[:80] + ('...' if len(last.body) > 80 else '')
+
         contacts[other_id] = {
             'id': other_id,
-            'username': shop_name or other_user.get_full_name() or other_user.username,
+            'username': display_name,
             'last_message_at': conv['last_message'],
+            'last_message': body_preview,
+            'unread': unread,
+            'is_online': other_id in online_ids,
         }
 
     all_users = User.objects.exclude(id=request.user.id).select_related('profile__assigned_shop')
@@ -90,6 +113,9 @@ def messages_view(request):
                 'id': uid,
                 'username': shop_name or u.get_full_name() or u.username,
                 'last_message_at': None,
+                'last_message': '',
+                'unread': 0,
+                'is_online': uid in online_ids,
             }
 
     aware_min = timezone.make_aware(timezone.datetime.min, timezone.utc)
@@ -98,6 +124,7 @@ def messages_view(request):
     selected_user_id = request.GET.get('user', '')
     messages = []
     selected_user = None
+    selected_contact = None
     if selected_user_id:
         selected_user = get_object_or_404(User, id=selected_user_id)
         messages = Message.objects.filter(
@@ -105,15 +132,17 @@ def messages_view(request):
             (Q(sender=selected_user) & Q(receiver=request.user))
         ).order_by('created_at')
         Message.objects.filter(sender=selected_user, receiver=request.user, is_read=False).update(is_read=True)
+        selected_contact = contacts.get(int(selected_user_id))
 
     unread_count = Message.objects.filter(receiver=request.user, is_read=False).count()
 
-    return render(request, 'stock_manager/messages.html', {
+    return render(request, 'stock_manager/chat.html', {
         'contacts': sorted_contacts,
         'selected_user': selected_user,
+        'selected_contact': selected_contact,
         'messages': messages,
         'unread_count': unread_count,
-        'page_title': 'Messages',
+        'page_title': 'Chat',
     })
 
 
@@ -156,10 +185,22 @@ def get_messages(request, user_id):
             'sender': msg.sender.id,
             'sender_name': get_display_name(msg.sender),
             'body': msg.body,
-            'created_at': msg.created_at.strftime('%H:%M'),
+            'created_at': msg.created_at.isoformat(),
+            'is_read': msg.is_read,
         })
 
     return JsonResponse({'messages': msg_list})
+
+
+@shop_access_required
+def mark_read(request):
+    if request.method == 'POST':
+        data = json.loads(request.body)
+        user_id = data.get('user_id')
+        if user_id:
+            Message.objects.filter(sender_id=user_id, receiver=request.user, is_read=False).update(is_read=True)
+            return JsonResponse({'status': 'ok'})
+    return JsonResponse({'status': 'error'}, status=400)
 
 
 @shop_access_required
@@ -280,6 +321,7 @@ def create_meeting(request):
 
         MeetingParticipant.objects.create(meeting=meeting, user=request.user)
 
+        messages.success(request, f'Meeting "{name}" created. Code: {code}')
         return redirect('meeting_room', meeting_code=code)
 
     return redirect('meetings')
@@ -291,6 +333,7 @@ def join_meeting(request, meeting_code):
 
     MeetingParticipant.objects.get_or_create(meeting=meeting, user=request.user)
 
+    messages.success(request, f'Joined meeting "{meeting.name}"')
     return redirect('meeting_room', meeting_code=meeting_code)
 
 
@@ -320,6 +363,9 @@ def leave_meeting(request, meeting_code):
         meeting.ended_at = timezone.now()
         meeting.save()
         MeetingParticipant.objects.filter(meeting=meeting, left_at__isnull=True).update(left_at=timezone.now())
+        messages.success(request, f'Meeting "{meeting.name}" ended.')
+    else:
+        messages.success(request, f'Left meeting "{meeting.name}".')
 
     return redirect('meetings')
 

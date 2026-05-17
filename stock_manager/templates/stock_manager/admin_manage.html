@@ -4,13 +4,6 @@
 {% block content %}
 <h2 class="mb-4"><i class="bi bi-gear"></i> Manage Inventory</h2>
 
-{% for message in messages %}
-<div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-    {{ message }}
-    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-</div>
-{% endfor %}
-
 <div class="row mb-4">
     <div class="col-md-5">
         <div class="card">
@@ -80,7 +73,7 @@
         <div class="card mb-3">
             <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
                 <h5 class="mb-0"><i class="bi bi-clock-history"></i> Transaction History</h5>
-                <button class="btn btn-sm btn-outline-light" onclick="toggleTX()">View All</button>
+                <button class="btn btn-sm btn-outline-light" data-bs-toggle="modal" data-bs-target="#adminTxModal">View All</button>
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
@@ -119,7 +112,7 @@
                                 <td>{% if tx.target_shop %}{{ tx.target_shop.name }}{% else %}-{% endif %}</td>
                                 <td class="text-center"><strong>{{ tx.quantity }}</strong></td>
                                 <td><small class="text-muted">{{ tx.reason|truncatechars:30 }}</small></td>
-                                <td class="text-end"><small>{{ tx.created_at|date:"M d, H:i" }}</small></td>
+                                <td class="text-end"><small>{{ tx.created_at|date:"d/m/y H:i" }}</small></td>
                             </tr>
                             {% empty %}
                             <tr>
@@ -165,7 +158,7 @@
     <div class="d-flex justify-content-between align-items-center mb-3">
                 <div class="d-flex gap-2 align-items-center">
                     <h5 class="mb-0"><i class="bi bi-list-ul"></i> All Items</h5>
-                    <button class="btn btn-sm btn-outline-primary" onclick="toggleItems()">View All</button>
+                    <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#adminItemsModal">View All</button>
                 </div>
                 <div class="d-flex gap-2 align-items-center">
             <form method="get" class="d-flex">
@@ -436,29 +429,113 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
-function toggleTX() {
-    var el = document.querySelector('[onclick*="toggleTX"]');
-    var rows = document.querySelectorAll('.tx-row');
-    var hidden = document.querySelectorAll('.tx-row.d-none');
-    if (hidden.length) {
-        for (var i = 0; i < hidden.length; i++) hidden[i].classList.remove('d-none');
-        el.textContent = 'Show Less';
-    } else {
-        for (var i = 0; i < rows.length; i++) { if (i >= 10) rows[i].classList.add('d-none'); }
-        el.textContent = 'View All';
-    }
-}
-function toggleItems() {
-    var el = document.querySelector('[onclick*="toggleItems"]');
-    var rows = document.querySelectorAll('.item-row');
-    var hidden = document.querySelectorAll('.item-row.d-none');
-    if (hidden.length) {
-        for (var i = 0; i < hidden.length; i++) hidden[i].classList.remove('d-none');
-        el.textContent = 'Show Less';
-    } else {
-        for (var i = 0; i < rows.length; i++) { if (i >= 10) rows[i].classList.add('d-none'); }
-        el.textContent = 'View All';
-    }
-}
 </script>
+
+<!-- All Transactions Modal -->
+<div class="modal fade" id="adminTxModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title"><i class="bi bi-clock-history"></i> All Transaction History</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead class="table-light sticky-top">
+                            <tr>
+                                <th>Type</th>
+                                <th>Item</th>
+                                <th>From</th>
+                                <th>To</th>
+                                <th class="text-center">Qty</th>
+                                <th>Reason</th>
+                                <th class="text-end">Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for tx in stock_transactions %}
+                            <tr>
+                                <td>
+                                    {% if tx.transaction_type == 'transfer' %}
+                                    <span class="badge bg-info">Transfer</span>
+                                    {% elif tx.transaction_type == 'damaged' %}
+                                    <span class="badge bg-danger">Damaged</span>
+                                    {% elif tx.transaction_type == 'lost' %}
+                                    <span class="badge bg-dark">Lost</span>
+                                    {% elif tx.transaction_type == 'expiry' %}
+                                    <span class="badge bg-warning text-dark">Expired</span>
+                                    {% elif tx.transaction_type == 'returned' %}
+                                    <span class="badge bg-secondary">Returned</span>
+                                    {% else %}
+                                    <span class="badge bg-light text-dark">Other</span>
+                                    {% endif %}
+                                </td>
+                                <td><strong>{{ tx.item.name }}</strong></td>
+                                <td>{{ tx.source_shop.name|default:"-" }}</td>
+                                <td>{% if tx.target_shop %}{{ tx.target_shop.name }}{% else %}-{% endif %}</td>
+                                <td class="text-center"><strong>{{ tx.quantity }}</strong></td>
+                                <td><small class="text-muted">{{ tx.reason|truncatechars:30 }}</small></td>
+                                <td class="text-end"><small>{{ tx.created_at|date:"d/m/y H:i" }}</small></td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="7" class="text-center text-muted py-3">No transactions yet</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- All Items Modal -->
+<div class="modal fade" id="adminItemsModal" tabindex="-1">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title"><i class="bi bi-list-ul"></i> All Items</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light sticky-top">
+                            <tr>
+                                <th>Item</th>
+                                <th>Category</th>
+                                <th>Shop</th>
+                                <th class="text-center">Qty</th>
+                                <th class="text-end">Price</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in items %}
+                            <tr>
+                                <td><strong>{{ item.name }}</strong></td>
+                                <td><span class="badge bg-secondary">{{ item.category|default:"-" }}</span></td>
+                                <td>{{ item.shop.name }}</td>
+                                <td class="text-center">{{ item.quantity }}</td>
+                                <td class="text-end">MWK {{ item.unit_price|floatformat:2 }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-4">No items found</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

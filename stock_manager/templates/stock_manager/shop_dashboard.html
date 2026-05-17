@@ -13,13 +13,6 @@
     <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Back to Dashboard</a>
 </div>
 
-{% for message in messages %}
-<div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-    {{ message }}
-    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-</div>
-{% endfor %}
-
 <div class="row mb-4">
     <div class="col-md-2">
         <div class="card stat-card bg-primary text-white">
@@ -215,6 +208,17 @@
 
 {% if not is_warehouse %}
 <style>
+.receipt-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); z-index: 9998; justify-content: center; align-items: center; }
+.receipt-overlay.active { display: flex; }
+.receipt-card { background: white; border-radius: 20px; width: 400px; max-width: 90vw; padding: 32px; text-align: center; animation: popIn 0.3s ease; box-shadow: 0 25px 60px rgba(0,0,0,0.3); }
+.receipt-card .check { width: 64px; height: 64px; border-radius: 50%; background: linear-gradient(135deg, #2ecc71, #27ae60); display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; font-size: 28px; color: white; }
+.receipt-card h3 { margin: 0 0 4px; }
+.receipt-card .rcp-num { font-size: 1.2rem; font-weight: 700; color: #667eea; margin-bottom: 20px; }
+.receipt-card .actions { display: flex; gap: 12px; justify-content: center; margin-top: 20px; }
+.receipt-card .actions a, .receipt-card .actions button { padding: 10px 24px; border-radius: 12px; font-weight: 600; text-decoration: none; border: none; cursor: pointer; transition: all 0.2s; }
+.receipt-card .actions .btn-print { background: linear-gradient(135deg, #667eea, #764ba2); color: white; }
+.receipt-card .actions .btn-new { background: #f1f3f5; color: #555; }
+@keyframes popIn { 0% { transform: scale(0.7); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
 .pos-shop-items { display: flex; gap: 16px; }
 .pos-shop-grid { flex: 1; }
 .pos-shop-cart { width: 440px; flex-shrink: 0; background: white; border-radius: 16px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); display: flex; flex-direction: column; }
@@ -351,7 +355,7 @@ async function shopCompleteSale() {
         if (!shopCart.length) return;
         let r = parseFloat(document.getElementById('shopAmountReceived').value)||0;
         let t = shopCart.reduce((s,x)=>s+x.price*x.qty,0);
-        if (r<t) { alert(`Received MWK ${r.toFixed(2)} is less than total MWK ${t.toFixed(2)}`); return; }
+        if (r<t) { showToast(`Received MWK ${r.toFixed(2)} is less than total MWK ${t.toFixed(2)}`, 'error'); return; }
         let btn = document.getElementById('shopCompleteBtn'); btn.disabled = true; btn.textContent = 'Processing...';
         let ac = new AbortController();
         setTimeout(() => ac.abort(), 30000);
@@ -364,13 +368,14 @@ async function shopCompleteSale() {
             let text = await resp.text();
             let msg = 'Sale failed';
             try { msg = JSON.parse(text).error || msg; } catch(e2) { msg = text || msg; }
-            alert(msg); btn.disabled=false; btn.innerHTML='<i class="bi bi-check-lg"></i> Complete Sale'; return;
+            showToast(msg, 'error'); btn.disabled=false; btn.innerHTML='<i class="bi bi-check-lg"></i> Complete Sale'; return;
         }
         let data = await resp.json();
         document.getElementById('shopReceiptNum').textContent = data.receipt_number;
         document.getElementById('shopPrintReceipt').href = `/receipt/${data.receipt_id}/print/`;
         document.getElementById('shopReceiptOverlay').classList.add('active');
-    } catch(e) { alert('Error: '+e.message); btn.disabled=false; btn.innerHTML='<i class="bi bi-check-lg"></i> Complete Sale'; }
+        showToast(`Sale complete! Receipt: ${data.receipt_number}`, 'success');
+    } catch(e) { showToast('Error: '+e.message, 'error'); btn.disabled=false; btn.innerHTML='<i class="bi bi-check-lg"></i> Complete Sale'; }
 }
 function shopNewSale() {
     shopCart = []; document.getElementById('shopReceiptOverlay').classList.remove('active');
@@ -416,7 +421,7 @@ function shopNewSale() {
                         <td class="text-center">{{ sale.quantity_sold }}</td>
                         <td class="text-end">MWK {{ sale.unit_price|floatformat:2 }}</td>
                         <td class="text-end">MWK {{ sale.total_amount|floatformat:2 }}</td>
-                        <td class="text-end">{{ sale.sold_at|date:"M d, H:i" }}</td>
+                        <td class="text-end">{{ sale.sold_at|date:"d/m/y H:i" }}</td>
                     </tr>
                     {% empty %}
                     <tr>
@@ -456,7 +461,7 @@ function shopNewSale() {
                     {% for tx in stock_transactions %}
                     <tr class="tx-row{% if forloop.counter > 10 %} d-none{% endif %}">
                         <td class="text-center text-muted">{{ forloop.counter }}</td>
-                        <td>{{ tx.created_at|date:"M d, H:i" }}</td>
+                        <td>{{ tx.created_at|date:"d/m/y H:i" }}</td>
                         <td><strong class="item-clickable" style="cursor:pointer;">{{ tx.item.name }}</strong></td>
                         <td><span class="badge bg-secondary">{{ tx.get_transaction_type_display }}</span></td>
                         <td class="text-center">{{ tx.quantity }}</td>
@@ -1047,13 +1052,13 @@ function toggleWHInv() {
         el.textContent = 'View All';
     }
 }
-
 function whEditDuplicate(itemId) {
     const dupModal = bootstrap.Modal.getInstance(document.getElementById('whDuplicateModal'));
     if (dupModal) dupModal.hide();
     const editModal = new bootstrap.Modal(document.getElementById('editWHModal' + itemId));
     editModal.show();
 }
+</script>
 
 <!-- All Stock Transitions Modal -->
 <div class="modal fade" id="txModal" tabindex="-1">
@@ -1082,7 +1087,7 @@ function whEditDuplicate(itemId) {
                             {% for tx in stock_transactions %}
                             <tr>
                                 <td class="text-center text-muted">{{ forloop.counter }}</td>
-                                <td>{{ tx.created_at|date:"M d, H:i" }}</td>
+                                <td>{{ tx.created_at|date:"d/m/y H:i" }}</td>
                                 <td><strong>{{ tx.item.name }}</strong></td>
                                 <td><span class="badge bg-secondary">{{ tx.get_transaction_type_display }}</span></td>
                                 <td class="text-center">{{ tx.quantity }}</td>
@@ -1133,7 +1138,7 @@ function whEditDuplicate(itemId) {
                                 <td class="text-center">{{ sale.quantity_sold }}</td>
                                 <td class="text-end">MWK {{ sale.unit_price|floatformat:2 }}</td>
                                 <td class="text-end">MWK {{ sale.total_amount|floatformat:2 }}</td>
-                                <td class="text-end">{{ sale.sold_at|date:"M d, H:i" }}</td>
+                                <td class="text-end">{{ sale.sold_at|date:"d/m/y H:i" }}</td>
                             </tr>
                             {% empty %}
                             <tr>
@@ -1150,5 +1155,4 @@ function whEditDuplicate(itemId) {
         </div>
     </div>
 </div>
-</script>
 {% endblock %}

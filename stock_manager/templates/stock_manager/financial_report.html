@@ -69,7 +69,7 @@
     <div class="d-flex justify-content-between align-items-center mb-3">
         <div class="d-flex gap-2 align-items-center">
             <h5 class="mb-0"><i class="bi bi-receipt text-primary"></i> Shop Financial Breakdown</h5>
-            <button class="btn btn-sm btn-outline-primary" onclick="toggleReport()">View All</button>
+            <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#reportModal">View All</button>
         </div>
         <form method="GET" class="d-flex gap-2">
             <select name="shop" class="form-select form-select-sm" style="width: 200px;">
@@ -143,17 +143,82 @@
     </div>
 </div>
 <script>
-function toggleReport() {
-    var el = document.querySelector('[onclick*="toggleReport"]');
-    var rows = document.querySelectorAll('.report-row');
-    var hidden = document.querySelectorAll('.report-row.d-none');
-    if (hidden.length) {
-        for (var i = 0; i < hidden.length; i++) hidden[i].classList.remove('d-none');
-        el.textContent = 'Show Less';
-    } else {
-        for (var i = 0; i < rows.length; i++) { if (i >= 10) rows[i].classList.add('d-none'); }
-        el.textContent = 'View All';
-    }
-}
 </script>
+
+<!-- Financial Report Modal -->
+<div class="modal fade" id="reportModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title"><i class="bi bi-receipt text-primary"></i> Shop Financial Breakdown</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>#</th>
+                                <th>Shop</th>
+                                <th class="text-end">Opening Value</th>
+                                <th class="text-end">Stocked In Value</th>
+                                <th class="text-end">Sold Value</th>
+                                <th class="text-end">Unsold Value</th>
+                                <th class="text-center">Sales %</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for data in shop_financials %}
+                            <tr>
+                                <td class="text-muted">{{ forloop.counter }}</td>
+                                <td><strong>{{ data.shop.name }}</strong></td>
+                                <td class="text-end text-info"><strong>MWK {{ data.opening_value|floatformat:2 }}</strong></td>
+                                <td class="text-end"><strong>MWK {{ data.stocked_in_value|floatformat:2 }}</strong></td>
+                                <td class="text-end text-success"><strong>MWK {{ data.sold_value|floatformat:2 }}</strong></td>
+                                <td class="text-end text-warning"><strong>MWK {{ data.unsold_value|floatformat:2 }}</strong></td>
+                                <td class="text-center">
+                                    {% if data.stocked_in_value > 0 %}
+                                    <div class="progress" style="height: 20px;">
+                                        <div class="progress-bar bg-success" role="progressbar" style="width: {% widthratio data.sold_value data.stocked_in_value 100 %}%">
+                                            {% widthratio data.sold_value data.stocked_in_value 100 %}%
+                                        </div>
+                                    </div>
+                                    {% else %}
+                                    <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="7" class="text-center text-muted py-3">No financial data available</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        {% if shop_financials %}
+                        <tfoot class="table-light">
+                            <tr>
+                                <td colspan="2" class="text-end"><strong>Grand Totals</strong></td>
+                                <td class="text-end text-info"><strong>MWK {{ grand_opening_value|floatformat:2 }}</strong></td>
+                                <td class="text-end"><strong>MWK {{ grand_stocked_in|floatformat:2 }}</strong></td>
+                                <td class="text-end text-success"><strong>MWK {{ grand_sold|floatformat:2 }}</strong></td>
+                                <td class="text-end text-warning"><strong>MWK {{ grand_unsold|floatformat:2 }}</strong></td>
+                                <td class="text-center">
+                                    {% if grand_stocked_in > 0 %}
+                                    <strong>{% widthratio grand_sold grand_stocked_in 100 %}%</strong>
+                                    {% else %}
+                                    -
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        </tfoot>
+                        {% endif %}
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

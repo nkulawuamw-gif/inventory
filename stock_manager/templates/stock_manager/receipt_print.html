@@ -37,7 +37,7 @@
     {% endif %}
     <hr class="divider">
     <div class="info-line"><span>Receipt #</span><strong>{{ receipt.receipt_number }}</strong></div>
-    <div class="info-line"><span>Date</span>{{ receipt.created_at|date:"M d, Y H:i" }}</div>
+    <div class="info-line"><span>Date</span>{{ receipt.created_at|date:"d/m/y H:i" }}</div>
     <div class="info-line"><span>Shop</span>{{ receipt.shop.name }}</div>
     {% if receipt.customer_name %}
     <div class="info-line"><span>Customer</span>{{ receipt.customer_name }}</div>
