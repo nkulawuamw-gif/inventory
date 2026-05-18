@@ -9,8 +9,8 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
-from datetime import timedelta
-from .models import UserPresence, Message, Call, Meeting, MeetingParticipant
+from datetime import timedelta, timezone as dt_timezone
+from .models import UserPresence, Message, Call, Meeting, MeetingParticipant, UserProfile
 from .middleware import get_user_profile, shop_access_required
 
 
@@ -42,16 +42,24 @@ def get_online_users(request):
     for presence in online_users:
         user = presence.user
         shop_name = ''
+        is_admin = user.is_superuser
         if user.is_superuser:
             shop_name = 'Admin'
-        elif hasattr(user, 'profile') and user.profile.assigned_shop:
-            shop_name = user.profile.assigned_shop.name
+        else:
+            try:
+                profile = user.profile
+                if profile.assigned_shop:
+                    shop_name = profile.assigned_shop.name
+                if profile.is_admin:
+                    is_admin = True
+            except UserProfile.DoesNotExist:
+                pass
 
         users.append({
             'id': user.id,
             'username': user.get_full_name() or user.username,
             'shop': shop_name,
-            'is_admin': user.is_superuser or (hasattr(user, 'profile') and user.profile.is_admin),
+            'is_admin': is_admin,
         })
 
     return JsonResponse({'users': users})
@@ -76,8 +84,13 @@ def chat_view(request):
         shop_name = ''
         if other_user.is_superuser:
             shop_name = 'Admin'
-        elif hasattr(other_user, 'profile') and other_user.profile.assigned_shop:
-            shop_name = other_user.profile.assigned_shop.name
+        else:
+            try:
+                po = other_user.profile
+                if po.assigned_shop:
+                    shop_name = po.assigned_shop.name
+            except UserProfile.DoesNotExist:
+                pass
         display_name = shop_name or other_user.get_full_name() or other_user.username
 
         last = Message.objects.filter(
@@ -107,8 +120,13 @@ def chat_view(request):
             shop_name = ''
             if u.is_superuser:
                 shop_name = 'Admin'
-            elif hasattr(u, 'profile') and u.profile.assigned_shop:
-                shop_name = u.profile.assigned_shop.name
+            else:
+                try:
+                    pu = u.profile
+                    if pu.assigned_shop:
+                        shop_name = pu.assigned_shop.name
+                except UserProfile.DoesNotExist:
+                    pass
             contacts[uid] = {
                 'id': uid,
                 'username': shop_name or u.get_full_name() or u.username,
@@ -118,7 +136,7 @@ def chat_view(request):
                 'is_online': uid in online_ids,
             }
 
-    aware_min = timezone.make_aware(timezone.datetime.min, timezone.utc)
+    aware_min = timezone.make_aware(timezone.datetime.min, dt_timezone.utc)
     sorted_contacts = sorted(contacts.values(), key=lambda x: x['last_message_at'] or aware_min, reverse=True)
 
     selected_user_id = request.GET.get('user', '')
@@ -174,8 +192,12 @@ def get_messages(request, user_id):
     def get_display_name(user):
         if user.is_superuser:
             return 'Admin'
-        if hasattr(user, 'profile') and user.profile.assigned_shop:
-            return user.profile.assigned_shop.name
+        try:
+            p = user.profile
+            if p.assigned_shop:
+                return p.assigned_shop.name
+        except UserProfile.DoesNotExist:
+            pass
         return user.get_full_name() or user.username
 
     msg_list = []

@@ -74,7 +74,8 @@ class ShopAccessMiddleware:
 
 def shop_access_required(view_func):
     def _wrapped_view(request, *args, **kwargs):
-        url_name = request.resolver_match.url_name
+        resolver_match = request.resolver_match
+        url_name = resolver_match.url_name if resolver_match else None
 
         if not request.user.is_authenticated:
             return redirect('admin:login')
