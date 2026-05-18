@@ -6,3 +6,9 @@ media/
 staticfiles/
 .env
 venv/
+.venv/
+node_modules/
+*.html
+check_*.py
+find_error.py
+test_*.py

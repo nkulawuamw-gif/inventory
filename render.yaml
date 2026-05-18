@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: inventory-app
+    runtime: python
+    buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput
+    startCommand: gunicorn best_inventory_system.wsgi:application --bind 0.0.0.0:$PORT --workers 4
+    healthCheckPath: /health/
+    envVars:
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: DJANGO_DEBUG
+        value: False
+      - key: DJANGO_ALLOWED_HOSTS
+        value: .onrender.com,localhost,127.0.0.1
+      - key: DJANGO_CSRF_TRUSTED_ORIGINS
+        value: https://*.onrender.com,http://localhost:8000
+      - key: DB_DIR
+        value: /var/data
+      - key: RENDER_MEDIA_ROOT
+        value: /var/data/media
+      - key: RENDER_STATIC_ROOT
+        value: /var/data/staticfiles
+      - key: PYTHONUNBUFFERED
+        value: 1
+    disk:
+      name: data
+      mountPath: /var/data
+      sizeGB: 1
