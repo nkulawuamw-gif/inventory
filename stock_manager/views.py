@@ -1133,7 +1133,7 @@ def shop_dashboard(request, shop_slug):
     print("EXPECTED SLUG:", allowed_slug)
     print("URL SLUG:", shop_slug)
 
-    return render(request, 'dashboard.html')
+    return render(request, 'stock_manager/dashboard.html')
 
 
 
@@ -1570,7 +1570,7 @@ def login_view(request):
         else:
             messages.error(request, 'Invalid username or password.')
 
-    return render(request, 'login.html')
+    return render(request, 'stock_manager/login.html')
 
 
 
