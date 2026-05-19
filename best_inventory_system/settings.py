@@ -45,7 +45,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
 
-    'stock_manager',
+    'stock_manager.apps.StockManagerConfig',
 ]
 
 # ========================
