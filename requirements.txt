@@ -2,3 +2,4 @@ Django>=5.2,<6.1
 Pillow
 whitenoise
 gunicorn
+psycopg2-binary

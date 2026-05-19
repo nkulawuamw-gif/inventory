@@ -3,14 +3,28 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-change-me-in-production-for-security')
+# SECURITY
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-change-me')
 
 DEBUG = False
 
-ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+# ✅ FIXED HOSTS
+ALLOWED_HOSTS = [
+    h.strip() for h in os.environ.get(
+        'DJANGO_ALLOWED_HOSTS',
+        'shiela.onrender.com'
+    ).split(',') if h
+]
 
-CSRF_TRUSTED_ORIGINS = os.environ.get('DJANGO_CSRF_TRUSTED_ORIGINS', 'http://localhost:8000,http://127.0.0.1:8000').split(',')
+# ✅ FIXED CSRF
+CSRF_TRUSTED_ORIGINS = [
+    o.strip() for o in os.environ.get(
+        'DJANGO_CSRF_TRUSTED_ORIGINS',
+        'https://shiela.onrender.com'
+    ).split(',') if o
+]
 
+# APPLICATIONS
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -21,6 +35,7 @@ INSTALLED_APPS = [
     'stock_manager',
 ]
 
+# MIDDLEWARE
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
@@ -38,7 +53,7 @@ ROOT_URLCONF = 'best_inventory_system.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'templates'],  # optional but recommended
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -54,15 +69,19 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'best_inventory_system.wsgi.application'
 
-DB_DIR = os.environ.get('DB_DIR', str(BASE_DIR))
-
+# DATABASE
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.path.join(DB_DIR, 'db.sqlite3'),
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.environ.get('DB_NAME', 'inventory_ugek'),
+        'USER': os.environ.get('DB_USER', 'inventory_ugek_user'),
+        'PASSWORD': os.environ.get('DB_PASSWORD', '0V8C4IoBtmIjFIkaRXGndlCRKIVbtYr3'),
+        'HOST': os.environ.get('DB_HOST', 'dpg-d84abpj7uimc739h653g-a.frankfurt-postgres.render.com'),
+        'PORT': os.environ.get('DB_PORT', '5432'),
     }
 }
 
+# PASSWORD VALIDATION
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
     {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
@@ -70,28 +89,35 @@ AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
 
+# INTERNATIONAL
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
+# STATIC FILES
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = os.environ.get('RENDER_STATIC_ROOT', BASE_DIR / 'staticfiles')
 
+# MEDIA FILES
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.environ.get('RENDER_MEDIA_ROOT', os.path.join(BASE_DIR, 'media'))
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# AUTH REDIRECTS
 LOGIN_URL = 'admin:login'
 LOGIN_REDIRECT_URL = 'dashboard'
 
+# SECURITY (Render proxy fix)
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
+# WHITENOISE
 WHITENOISE_USE_FINDERS = True
 WHITENOISE_MANIFEST_STRICT = False
 
+# LOGGING
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -106,6 +132,7 @@ LOGGING = {
     },
 }
 
+# EXTRA SECURITY
 if not DEBUG:
     SECURE_BROWSER_XSS_FILTER = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
