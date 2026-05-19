@@ -1,7 +1,10 @@
+from email import errors
 import json
 from decimal import Decimal
 import math
 from datetime import date
+from collections import defaultdict
+
 from django.shortcuts import render, get_object_or_404, redirect
 from django.http import HttpResponse, JsonResponse
 from django.db.models import Q, Sum, F, ExpressionWrapper, DecimalField
@@ -11,10 +14,19 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.db import connection
 from django.utils import timezone
-from collections import defaultdict
-from .models import Shop, Item, Sale, StockTransaction, UserProfile, BusinessPeriod, PeriodOpeningStock, Receipt, ReceiptItem, CompanyProfile, WhatsAppSetting, WhatsAppMessage, LandingPageContent
+
+from .models import (
+    Shop, Item, Sale, StockTransaction, UserProfile,
+    BusinessPeriod, PeriodOpeningStock, Receipt, ReceiptItem,
+    CompanyProfile, WhatsAppSetting, WhatsAppMessage, LandingPageContent
+)
+
 from .middleware import shop_access_required
 
+
+# ========================
+# USER HELPERS
+# ========================
 
 def get_user_profile(user):
     if user.is_superuser:
@@ -32,17 +44,28 @@ def filter_items_by_user(user, qs):
     return qs
 
 
+# ========================
+# STOCK LOGIC
+# ========================
+
 def auto_deduct_from_warehouse(item_name, shop, quantity, unit_price, category=''):
     warehouse = Shop.objects.filter(name='Warehouse').first()
+
     if not warehouse or shop == warehouse:
         return
 
-    warehouse_item = Item.objects.filter(name__iexact=item_name, shop=warehouse).first()
+    warehouse_item = Item.objects.filter(
+        name__iexact=item_name,
+        shop=warehouse
+    ).first()
+
     if warehouse_item and quantity > 0:
         deduct = min(quantity, warehouse_item.quantity)
+
         if deduct > 0:
             warehouse_item.quantity -= deduct
             warehouse_item.save()
+
             StockTransaction.objects.create(
                 item=warehouse_item,
                 source_shop=warehouse,
@@ -53,10 +76,16 @@ def auto_deduct_from_warehouse(item_name, shop, quantity, unit_price, category='
             )
 
 
+# ========================
+# INVENTORY AGGREGATION
+# ========================
+
 def get_shop_inventory_data(opening_stock=None):
     if opening_stock is None:
         opening_stock = {}
-    items = Item.objects.all()
+
+    # ✅ optimized query
+    items = Item.objects.select_related('shop').all()
 
     grouped = defaultdict(lambda: {
         'name': '',
@@ -68,53 +97,70 @@ def get_shop_inventory_data(opening_stock=None):
         'category': '',
         'opening_qty': 0,
         'opening_value': 0,
+        'shop_count': 0,
+        'total_unit_price': 0,
     })
 
     for item in items:
         key = item.name.lower()
+
         open_data = opening_stock.get(key, {})
         open_qty = open_data.get('quantity', 0)
         open_price = open_data.get('unit_price', 0)
 
-        if key not in grouped:
-            grouped[key] = {
+        if grouped[key]['name'] == '':
+            grouped[key].update({
                 'name': item.name,
-                'shops': {},
-                'total_stocked_in': 0,
-                'total_stocked_out': 0,
-                'total_qty': 0,
-                'total_value': 0,
                 'category': item.category,
                 'opening_qty': open_qty,
                 'opening_value': open_qty * open_price,
-            }
+            })
 
-        sold_qty = Sale.objects.filter(item=item).aggregate(total=Sum('quantity_sold'))['total'] or 0
+        # ✅ SAFE shop handling
+        shop_name = item.shop.name if item.shop else "Unknown Shop"
+
+        # ✅ aggregate sold qty
+        sold_qty = Sale.objects.filter(item=item).aggregate(
+            total=Sum('quantity_sold')
+        )['total'] or 0
+
         stocked_in = item.quantity + sold_qty
 
-        grouped[key]['shops'][item.shop.name] = {
+        # ✅ FIXED (was wrongly indented before)
+        grouped[key]['shops'][shop_name] = {
             'stocked_in': stocked_in,
             'stocked_out': sold_qty,
             'balance': item.quantity,
-            'unit_price': item.unit_price,
-            'value': item.quantity * item.unit_price,
+            'unit_price': float(item.unit_price),
+            'value': float(item.quantity * item.unit_price),
             'is_low_stock': item.is_low_stock,
         }
+
         grouped[key]['total_stocked_in'] += stocked_in
         grouped[key]['total_stocked_out'] += sold_qty
         grouped[key]['total_qty'] += item.quantity
         grouped[key]['total_value'] += float(item.quantity * item.unit_price)
-        grouped[key]['shop_count'] = grouped[key].get('shop_count', 0) + 1
-        grouped[key]['total_unit_price'] = grouped[key].get('total_unit_price', 0) + float(item.unit_price)
+        grouped[key]['shop_count'] += 1
+        grouped[key]['total_unit_price'] += float(item.unit_price)
+
+    # ========================
+    # FINAL CALCULATIONS
+    # ========================
 
     for item_data in grouped.values():
         if item_data['total_qty'] > 0:
-            item_data['avg_unit_price'] = item_data['total_value'] / item_data['total_qty']
+            item_data['avg_unit_price'] = (
+                item_data['total_value'] / item_data['total_qty']
+            )
         else:
             item_data['avg_unit_price'] = 0
 
     return sorted(grouped.values(), key=lambda x: x['name'])
 
+
+# ========================
+# BUSINESS PERIOD
+# ========================
 
 def get_active_period():
     return BusinessPeriod.objects.filter(is_closed=False).first()
@@ -123,10 +169,14 @@ def get_active_period():
 def get_period_opening_stock(period, shop=None):
     if not period:
         return {}
+
     qs = PeriodOpeningStock.objects.filter(period=period)
+
     if shop:
         qs = qs.filter(shop=shop)
+
     opening = {}
+
     for o in qs:
         key = o.item_name.lower()
         opening[key] = {
@@ -134,8 +184,13 @@ def get_period_opening_stock(period, shop=None):
             'unit_price': float(o.unit_price),
             'category': o.category,
         }
+
     return opening
 
+
+# ========================
+# DASHBOARD VIEW
+# ========================
 
 @shop_access_required
 def dashboard(request):
@@ -143,7 +198,12 @@ def dashboard(request):
     user_is_admin = profile is None or profile.is_admin
 
     all_shops = Shop.objects.all()
-    if not user_is_admin and profile.assigned_shop:
+
+   # ========================
+# CONTINUE DASHBOARD VIEW
+# ========================
+
+    if not user_is_admin and profile and profile.assigned_shop:
         all_shops = Shop.objects.filter(id=profile.assigned_shop.id)
 
     active_period = get_active_period()
@@ -151,67 +211,113 @@ def dashboard(request):
 
     if request.method == 'POST':
         action = request.POST.get('action')
+
+        # ========================
+        # ADD ITEM
+        # ========================
         if action == 'add_warehouse_item':
             item_name = request.POST.get('item_name', '').strip()
             quantity = request.POST.get('quantity', 0)
             unit_price = request.POST.get('unit_price', 0)
             category = request.POST.get('category', '').strip()
+
             warehouse = Shop.objects.filter(name='Warehouse').first()
+
             if warehouse and item_name and quantity:
-                existing = Item.objects.filter(name__iexact=item_name, shop=warehouse).first()
+                existing = Item.objects.filter(
+                    name__iexact=item_name,
+                    shop=warehouse
+                ).first()
+
+                try:
+                    quantity = int(quantity)
+                    unit_price = float(unit_price)
+                except:
+                    messages.error(request, 'Invalid quantity or price')
+                    return redirect('dashboard')
+
                 if existing:
-                    existing.quantity += int(quantity)
-                    existing.unit_price = float(unit_price)
+                    existing.quantity += quantity
+                    existing.unit_price = unit_price
                     if category:
                         existing.category = category
                     existing.save()
-                    messages.success(request, f'Added {quantity}x "{item_name}" to existing Warehouse stock (now {existing.quantity})')
+
+                    messages.success(
+                        request,
+                        f'Added {quantity}x "{item_name}" (Total: {existing.quantity})'
+                    )
                 else:
                     Item.objects.create(
                         name=item_name,
                         shop=warehouse,
-                        quantity=int(quantity),
-                        unit_price=float(unit_price),
+                        quantity=quantity,
+                        unit_price=unit_price,
                         category=category,
                     )
+
                     messages.success(request, f'Added "{item_name}" to Warehouse')
             else:
-                messages.error(request, 'Missing item name, quantity, or Warehouse shop not found')
+                messages.error(request, 'Missing item name, quantity, or Warehouse not found')
+
             return redirect('dashboard')
 
+        # ========================
+        # EDIT ITEM
+        # ========================
         elif action == 'edit_warehouse_item':
             item_id = request.POST.get('item_id')
-            quantity = request.POST.get('quantity', 0)
-            unit_price = request.POST.get('unit_price', 0)
-            category = request.POST.get('category', '').strip()
+
             try:
                 item = Item.objects.get(id=item_id, shop__name='Warehouse')
-                item.quantity = int(quantity)
-                item.unit_price = float(unit_price)
-                item.category = category
+
+                item.quantity = int(request.POST.get('quantity', 0))
+                item.unit_price = float(request.POST.get('unit_price', 0))
+                item.category = request.POST.get('category', '').strip()
                 item.save()
-                messages.success(request, f'Updated "{item.name}" in Warehouse')
+
+                messages.success(request, f'Updated "{item.name}"')
+
             except Item.DoesNotExist:
                 messages.error(request, 'Item not found')
+
             except (ValueError, TypeError):
                 messages.error(request, 'Invalid quantity or price')
+
             return redirect('dashboard')
 
+        # ========================
+        # DELETE ITEM (FIXED SYNTAX)
+        # ========================
         elif action == 'delete_warehouse_item':
             item_id = request.POST.get('item_id')
+
             try:
                 item = Item.objects.get(id=item_id, shop__name='Warehouse')
                 name = item.name
                 item.delete()
+
                 messages.success(request, f'Deleted "{name}" from Warehouse')
+
             except Item.DoesNotExist:
                 messages.error(request, 'Item not found or already deleted')
+
             return redirect('dashboard')
+
+
+    # ========================
+    # INVENTORY DATA
+    # ========================
 
     if user_is_admin:
         inventory_data = get_shop_inventory_data(opening_stock)
+
     else:
-        items = filter_items_by_user(request.user, Item.objects.all())
+        items = filter_items_by_user(
+            request.user,
+            Item.objects.select_related('shop').all()
+        )
+
         grouped = defaultdict(lambda: {
             'name': '',
             'shops': {},
@@ -222,86 +328,129 @@ def dashboard(request):
             'category': '',
             'opening_qty': 0,
             'opening_value': 0,
+            'shop_count': 0,
+            'total_unit_price': 0,
         })
+
         for item in items:
             key = item.name.lower()
+
             open_data = opening_stock.get(key, {})
             open_qty = open_data.get('quantity', 0)
             open_price = open_data.get('unit_price', 0)
-            if key not in grouped:
-                grouped[key] = {
+
+            if grouped[key]['name'] == '':
+                grouped[key].update({
                     'name': item.name,
-                    'shops': {},
-                    'total_stocked_in': 0,
-                    'total_stocked_out': 0,
-                    'total_qty': 0,
-                    'total_value': 0,
                     'category': item.category,
                     'opening_qty': open_qty,
                     'opening_value': open_qty * open_price,
-                }
-            sold_qty = Sale.objects.filter(item=item).aggregate(total=Sum('quantity_sold'))['total'] or 0
+                })
+
+            sold_qty = Sale.objects.filter(item=item).aggregate(
+                total=Sum('quantity_sold')
+            )['total'] or 0
+
             stocked_in = item.quantity + sold_qty
-            grouped[key]['shops'][item.shop.name] = {
+            shop_name = item.shop.name if item.shop else "Unknown Shop"
+
+            grouped[key]['shops'][shop_name] = {
                 'stocked_in': stocked_in,
                 'stocked_out': sold_qty,
                 'balance': item.quantity,
-                'unit_price': item.unit_price,
-                'value': item.quantity * item.unit_price,
+                'unit_price': float(item.unit_price),
+                'value': float(item.quantity * item.unit_price),
                 'is_low_stock': item.is_low_stock,
             }
+
             grouped[key]['total_stocked_in'] += stocked_in
             grouped[key]['total_stocked_out'] += sold_qty
             grouped[key]['total_qty'] += item.quantity
             grouped[key]['total_value'] += float(item.quantity * item.unit_price)
-            grouped[key]['shop_count'] = grouped[key].get('shop_count', 0) + 1
-            grouped[key]['total_unit_price'] = grouped[key].get('total_unit_price', 0) + float(item.unit_price)
+            grouped[key]['shop_count'] += 1
+            grouped[key]['total_unit_price'] += float(item.unit_price)
+
         for item_data in grouped.values():
             if item_data['total_qty'] > 0:
-                item_data['avg_unit_price'] = item_data['total_value'] / item_data['total_qty']
+                item_data['avg_unit_price'] = (
+                    item_data['total_value'] / item_data['total_qty']
+                )
             else:
                 item_data['avg_unit_price'] = 0
+
         inventory_data = sorted(grouped.values(), key=lambda x: x['name'])
 
-    shop_items = Item.objects.all()
-    if not user_is_admin:
+
+    # ========================
+    # STATS SECTION (OPTIMIZED)
+    # ========================
+
+    shop_items = Item.objects.select_related('shop').all()
+
+    if not user_is_admin and profile:
         shop_items = shop_items.filter(shop=profile.assigned_shop)
 
     total_items = shop_items.count()
-    total_stock_value = sum(item.total_value for item in shop_items)
-    low_stock_items = shop_items.filter(quantity__lt=5).select_related('shop')
+    total_stock_value = sum(float(item.total_value) for item in shop_items)
+
+    low_stock_items = shop_items.filter(quantity__lt=5)
     low_stock_count = low_stock_items.count()
 
     total_sales = Sale.objects.filter(item__in=shop_items)
     total_sales_count = total_sales.count()
-    total_sales_amount = total_sales.aggregate(total=Sum('total_amount'))['total'] or 0
+    total_sales_amount = total_sales.aggregate(
+        total=Sum('total_amount')
+    )['total'] or 0
 
-    from django.db.models import Count
+
+    # ========================
+    # SHOP SALES
+    # ========================
+
     shop_sales_data = []
+
     for shop in all_shops:
         shop_sales = Sale.objects.filter(item__shop=shop)
-        shop_total = shop_sales.aggregate(total=Sum('total_amount'))['total'] or 0
-        shop_count = shop_sales.count()
+
         shop_sales_data.append({
             'shop': shop,
-            'total_amount': shop_total,
-            'count': shop_count,
+            'total_amount': shop_sales.aggregate(total=Sum('total_amount'))['total'] or 0,
+            'count': shop_sales.count(),
             'sales_persons': shop.assigned_users.select_related('user').all(),
         })
 
+
+    # ========================
+    # SHOP STOCK
+    # ========================
+
     shop_stock_data = []
     shop_value_data = []
+
     for shop in all_shops:
-        shop_items = Item.objects.filter(shop=shop)
-        shop_qty = shop_items.aggregate(total=Sum('quantity'))['total'] or 0
-        shop_value = sum(item.total_value for item in shop_items)
-        shop_stock_data.append({'shop': shop.name, 'quantity': shop_qty})
-        shop_value_data.append({'shop': shop.name, 'value': float(shop_value)})
+        items = Item.objects.filter(shop=shop)
+
+        total_qty = items.aggregate(total=Sum('quantity'))['total'] or 0
+        total_value = sum(float(i.total_value) for i in items)
+
+        shop_stock_data.append({'shop': shop.name, 'quantity': total_qty})
+        shop_value_data.append({'shop': shop.name, 'value': total_value})
+
+
+    # ========================
+    # CATEGORY DATA
+    # ========================
 
     category_data = {}
+
     for item in Item.objects.all():
-        cat = item.category if item.category else 'Uncategorized'
+        cat = item.category or 'Uncategorized'
         category_data[cat] = category_data.get(cat, 0) + item.quantity
+
+
+    # ========================
+    # CONTEXT
+    # ========================
 
     context = {
         'inventory_data': inventory_data,
@@ -320,7 +469,753 @@ def dashboard(request):
         'active_period': active_period,
         'page_title': 'Main Inventory Dashboard',
     }
+
+
+# =========================
+# BULK IMPORT VIEW
+# =========================
+@shop_access_required
+def dashboard_bulk_import(request):
+    if request.method == 'POST':
+        csv_file = request.FILES.get('csv_file')
+
+        if not csv_file:
+            messages.error(request, 'No file uploaded')
+            return redirect('dashboard_bulk_import')
+
+        created, updated, skipped, errors = process_csv_import(csv_file)
+
+        msg_parts = []
+        if created > 0:
+            msg_parts.append(f'Imported {created} new items')
+        if updated > 0:
+            msg_parts.append(f'updated {updated} existing items')
+        if skipped > 0:
+            msg_parts.append(f'skipped {skipped} empty rows')
+
+        if msg_parts:
+            messages.success(request, ', '.join(msg_parts))
+        if errors:
+            messages.error(request, f'{len(errors)} errors occurred. First: {errors[0]}')
+
+        return redirect('dashboard_bulk_import')
+    # ========================
+    # HANDLE POST ACTIONS
+    # ========================
+    if request.method == 'POST':
+        action = request.POST.get('action')
+
+        # ADD ITEM
+        if action == 'add_warehouse_item':
+            item_name = request.POST.get('item_name', '').strip()
+            quantity = request.POST.get('quantity', 0)
+            unit_price = request.POST.get('unit_price', 0)
+            category = request.POST.get('category', '').strip()
+
+            try:
+                quantity = int(quantity)
+                unit_price = float(unit_price)
+            except (ValueError, TypeError):
+                messages.error(request, 'Invalid quantity or price')
+                return redirect('dashboard')
+
+            warehouse = Shop.objects.filter(name='Warehouse').first()
+
+            if warehouse and item_name and quantity > 0:
+                existing = Item.objects.filter(
+                    name__iexact=item_name,
+                    shop=warehouse
+                ).first()
+
+                if existing:
+                    existing.quantity += quantity
+                    existing.unit_price = unit_price
+                    if category:
+                        existing.category = category
+                    existing.save()
+                else:
+                    Item.objects.create(
+                        name=item_name,
+                        shop=warehouse,
+                        quantity=quantity,
+                        unit_price=unit_price,
+                        category=category,
+                    )
+
+                messages.success(request, f'Item "{item_name}" saved successfully')
+            else:
+                messages.error(request, 'Missing required fields')
+
+            return redirect('dashboard')
+
+        # EDIT ITEM
+        elif action == 'edit_warehouse_item':
+            item_id = request.POST.get('item_id')
+
+            try:
+                item = Item.objects.get(id=item_id, shop__name='Warehouse')
+
+                item.quantity = int(request.POST.get('quantity', 0))
+                item.unit_price = float(request.POST.get('unit_price', 0))
+                item.category = request.POST.get('category', '').strip()
+                item.save()
+
+                messages.success(request, f'Updated "{item.name}"')
+
+            except Item.DoesNotExist:
+                messages.error(request, 'Item not found')
+            except (ValueError, TypeError):
+                messages.error(request, 'Invalid values')
+
+            return redirect('dashboard')
+
+        # DELETE ITEM ✅ FIXED ERROR HERE
+        elif action == 'delete_warehouse_item':
+            item_id = request.POST.get('item_id')
+
+            try:
+                item = Item.objects.get(id=item_id, shop__name='Warehouse')
+                name = item.name
+                item.delete()
+                messages.success(request, f'Deleted "{name}"')
+
+            except Item.DoesNotExist:
+                messages.error(request, 'Item not found')
+
+            return redirect('dashboard')
+
+    # ========================
+    # INVENTORY DATA
+    # ========================
+    if user_is_admin:
+        inventory_data = get_shop_inventory_data(opening_stock)
+    else:
+        items = filter_items_by_user(request.user, Item.objects.select_related('shop'))
+
+        grouped = defaultdict(lambda: {
+            'name': '',
+            'shops': {},
+            'total_stocked_in': 0,
+            'total_stocked_out': 0,
+            'total_qty': 0,
+            'total_value': 0,
+            'category': '',
+            'opening_qty': 0,
+            'opening_value': 0,
+        })
+
+        for item in items:
+            key = item.name.lower()
+            open_data = opening_stock.get(key, {})
+
+            if not grouped[key]['name']:
+                grouped[key].update({
+                    'name': item.name,
+                    'category': item.category,
+                    'opening_qty': open_data.get('quantity', 0),
+                    'opening_value': open_data.get('quantity', 0) * open_data.get('unit_price', 0),
+                })
+
+            sold_qty = Sale.objects.filter(item=item).aggregate(
+                total=Sum('quantity_sold')
+            )['total'] or 0
+
+            stocked_in = item.quantity + sold_qty
+
+            grouped[key]['shops'][item.shop.name] = {
+                'stocked_in': stocked_in,
+                'stocked_out': sold_qty,
+                'balance': item.quantity,
+                'unit_price': item.unit_price,
+                'value': item.quantity * item.unit_price,
+                'is_low_stock': item.is_low_stock,
+            }
+
+            grouped[key]['total_stocked_in'] += stocked_in
+            grouped[key]['total_stocked_out'] += sold_qty
+            grouped[key]['total_qty'] += item.quantity
+            grouped[key]['total_value'] += float(item.quantity * item.unit_price)
+
+        # Calculate averages
+        for item_data in grouped.values():
+            item_data['avg_unit_price'] = (
+                item_data['total_value'] / item_data['total_qty']
+                if item_data['total_qty'] > 0 else 0
+            )
+
+        inventory_data = sorted(grouped.values(), key=lambda x: x['name'])
+
+    # ========================
+    # SUMMARY DATA
+    # ========================
+    shop_items = Item.objects.all()
+
+    if not user_is_admin and profile and profile.assigned_shop:
+        shop_items = shop_items.filter(shop=profile.assigned_shop)
+
+    total_items = shop_items.count()
+    total_stock_value = sum(item.total_value for item in shop_items)
+
+    low_stock_items = shop_items.filter(quantity__lt=5)
+    low_stock_count = low_stock_items.count()
+
+    total_sales = Sale.objects.filter(item__in=shop_items)
+    total_sales_count = total_sales.count()
+    total_sales_amount = total_sales.aggregate(
+        total=Sum('total_amount')
+    )['total'] or 0
+
+    # ========================
+    # CONTEXT
+    # ========================
+    context = {
+        'inventory_data': inventory_data,
+        'total_items': total_items,
+        'total_stock_value': total_stock_value,
+        'low_stock_items': low_stock_items,
+        'low_stock_count': low_stock_count,
+        'total_sales_count': total_sales_count,
+        'total_sales_amount': total_sales_amount,
+        'all_shops': all_shops,
+        'active_period': active_period,
+        'page_title': 'Main Inventory Dashboard',
+    }
+
     return render(request, 'stock_manager/dashboard.html', context)
+
+
+# =========================
+# RECEIPT NUMBER GENERATOR
+# =========================
+
+def generate_receipt_number():
+    today = date.today()
+    prefix = today.strftime('RCP-%Y%m%d-')
+
+    last = Receipt.objects.filter(
+        receipt_number__startswith=prefix
+    ).order_by('-receipt_number').first()
+
+    if last:
+        try:
+            num = int(last.receipt_number.split('-')[-1]) + 1
+        except (ValueError, IndexError):
+            num = 1
+    else:
+        num = 1
+
+    return f'{prefix}{num:04d}'
+
+
+# =========================
+# POINT OF SALE (POS)
+# =========================
+
+@shop_access_required
+def point_of_sale(request, shop_slug):
+    shop = get_object_or_404(
+        Shop,
+        name__iexact=shop_slug.replace('-', ' ')
+    )
+
+    is_warehouse = shop.name == 'Warehouse'
+
+    if request.method == 'POST':
+        try:
+            # =========================
+            # HANDLE DATA INPUT
+            # =========================
+            if request.content_type == 'application/json':
+                try:
+                    data = json.loads(request.body)
+                except Exception:
+                    return JsonResponse({'error': 'Invalid JSON body'}, status=400)
+            else:
+                data = request.POST
+
+            action = data.get('action')
+
+            # =========================
+            # COMPLETE SALE
+            # =========================
+            if action == 'complete_sale':
+
+                raw_items = data.get('items', '[]')
+
+                try:
+                    items_data = json.loads(raw_items) if isinstance(raw_items, str) else raw_items
+                except Exception:
+                    return JsonResponse({'error': 'Invalid items data'}, status=400)
+
+                if not items_data:
+                    return JsonResponse({'error': 'No items in cart'}, status=400)
+
+                customer_name = data.get('customer_name', '').strip()
+
+                try:
+                    amount_received = Decimal(str(data.get('amount_received', 0)))
+                except Exception:
+                    return JsonResponse({'error': 'Invalid amount received'}, status=400)
+
+                subtotal = Decimal('0.00')
+                line_items = []
+                errors = []
+
+                # =========================
+                # VALIDATE ITEMS
+                # =========================
+                for line in items_data:
+                    item_id = line.get('item_id')
+
+                    try:
+                        qty = int(line.get('quantity', 0))
+                    except (ValueError, TypeError):
+                        continue
+
+                    if not item_id or qty < 1:
+                        continue
+
+                    try:
+                        item = Item.objects.get(id=item_id, shop=shop)
+                    except Item.DoesNotExist:
+                        errors.append(f'Item id {item_id} not found')
+                        continue
+
+                    if qty > item.quantity:
+                        errors.append(
+                            f'Not enough stock for {item.name}: have {item.quantity}, need {qty}'
+                        )
+                        continue
+
+                    unit_price = item.unit_price
+                    line_total = unit_price * qty
+
+                    subtotal += line_total
+
+                    line_items.append({
+                        'item': item,
+                        'qty': qty,
+                        'unit_price': unit_price,
+                        'total': line_total
+                    })
+
+                if errors:
+                    return JsonResponse({'error': '; '.join(errors)}, status=400)
+
+                total = subtotal
+
+                if amount_received < total:
+                    return JsonResponse({
+                        'error': f'Amount received (MWK {amount_received:.2f}) is less than total (MWK {total:.2f})'
+                    }, status=400)
+
+                change = amount_received - total
+
+                # =========================
+                # CREATE RECEIPT
+                # =========================
+                receipt = Receipt.objects.create(
+                    receipt_number=generate_receipt_number(),
+                    shop=shop,
+                    customer_name=customer_name,
+                    subtotal=subtotal,
+                    total=total,
+                    amount_received=amount_received,
+                    change=change,
+                    created_by=request.user if request.user.is_authenticated else None,
+                )
+
+                # =========================
+                # SAVE SALES + UPDATE STOCK
+                # =========================
+                for entry in line_items:
+                    item = entry['item']
+                    qty = entry['qty']
+
+                    Sale.objects.create(
+                        item=item,
+                        quantity_sold=qty,
+                        unit_price=entry['unit_price'],
+                        total_amount=entry['total'],
+                        receipt=receipt
+                    )
+
+                    item.quantity -= qty
+                    item.save()
+
+                return JsonResponse({
+                    'success': True,
+                    'receipt_id': receipt.id,
+                    'change': float(change),
+                    'message': 'Sale completed successfully'
+                })
+
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+
+    return JsonResponse({'error': 'Invalid request'}, status=400)
+
+
+# =========================
+# SALES HISTORY
+# =========================
+
+@shop_access_required
+def sales_history(request):
+    profile = get_user_profile(request.user)
+    user_is_admin = profile is None or profile.is_admin
+
+    receipts = Receipt.objects.select_related(
+        'shop', 'created_by'
+    ).prefetch_related('items')
+
+    if not user_is_admin and profile.assigned_shop:
+        receipts = receipts.filter(shop=profile.assigned_shop)
+
+    q = request.GET.get('q', '').strip()
+    date_from = request.GET.get('date_from')
+    date_to = request.GET.get('date_to')
+    shop_filter = request.GET.get('shop')
+
+    if q:
+        receipts = receipts.filter(
+            Q(receipt_number__icontains=q) |
+            Q(customer_name__icontains=q)
+        )
+
+    if date_from:
+        receipts = receipts.filter(created_at__date__gte=date_from)
+
+    if date_to:
+        receipts = receipts.filter(created_at__date__lte=date_to)
+
+    if user_is_admin and shop_filter:
+        receipts = receipts.filter(shop_id=shop_filter)
+
+    receipts = receipts.order_by('-created_at')[:100]
+
+    total_sales = receipts.aggregate(
+        total=Sum('total')
+    )['total'] or 0
+
+    context = {
+        'receipts': receipts,
+        'total_sales': total_sales,
+        'query': q,
+        'date_from': date_from,
+        'date_to': date_to,
+        'selected_shop': shop_filter,
+        'user_is_admin': user_is_admin,
+        'page_title': 'Sales History',
+    }
+
+    return render(request, 'stock_manager/sales_history.html', context)
+
+
+# =========================
+# PRINT RECEIPT
+# =========================
+
+@shop_access_required
+def print_receipt(request, receipt_id):
+    receipt = get_object_or_404(Receipt, id=receipt_id)
+
+    profile = get_user_profile(request.user)
+    user_is_admin = profile is None or profile.is_admin
+
+    if (
+        not user_is_admin and
+        profile.assigned_shop and
+        receipt.shop != profile.assigned_shop
+    ):
+        messages.error(request, 'Access denied.')
+        return redirect('dashboard')
+
+    context = {
+        'receipt': receipt,
+        'page_title': f'Receipt {receipt.receipt_number}',
+    }
+
+    return render(request, 'stock_manager/receipt_print.html', context)
+
+
+# =========================
+# EXPORT CSV
+# =========================
+
+@shop_access_required
+def export_csv(request):
+    profile = get_user_profile(request.user)
+    user_is_admin = profile is None or profile.is_admin
+
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="inventory_export.csv"'
+
+    import csv
+    writer = csv.writer(response)
+
+    writer.writerow([
+        'Item Name', 'Category', 'Shop',
+        'Quantity', 'Unit Price',
+        'Total Value', 'Low Stock'
+    ])
+
+    items = Item.objects.select_related('shop').order_by('name', 'shop__name')
+
+    if not user_is_admin and profile.assigned_shop:
+        items = items.filter(shop=profile.assigned_shop)
+
+    for item in items:
+        writer.writerow([
+            item.name,
+            item.category,
+            item.shop.name if item.shop else '',
+            item.quantity,
+            item.unit_price,
+            item.total_value,
+            'YES' if item.is_low_stock else 'NO',
+        ])
+
+    return response
+
+
+# =========================
+# ADMIN MANAGEMENT
+# =========================
+
+@shop_access_required
+def admin_manage(request):
+    profile = get_user_profile(request.user)
+    user_is_admin = profile is None or profile.is_admin
+
+    all_shops = Shop.objects.all()
+    if not user_is_admin and profile.assigned_shop:
+        all_shops = Shop.objects.filter(id=profile.assigned_shop.id)
+
+    active_period = get_active_period()
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+
+        if action == 'add_item':
+            item_name = request.POST.get('item_name', '').strip()
+            shop_id = request.POST.get('shop')
+            category = request.POST.get('category', '').strip()
+
+            try:
+                quantity = int(request.POST.get('quantity', 0))
+                unit_price = float(request.POST.get('unit_price', 0))
+            except (ValueError, TypeError):
+                messages.error(request, 'Invalid quantity or price')
+                return redirect('admin_manage')
+
+            if item_name and shop_id:
+                shop_obj = get_object_or_404(Shop, id=shop_id)
+
+                existing = Item.objects.filter(
+                    name__iexact=item_name,
+                    shop=shop_obj
+                ).first()
+
+                if existing:
+                    existing.quantity += quantity
+                    existing.unit_price = unit_price
+                    if category:
+                        existing.category = category
+                    existing.save()
+                    messages.success(request, f'Added {quantity}x "{item_name}" (now {existing.quantity})')
+                else:
+                    Item.objects.create(
+                        name=item_name,
+                        shop=shop_obj,
+                        quantity=quantity,
+                        unit_price=unit_price,
+                        category=category,
+                    )
+                    messages.success(request, f'Added "{item_name}"')
+
+                auto_deduct_from_warehouse(item_name, shop_obj, quantity, unit_price, category)
+            else:
+                messages.error(request, 'Missing item name or shop')
+
+            return redirect('admin_manage')
+
+        elif action == 'edit_item':
+            item_id = request.POST.get('item_id')
+            item_name = request.POST.get('item_name', '').strip()
+            category = request.POST.get('category', '').strip()
+
+            try:
+                item = Item.objects.get(id=item_id)
+                item.name = item_name or item.name
+                item.quantity = int(request.POST.get('quantity', 0))
+                item.unit_price = float(request.POST.get('unit_price', 0))
+                item.category = category
+                item.save()
+                messages.success(request, f'Updated "{item.name}"')
+            except Item.DoesNotExist:
+                messages.error(request, 'Item not found')
+            except (ValueError, TypeError):
+                messages.error(request, 'Invalid quantity or price')
+
+            return redirect('admin_manage')
+
+        elif action == 'delete_item':
+            item_id = request.POST.get('item_id')
+
+            try:
+                item = Item.objects.get(id=item_id)
+                name = item.name
+                item.delete()
+                messages.success(request, f'Deleted "{name}"')
+            except Item.DoesNotExist:
+                messages.error(request, 'Item not found')
+
+            return redirect('admin_manage')
+
+        elif action == 'stock_in':
+            item_id = request.POST.get('item_id')
+            to_shop_id = request.POST.get('to_shop')
+            quantity = int(request.POST.get('quantity', 0))
+            reason = request.POST.get('reason', '').strip()
+
+            if item_id and to_shop_id and quantity > 0:
+                try:
+                    to_shop = Shop.objects.get(id=to_shop_id)
+                    item = Item.objects.get(id=item_id, shop=to_shop)
+                except Shop.DoesNotExist:
+                    messages.error(request, 'Destination shop not found')
+                    return redirect('admin_manage')
+                except Item.DoesNotExist:
+                    messages.error(request, 'Item not found in selected shop')
+                    return redirect('admin_manage')
+
+                item.quantity += quantity
+                item.save()
+                StockTransaction.objects.create(
+                    item=item,
+                    source_shop=None,
+                    target_shop=to_shop,
+                    quantity=quantity,
+                    transaction_type='stock_in',
+                    reason=reason,
+                )
+                messages.success(request, f'Stocked in {quantity}x {item.name} to {to_shop.name}')
+            elif not to_shop_id:
+                messages.error(request, 'Please select a destination shop')
+            else:
+                messages.error(request, 'Missing required fields')
+
+            return redirect('admin_manage')
+
+        elif action == 'transfer_stock':
+            item_id = request.POST.get('item_id')
+            from_shop_id = request.POST.get('from_shop')
+            to_shop_id = request.POST.get('to_shop')
+            quantity = int(request.POST.get('quantity', 0))
+            reason = request.POST.get('reason', '').strip()
+            transaction_type = request.POST.get('transaction_type', 'transfer')
+
+            if not from_shop_id:
+                messages.error(request, 'Please select a source shop')
+            elif from_shop_id == to_shop_id:
+                messages.error(request, 'From and To shops cannot be the same')
+            else:
+                try:
+                    from_shop = Shop.objects.get(id=from_shop_id)
+                except Shop.DoesNotExist:
+                    messages.error(request, 'Source shop not found')
+                    return redirect('admin_manage')
+
+                to_shop = None
+                if to_shop_id:
+                    try:
+                        to_shop = Shop.objects.get(id=to_shop_id)
+                    except Shop.DoesNotExist:
+                        messages.error(request, 'Target shop not found')
+                        return redirect('admin_manage')
+
+                try:
+                    item = Item.objects.get(id=item_id, shop=from_shop)
+                except Item.DoesNotExist:
+                    messages.error(request, 'Item not found in source shop')
+                    return redirect('admin_manage')
+
+                item.quantity -= quantity
+                item.save()
+
+                if transaction_type == 'transfer' and to_shop:
+                    target_item, created = Item.objects.get_or_create(
+                        name=item.name,
+                        shop=to_shop,
+                        defaults={
+                            'quantity': quantity,
+                            'unit_price': item.unit_price,
+                            'category': item.category,
+                        }
+                    )
+                    if not created:
+                        target_item.quantity += quantity
+                        target_item.save()
+
+                StockTransaction.objects.create(
+                    item=item,
+                    source_shop=from_shop,
+                    target_shop=to_shop if transaction_type == 'transfer' else None,
+                    quantity=quantity,
+                    transaction_type=transaction_type,
+                    reason=reason,
+                )
+                if transaction_type == 'transfer':
+                    messages.success(request, f'Transferred {quantity}x {item.name} from {from_shop.name} to {to_shop.name}')
+                else:
+                    messages.success(request, f'Processed {transaction_type}: {quantity}x {item.name} from {from_shop.name}')
+
+            return redirect('admin_manage')
+
+        elif action == 'bulk_import':
+            csv_file = request.FILES.get('csv_file')
+            if csv_file:
+                created, updated, skipped, errors = process_csv_import(csv_file)
+                if created > 0 or updated > 0:
+                    msg = f'Imported {created} new items'
+                    if updated > 0:
+                        msg += f', updated {updated} existing items'
+                    if skipped > 0:
+                        msg += f', skipped {skipped} empty rows'
+                    messages.success(request, msg)
+                if errors:
+                    messages.error(request, f'{len(errors)} errors occurred. First: {errors[0]}')
+            else:
+                messages.error(request, 'No file uploaded')
+
+            return redirect('admin_manage')
+
+    shop_filter = request.GET.get('shop', '')
+    items = Item.objects.select_related('shop').all()
+    if not user_is_admin and profile.assigned_shop:
+        items = items.filter(shop=profile.assigned_shop)
+    if shop_filter:
+        items = items.filter(shop_id=shop_filter)
+
+    items = items.order_by('name', 'shop__name')
+
+    stock_transactions = StockTransaction.objects.select_related('item__shop', 'source_shop', 'target_shop').order_by('-created_at')[:50]
+    if not user_is_admin and profile.assigned_shop:
+        stock_transactions = stock_transactions.filter(source_shop=profile.assigned_shop)
+
+    context = {
+        'all_shops': all_shops,
+        'items': items,
+        'stock_transactions': stock_transactions,
+        'shop_filter': shop_filter,
+        'active_period': active_period,
+        'page_title': 'Manage Inventory',
+    }
+    return render(request, 'stock_manager/admin_manage.html', context)
+
+
+
 
 
 def process_csv_import(csv_file):
@@ -433,26 +1328,8 @@ def process_csv_import(csv_file):
 
 
 @shop_access_required
-def dashboard_bulk_import(request):
-    if request.method == 'POST':
-        csv_file = request.FILES.get('csv_file')
-        if csv_file:
-            created, updated, skipped, errors = process_csv_import(csv_file)
-            if created > 0 or updated > 0:
-                msg = f'Imported {created} new items'
-                if updated > 0:
-                    msg += f', updated {updated} existing items'
-                if skipped > 0:
-                    msg += f', skipped {skipped} empty rows'
-                messages.success(request, msg)
-            if errors:
-                messages.error(request, f'{len(errors)} errors occurred. First: {errors[0]}')
-        else:
-            messages.error(request, 'No file uploaded')
-    return redirect('dashboard')
 
 
-@shop_access_required
 def search_items(request):
     query = request.GET.get('q', '').strip()
     profile = get_user_profile(request.user)
@@ -498,6 +1375,8 @@ def search_items(request):
 
 
 @shop_access_required
+
+
 def shop_dashboard(request, shop_slug):
     shop = get_object_or_404(Shop, name__iexact=shop_slug.replace('-', ' '))
     is_warehouse = shop.name == 'Warehouse'
@@ -890,444 +1769,8 @@ def shop_dashboard(request, shop_slug):
     return render(request, 'stock_manager/shop_dashboard.html', context)
 
 
-def generate_receipt_number():
-    today = date.today()
-    prefix = today.strftime('RCP-%Y%m%d-')
-    last = Receipt.objects.filter(receipt_number__startswith=prefix).order_by('-receipt_number').first()
-    if last:
-        num = int(last.receipt_number.split('-')[-1]) + 1
-    else:
-        num = 1
-    return f'{prefix}{num:04d}'
 
 
-@shop_access_required
-def point_of_sale(request, shop_slug):
-    try:
-        shop = get_object_or_404(Shop, name__iexact=shop_slug.replace('-', ' '))
-    except Exception:
-        return JsonResponse({'error': 'Shop not found'}, status=404)
-    is_warehouse = shop.name == 'Warehouse'
-
-    if request.method == 'POST':
-        try:
-            if request.content_type == 'application/json':
-                try:
-                    data = json.loads(request.body)
-                except Exception:
-                    return JsonResponse({'error': 'Invalid JSON body'}, status=400)
-            else:
-                data = request.POST
-            action = data.get('action')
-
-            if action == 'complete_sale':
-                raw_items = data.get('items', '[]')
-                if isinstance(raw_items, str):
-                    try:
-                        items_data = json.loads(raw_items)
-                    except Exception:
-                        return JsonResponse({'error': 'Invalid items data'}, status=400)
-                else:
-                    items_data = raw_items
-                if not items_data:
-                    return JsonResponse({'error': 'No items in cart'}, status=400)
-
-                customer_name = data.get('customer_name', '').strip()
-                try:
-                    amount_received = Decimal(str(data.get('amount_received', 0)))
-                except Exception:
-                    return JsonResponse({'error': 'Invalid amount received'}, status=400)
-
-                subtotal = Decimal('0.00')
-                line_items = []
-                errors = []
-
-                for line in items_data:
-                    item_id = line.get('item_id')
-                    qty = int(line.get('quantity', 0))
-                    if not item_id or qty < 1:
-                        continue
-                    try:
-                        item = Item.objects.get(id=item_id, shop=shop)
-                    except Item.DoesNotExist:
-                        errors.append(f'Item id {item_id} not found')
-                        continue
-                    if qty > item.quantity:
-                        errors.append(f'Not enough stock for {item.name}: have {item.quantity}, need {qty}')
-                        continue
-                    unit_price = item.unit_price
-                    line_total = unit_price * qty
-                    subtotal += line_total
-                    line_items.append({'item': item, 'qty': qty, 'unit_price': unit_price, 'total': line_total})
-
-                if errors:
-                    return JsonResponse({'error': '; '.join(errors)}, status=400)
-
-                total = subtotal
-                if amount_received < total:
-                    return JsonResponse({'error': f'Amount received (MWK {amount_received:.2f}) is less than total (MWK {total:.2f})'}, status=400)
-                change = amount_received - total
-
-                receipt = Receipt.objects.create(
-                    receipt_number=generate_receipt_number(),
-                    shop=shop,
-                    customer_name=customer_name,
-                    subtotal=subtotal,
-                    total=total,
-                    amount_received=amount_received,
-                    change=change,
-                    created_by=request.user if request.user.is_authenticated else None,
-                )
-
-                for li in line_items:
-                    ReceiptItem.objects.create(
-                        receipt=receipt,
-                        item=li['item'],
-                        item_name=li['item'].name,
-                        quantity=li['qty'],
-                        unit_price=li['unit_price'],
-                        total=li['total'],
-                    )
-                    li['item'].quantity -= li['qty']
-                    li['item'].save()
-
-                return JsonResponse({'receipt_id': receipt.id, 'receipt_number': receipt.receipt_number})
-
-            return JsonResponse({'error': 'Invalid action'}, status=400)
-        except Exception as e:
-            return JsonResponse({'error': f'Server error: {str(e)}'}, status=500)
-
-    items = Item.objects.filter(shop=shop).order_by('name')
-    today_receipts = Receipt.objects.filter(shop=shop, created_at__date=timezone.now())
-    today_total = today_receipts.aggregate(total=Sum('total'))['total'] or 0
-    today_count = today_receipts.count()
-
-    context = {
-        'shop': shop,
-        'items': items,
-        'today_total': today_total,
-        'today_count': today_count,
-        'page_title': f'Point of Sale - {shop.name}',
-    }
-    return render(request, 'stock_manager/point_of_sale.html', context)
-
-
-@shop_access_required
-def sales_history(request):
-    profile = get_user_profile(request.user)
-    user_is_admin = profile is None or profile.is_admin
-
-    receipts = Receipt.objects.select_related('shop', 'created_by').prefetch_related('items')
-    if not user_is_admin and profile.assigned_shop:
-        receipts = receipts.filter(shop=profile.assigned_shop)
-
-    q = request.GET.get('q', '').strip()
-    date_from = request.GET.get('date_from', '')
-    date_to = request.GET.get('date_to', '')
-    shop_filter = request.GET.get('shop', '')
-
-    if q:
-        receipts = receipts.filter(
-            Q(receipt_number__icontains=q) | Q(customer_name__icontains=q)
-        )
-    if date_from:
-        receipts = receipts.filter(created_at__date__gte=date_from)
-    if date_to:
-        receipts = receipts.filter(created_at__date__lte=date_to)
-    if user_is_admin and shop_filter:
-        receipts = receipts.filter(shop_id=shop_filter)
-
-    receipts = receipts.order_by('-created_at')[:100]
-
-    total_sales = receipts.aggregate(total=Sum('total'))['total'] or 0
-
-    context = {
-        'receipts': receipts,
-        'total_sales': total_sales,
-        'query': q,
-        'date_from': date_from,
-        'date_to': date_to,
-        'selected_shop': shop_filter,
-        'user_is_admin': user_is_admin,
-        'page_title': 'Sales History',
-    }
-    return render(request, 'stock_manager/sales_history.html', context)
-
-
-@shop_access_required
-def print_receipt(request, receipt_id):
-    receipt = get_object_or_404(Receipt, id=receipt_id)
-    profile = get_user_profile(request.user)
-    user_is_admin = profile is None or profile.is_admin
-    if not user_is_admin and profile.assigned_shop and receipt.shop != profile.assigned_shop:
-        messages.error(request, 'Access denied.')
-        return redirect('dashboard')
-
-    context = {
-        'receipt': receipt,
-        'page_title': f'Receipt {receipt.receipt_number}',
-    }
-    return render(request, 'stock_manager/receipt_print.html', context)
-
-
-@shop_access_required
-def export_csv(request):
-    profile = get_user_profile(request.user)
-    user_is_admin = profile is None or profile.is_admin
-
-    response = HttpResponse(content_type='text/csv')
-    response['Content-Disposition'] = 'attachment; filename="inventory_export.csv"'
-
-    writer = __import__('csv').writer(response)
-    writer.writerow(['Item Name', 'Category', 'Shop', 'Quantity', 'Unit Price', 'Total Value', 'Low Stock'])
-
-    items = Item.objects.select_related('shop').order_by('name', 'shop__name')
-    if not user_is_admin and profile.assigned_shop:
-        items = items.filter(shop=profile.assigned_shop)
-
-    for item in items:
-        writer.writerow([
-            item.name,
-            item.category,
-            item.shop.name,
-            item.quantity,
-            item.unit_price,
-            item.total_value,
-            'YES' if item.is_low_stock else 'NO',
-        ])
-
-    return response
-
-
-@shop_access_required
-def admin_manage(request):
-    profile = get_user_profile(request.user)
-    user_is_admin = profile is None or profile.is_admin
-
-    all_shops = Shop.objects.all()
-    if not user_is_admin and profile.assigned_shop:
-        all_shops = Shop.objects.filter(id=profile.assigned_shop.id)
-
-    active_period = get_active_period()
-
-    if request.method == 'POST':
-        action = request.POST.get('action')
-
-        if action == 'add_item':
-            item_name = request.POST.get('item_name', '').strip()
-            shop_id = request.POST.get('shop', '')
-            quantity = request.POST.get('quantity', 0)
-            unit_price = request.POST.get('unit_price', 0)
-            category = request.POST.get('category', '').strip()
-
-            if item_name and shop_id:
-                shop = get_object_or_404(Shop, id=shop_id)
-                existing = Item.objects.filter(name__iexact=item_name, shop=shop).first()
-                if existing:
-                    existing.quantity += int(quantity)
-                    existing.unit_price = float(unit_price)
-                    if category:
-                        existing.category = category
-                    existing.save()
-                    messages.success(request, f'Added {quantity}x "{item_name}" to existing stock at {shop.name} (now {existing.quantity})')
-                else:
-                    Item.objects.create(
-                        name=item_name,
-                        shop=shop,
-                        quantity=int(quantity),
-                        unit_price=float(unit_price),
-                        category=category,
-                    )
-                    messages.success(request, f'Added "{item_name}" to {shop.name}')
-                auto_deduct_from_warehouse(item_name, shop, int(quantity), float(unit_price), category)
-
-        elif action == 'edit_item':
-            item_id = request.POST.get('item_id')
-            quantity = request.POST.get('quantity', 0)
-            unit_price = request.POST.get('unit_price', 0)
-
-            try:
-                item = Item.objects.get(id=item_id)
-                item.quantity = int(quantity)
-                item.unit_price = float(unit_price)
-                item.save()
-                messages.success(request, f'Updated "{item.name}"')
-            except Item.DoesNotExist:
-                messages.error(request, 'Item not found')
-            except (ValueError, TypeError):
-                messages.error(request, 'Invalid quantity or price')
-
-        elif action == 'delete_item':
-            item_id = request.POST.get('item_id')
-            try:
-                item = Item.objects.get(id=item_id)
-                name = item.name
-                shop = item.shop.name
-                item.delete()
-                messages.success(request, f'Deleted "{name}" from {shop}')
-            except Item.DoesNotExist:
-                messages.error(request, 'Item not found or already deleted')
-
-        elif action == 'bulk_delete':
-            item_ids = request.POST.getlist('item_ids')
-            valid_ids = []
-            for iid in item_ids:
-                try:
-                    valid_ids.append(int(iid))
-                except (ValueError, TypeError):
-                    pass
-            if valid_ids:
-                count, _ = Item.objects.filter(id__in=valid_ids).delete()
-                messages.success(request, f'Deleted {count} items')
-            else:
-                messages.error(request, 'No valid items selected')
-
-        elif action == 'delete_all':
-            count = Item.objects.count()
-            Item.objects.all().delete()
-            messages.success(request, f'Deleted all {count} items from inventory')
-
-        elif action == 'stock_transaction':
-            item_id = request.POST.get('item_id', '')
-            transaction_type = request.POST.get('transaction_type', '')
-            quantity = request.POST.get('quantity', 0)
-            from_shop_id = request.POST.get('from_shop', '')
-            to_shop_id = request.POST.get('to_shop', '')
-            reason = request.POST.get('reason', '').strip()
-
-            if not item_id or not transaction_type or str(quantity).strip() == '':
-                messages.error(request, 'Please fill in all required fields')
-                return redirect('admin_manage')
-
-            try:
-                quantity = int(quantity)
-            except (ValueError, TypeError):
-                messages.error(request, 'Invalid quantity')
-                return redirect('admin_manage')
-
-            if transaction_type == 'stock_in':
-                if not to_shop_id:
-                    messages.error(request, 'Please select a destination shop')
-                    return redirect('admin_manage')
-                try:
-                    to_shop = Shop.objects.get(id=to_shop_id)
-                    item = Item.objects.get(id=item_id, shop=to_shop)
-                except Shop.DoesNotExist:
-                    messages.error(request, 'Destination shop not found')
-                    return redirect('admin_manage')
-                except Item.DoesNotExist:
-                    messages.error(request, 'Item not found in selected shop')
-                    return redirect('admin_manage')
-
-                item.quantity += quantity
-                item.save()
-                StockTransaction.objects.create(
-                    item=item,
-                    source_shop=None,
-                    target_shop=to_shop,
-                    quantity=quantity,
-                    transaction_type='stock_in',
-                    reason=reason,
-                )
-                messages.success(request, f'Stocked in {quantity}x {item.name} to {to_shop.name}')
-            elif not from_shop_id:
-                messages.error(request, 'Please select a source shop')
-            elif from_shop_id == to_shop_id:
-                messages.error(request, 'From and To shops cannot be the same')
-            else:
-                try:
-                    from_shop = Shop.objects.get(id=from_shop_id)
-                except Shop.DoesNotExist:
-                    messages.error(request, 'Source shop not found')
-                    return redirect('admin_manage')
-
-                to_shop = None
-                if to_shop_id:
-                    try:
-                        to_shop = Shop.objects.get(id=to_shop_id)
-                    except Shop.DoesNotExist:
-                        messages.error(request, 'Target shop not found')
-                        return redirect('admin_manage')
-
-                try:
-                    item = Item.objects.get(id=item_id, shop=from_shop)
-                except Item.DoesNotExist:
-                    messages.error(request, 'Item not found in source shop')
-                    return redirect('admin_manage')
-
-                item.quantity -= quantity
-                item.save()
-
-                if transaction_type == 'transfer' and to_shop:
-                    target_item, created = Item.objects.get_or_create(
-                        name=item.name,
-                        shop=to_shop,
-                        defaults={
-                            'quantity': quantity,
-                            'unit_price': item.unit_price,
-                            'category': item.category,
-                        }
-                    )
-                    if not created:
-                        target_item.quantity += quantity
-                        target_item.save()
-
-                StockTransaction.objects.create(
-                    item=item,
-                    source_shop=from_shop,
-                    target_shop=to_shop if transaction_type == 'transfer' else None,
-                    quantity=quantity,
-                    transaction_type=transaction_type,
-                    reason=reason,
-                )
-                if transaction_type == 'transfer':
-                    messages.success(request, f'Transferred {quantity}x {item.name} from {from_shop.name} to {to_shop.name}')
-                else:
-                    messages.success(request, f'Processed {transaction_type}: {quantity}x {item.name} from {from_shop.name}')
-
-        elif action == 'bulk_import':
-            csv_file = request.FILES.get('csv_file')
-            if csv_file:
-                created, updated, skipped, errors = process_csv_import(csv_file)
-                if created > 0 or updated > 0:
-                    msg = f'Imported {created} new items'
-                    if updated > 0:
-                        msg += f', updated {updated} existing items'
-                    if skipped > 0:
-                        msg += f', skipped {skipped} empty rows'
-                    messages.success(request, msg)
-                if errors:
-                    messages.error(request, f'{len(errors)} errors occurred. First: {errors[0]}')
-            else:
-                messages.error(request, 'No file uploaded')
-
-        return redirect('admin_manage')
-
-    shop_filter = request.GET.get('shop', '')
-    items = Item.objects.select_related('shop').all()
-    if not user_is_admin and profile.assigned_shop:
-        items = items.filter(shop=profile.assigned_shop)
-    if shop_filter:
-        items = items.filter(shop_id=shop_filter)
-
-    items = items.order_by('name', 'shop__name')
-
-    stock_transactions = StockTransaction.objects.select_related('item__shop', 'source_shop', 'target_shop').order_by('-created_at')[:50]
-    if not user_is_admin and profile.assigned_shop:
-        stock_transactions = stock_transactions.filter(source_shop=profile.assigned_shop)
-
-    context = {
-        'all_shops': all_shops,
-        'items': items,
-        'stock_transactions': stock_transactions,
-        'shop_filter': shop_filter,
-        'active_period': active_period,
-        'page_title': 'Manage Inventory',
-    }
-    return render(request, 'stock_manager/admin_manage.html', context)
-
-
-@shop_access_required
 def settings_view(request):
     profile = get_user_profile(request.user)
     user_is_admin = profile is None or profile.is_admin
@@ -1626,6 +2069,8 @@ def settings_view(request):
 
 
 @shop_access_required
+
+
 def download_template(request):
     csv = __import__('csv')
     response = HttpResponse(content_type='text/csv')
@@ -1639,6 +2084,8 @@ def download_template(request):
 
 
 @shop_access_required
+
+
 def download_bulk_transfer_template(request):
     csv = __import__('csv')
     response = HttpResponse(content_type='text/csv')
@@ -1652,6 +2099,8 @@ def download_bulk_transfer_template(request):
 
 
 @shop_access_required
+
+
 def financial_report(request):
     profile = get_user_profile(request.user)
     user_is_admin = profile is None or profile.is_admin
@@ -1726,10 +2175,14 @@ def financial_report(request):
     return render(request, 'stock_manager/financial_report.html', context)
 
 
+
+
 def landing_view(request):
     company = CompanyProfile.get_profile()
     landing = LandingPageContent.get_content()
     return render(request, 'stock_manager/landing.html', {'company': company, 'landing': landing})
+
+
 
 
 def login_view(request):
@@ -1748,6 +2201,8 @@ def login_view(request):
     return render(request, 'stock_manager/login.html', {'form': form, 'company': company})
 
 
+
+
 def logout_view(request):
     auth_logout(request)
     next_url = request.GET.get('next', 'login')
@@ -1755,6 +2210,8 @@ def logout_view(request):
 
 
 @login_required
+
+
 def change_password(request):
     if request.method == 'POST':
         current = request.POST.get('current_password', '')
