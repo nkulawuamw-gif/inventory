@@ -1401,6 +1401,23 @@ def settings_view(request):
             except Shop.DoesNotExist:
                 messages.error(request, 'Shop not found.')
 
+        elif action == 'edit_shop':
+            shop_id = request.POST.get('shop_id')
+            name = request.POST.get('name', '').strip()
+            if not shop_id or not name:
+                messages.error(request, 'Shop and new name are required.')
+            else:
+                try:
+                    shop = Shop.objects.get(id=shop_id)
+                    if Shop.objects.filter(name__iexact=name).exclude(id=shop.id).exists():
+                        messages.error(request, f'Shop "{name}" already exists.')
+                    else:
+                        shop.name = name
+                        shop.save()
+                        messages.success(request, f'Shop renamed to "{name}".')
+                except Shop.DoesNotExist:
+                    messages.error(request, 'Shop not found.')
+
         elif action == 'add_user':
             username = request.POST.get('username', '').strip()
             email = request.POST.get('email', '').strip()
@@ -1446,6 +1463,37 @@ def settings_view(request):
                     messages.success(request, f'Password for "{user.username}" has been reset.')
             except User.DoesNotExist:
                 messages.error(request, 'User not found.')
+
+        elif action == 'edit_user':
+            user_id = request.POST.get('user_id')
+            username = request.POST.get('username', '').strip()
+            email = request.POST.get('email', '').strip()
+            first_name = request.POST.get('first_name', '').strip()
+            last_name = request.POST.get('last_name', '').strip()
+            role = request.POST.get('role', 'shop_user')
+            shop_id = request.POST.get('shop_id')
+            if not user_id or not username:
+                messages.error(request, 'User and username are required.')
+            else:
+                try:
+                    user = User.objects.get(id=user_id)
+                    if user.is_superuser:
+                        messages.error(request, 'Cannot edit superuser.')
+                    elif User.objects.filter(username=username).exclude(id=user.id).exists():
+                        messages.error(request, f'Username "{username}" is already taken.')
+                    else:
+                        user.username = username
+                        user.email = email
+                        user.first_name = first_name
+                        user.last_name = last_name
+                        user.save()
+                        profile, created = UserProfile.objects.get_or_create(user=user)
+                        profile.role = role
+                        profile.assigned_shop = Shop.objects.filter(id=shop_id).first() if shop_id else None
+                        profile.save()
+                        messages.success(request, f'User "{username}" updated.')
+                except User.DoesNotExist:
+                    messages.error(request, 'User not found.')
 
         elif action == 'delete_user':
             user_id = request.POST.get('user_id')

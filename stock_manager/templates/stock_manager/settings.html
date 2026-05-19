@@ -264,6 +264,34 @@
     </div>
 
     <div class="card mb-4">
+      <div class="card-header bg-primary text-white">
+        <h5 class="mb-0"><i class="bi bi-pencil"></i> Edit Shop</h5>
+      </div>
+      <div class="card-body">
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="edit_shop">
+          <div class="mb-3">
+            <label class="form-label" for="edit_shop_id">Select Shop *</label>
+            <select name="shop_id" id="edit_shop_id" class="form-select" required>
+              <option value="">-- Choose a shop --</option>
+              {% for shop in all_shops %}
+              <option value="{{ shop.id }}">{{ shop.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label" for="edit_shop_name">New Shop Name *</label>
+            <input type="text" name="name" id="edit_shop_name" class="form-control" placeholder="e.g. Renamed Shop" required>
+          </div>
+          <button type="submit" class="btn btn-primary w-100">
+            <i class="bi bi-pencil"></i> Edit Shop
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <div class="card mb-4">
       <div class="card-header bg-danger text-white">
         <h5 class="mb-0"><i class="bi bi-trash"></i> Remove Shop</h5>
       </div>
@@ -461,6 +489,64 @@
           </div>
           <button type="submit" class="btn btn-warning w-100 text-dark">
             <i class="bi bi-key"></i> Reset Password
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom: 1px;">
+      <div class="card-header bg-primary text-white">
+        <h5 class="mb-0"><i class="bi bi-pencil"></i> Edit Salesman</h5>
+      </div>
+      <div class="card-body">
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="edit_user">
+          <div class="mb-3">
+            <label class="form-label" for="edit_user_id">Select User *</label>
+            <select name="user_id" id="edit_user_id" class="form-select" required>
+              <option value="">-- Choose a user --</option>
+              {% for u in users %}
+              <option value="{{ u.id }}">{{ u.get_full_name|default:u.username }} ({{ u.username }})</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label" for="edit_username">Username *</label>
+            <input type="text" name="username" id="edit_username" class="form-control" placeholder="e.g. johndoe" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label" for="edit_user_email">Email</label>
+            <input type="email" name="email" id="edit_user_email" class="form-control" placeholder="e.g. john@example.com">
+          </div>
+          <div class="row mb-3">
+            <div class="col-6">
+              <label class="form-label" for="edit_first_name">First Name</label>
+              <input type="text" name="first_name" id="edit_first_name" class="form-control" placeholder="John">
+            </div>
+            <div class="col-6">
+              <label class="form-label" for="edit_last_name">Last Name</label>
+              <input type="text" name="last_name" id="edit_last_name" class="form-control" placeholder="Doe">
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label" for="edit_user_role">Role</label>
+            <select name="role" id="edit_user_role" class="form-select">
+              <option value="shop_user">Shop User</option>
+              <option value="admin">Admin (All Shops)</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label" for="edit_assigned_shop">Assigned Shop</label>
+            <select name="shop_id" id="edit_assigned_shop" class="form-select">
+              <option value="">-- No shop (admin) --</option>
+              {% for shop in all_shops %}
+              <option value="{{ shop.id }}">{{ shop.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <button type="submit" class="btn btn-primary w-100">
+            <i class="bi bi-pencil"></i> Edit Salesman
           </button>
         </form>
       </div>
