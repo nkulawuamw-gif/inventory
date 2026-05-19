@@ -383,3 +383,13 @@ class WhatsAppMessage(models.Model):
         who = self.customer_name or self.customer_number
         return f'{who}: {self.body[:50]}'
 
+
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+
+
+@receiver(post_save, sender=User)
+def create_user_profile(sender, instance, created, **kwargs):
+    if created:
+        UserProfile.objects.create(user=instance)
+
