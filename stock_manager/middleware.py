@@ -1,3 +1,4 @@
+from functools import wraps
 from django.shortcuts import redirect
 from django.contrib import messages
 from django.urls import reverse
@@ -13,6 +14,16 @@ EXEMPT_PATHS = [
 
 ADMIN_ONLY_VIEWS = ['admin_manage', 'financial_report', 'dashboard_bulk_import', 'export_csv']
 SHOP_RESTRICTED_VIEWS = ['shop_dashboard', 'point_of_sale', 'print_receipt']
+
+ACCESS_DENIED = {
+    'dashboard': 'You do not have access to the main dashboard.',
+    'admin_manage': 'You do not have permission to manage inventory.',
+    'financial_report': 'You do not have access to the financial report.',
+    'sales_history': 'You do not have access to sales history.',
+    'export_csv': 'You do not have access to export.',
+    'settings': 'You do not have access to settings.',
+    'dashboard_bulk_import': 'You do not have access to bulk import.',
+}
 
 
 def get_user_profile(user):
@@ -47,49 +58,42 @@ class ShopAccessMiddleware:
 
 
 def shop_access_required(view_func):
+    @wraps(view_func)
     def _wrapped_view(request, *args, **kwargs):
         resolver_match = request.resolver_match
         url_name = resolver_match.url_name if resolver_match else None
 
-        # 🔐 Not logged in
         if not request.user.is_authenticated:
-            return redirect('admin:login')
+            return redirect('login')
 
-        # 👑 Superuser bypass
         if request.user.is_superuser:
             return view_func(request, *args, **kwargs)
 
         profile = get_user_profile(request.user)
 
-        # ❌ No profile
         if profile is None:
-            messages.error(request, 'Your account is not configured. Please contact the administrator.')
-            return redirect('admin:index')
+            messages.error(request, 'Your account is not configured.')
+            return redirect('login')
 
-        # 👑 Admin users
         if profile.is_admin:
             return view_func(request, *args, **kwargs)
 
-        # ⚠️ ONLY restrict specific admin-only views
-        if url_name in ADMIN_ONLY_VIEWS:
-            messages.error(request, 'You do not have permission to access this page.')
-            return redirect('shop_dashboard', shop_slug=profile.assigned_shop.name.replace(' ', '-').lower())
+        if url_name in ACCESS_DENIED:
+            msg = ACCESS_DENIED.get(url_name, 'No access.')
+            messages.error(request, msg)
+            return redirect('dashboard')
 
-        # 🏪 Shop restriction
         if url_name in SHOP_RESTRICTED_VIEWS:
             shop_slug = kwargs.get('shop_slug', '')
 
             if profile.assigned_shop:
                 allowed_slug = profile.assigned_shop.name.replace(' ', '-').lower()
-
                 if shop_slug != allowed_slug:
-                    messages.error(request, f'You can only access the {profile.assigned_shop.name} dashboard.')
+                    messages.error(request, 'Access denied to this shop.')
                     return redirect('shop_dashboard', shop_slug=allowed_slug)
             else:
-                messages.error(request, 'No shop assigned to your account.')
-                return redirect('admin:index')
+                return redirect('dashboard')
 
-        # ✅ ALWAYS return response
         return view_func(request, *args, **kwargs)
 
     return _wrapped_view

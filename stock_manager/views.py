@@ -9,7 +9,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.http import HttpResponse, JsonResponse
 from django.db.models import Q, Sum, F, ExpressionWrapper, DecimalField
 from django.contrib import messages
-from django.contrib.auth import logout as auth_logout
+from django.contrib.auth import authenticate, login, logout as auth_logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.db import connection
@@ -1553,19 +1553,24 @@ def landing_view(request):
 
 
 def login_view(request):
-    if request.user.is_authenticated:
-        return redirect('dashboard')
-    from django.contrib.auth.forms import AuthenticationForm
-    from django.contrib.auth import login as auth_login
-    form = AuthenticationForm(request, data=request.POST or None)
-    if request.method == 'POST' and form.is_valid():
-        user = form.get_user()
-        auth_login(request, user)
-        messages.success(request, f'Welcome back, {user.username}!')
-        next_url = request.GET.get('next', 'dashboard')
-        return redirect(next_url)
-    company = CompanyProfile.get_profile()
-    return render(request, 'stock_manager/login.html', {'form': form, 'company': company})
+    if request.method == 'POST':
+        username = request.POST.get('username')
+        password = request.POST.get('password')
+
+        print("USERNAME:", username)
+        print("PASSWORD:", password)
+
+        user = authenticate(request, username=username, password=password)
+
+        print("USER:", user)
+
+        if user is not None:
+            login(request, user)
+            return redirect('dashboard')
+        else:
+            messages.error(request, 'Invalid username or password.')
+
+    return render(request, 'login.html')
 
 
 
