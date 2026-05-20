@@ -11,7 +11,7 @@
         body { background-color: #f4f6f9; }
         img, table, input, select, textarea { max-width: 100%; }
         img { height: auto; }
-        .sidebar { min-height: 100vh; background: #2c3e50; font-size: 0.95rem; overflow-y: auto; }
+        .sidebar { min-height: 100vh; background: #2c3e50; font-size: 0.95rem; overflow-y: scroll; }
         .sidebar a { color: #ecf0f1; text-decoration: none; padding: 6px 16px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
         .sidebar a:hover, .sidebar a.active { background: #34495e; border-left: 3px solid #3498db; }
         .sidebar a i { margin-right: 6px; font-size: 1rem; width: 18px; text-align: center; }
@@ -29,7 +29,7 @@
         .online-dot { width: 10px; height: 10px; background: #2ecc71; border-radius: 50%; display: inline-block; }
         .offline-dot { width: 10px; height: 10px; background: #95a5a6; border-radius: 50%; display: inline-block; }
         @media (max-width: 767px) {
-            .sidebar { transform: translateX(-100%); position: fixed; top: 0; left: 0; width: 260px; height: 100%; z-index: 9999; overflow-y: auto; transition: 0.3s ease; }
+            .sidebar { transform: translateX(-100%); position: fixed; top: 0; left: 0; width: 260px; height: 100%; z-index: 9999; overflow-y: scroll; transition: 0.3s ease; }
             .sidebar.active { transform: translateX(0); }
             .main-content { margin-left: 0 !important; width: 100% !important; max-width: 100% !important; }
             .menu-toggle { display: block !important; }
