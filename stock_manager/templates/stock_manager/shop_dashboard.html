@@ -810,7 +810,7 @@ function shopNewSale() {
             </div>
             <div class="modal-body">
                 <p>Item <strong>{{ request.session.wh_duplicate.item_name }}</strong> already exists in Warehouse.</p>
-                <table class="table table-sm mb-3">
+                <div class="table-responsive"><table class="table table-sm mb-3">
                     <tr><th></th><th>Current</th><th>New</th></tr>
                     <tr>
                         <td>Quantity</td>
@@ -822,7 +822,7 @@ function shopNewSale() {
                         <td>MWK {{ request.session.wh_duplicate.existing_price|floatformat:2 }}</td>
                         <td>MWK {{ request.session.wh_duplicate.unit_price|floatformat:2 }}</td>
                     </tr>
-                </table>
+                </table></div>
                 <p class="mb-1"><strong>What would you like to do?</strong></p>
             </div>
             <div class="modal-footer d-flex justify-content-between">
