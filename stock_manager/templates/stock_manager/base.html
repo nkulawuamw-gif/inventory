@@ -29,7 +29,7 @@
         .online-dot { width: 10px; height: 10px; background: #2ecc71; border-radius: 50%; display: inline-block; }
         .offline-dot { width: 10px; height: 10px; background: #95a5a6; border-radius: 50%; display: inline-block; }
         @media (max-width: 767px) {
-            .sidebar { transform: translateX(-100%); position: fixed; top: 0; left: 0; width: 260px; height: 100%; z-index: 9999; transition: 0.3s ease; }
+            .sidebar { transform: translateX(-100%); position: fixed; top: 0; left: 0; width: 260px; height: 100%; z-index: 9999; overflow-y: auto; transition: 0.3s ease; }
             .sidebar.active { transform: translateX(0); }
             .main-content { margin-left: 0 !important; width: 100% !important; max-width: 100% !important; }
             .menu-toggle { display: block !important; }
