@@ -222,7 +222,12 @@
 .pos-shop-items { display: flex; gap: 16px; }
 .pos-shop-grid { flex: 1; }
 .pos-shop-cart { width: 440px; flex-shrink: 0; background: white; border-radius: 16px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); display: flex; flex-direction: column; }
-@media (max-width: 1100px) { .pos-shop-items { flex-direction: column; } .pos-shop-cart { width: 100%; } }
+@media (max-width: 1100px) {
+  .dashboard-wrapper { flex-direction: column; }
+  .pos-shop-items { flex-direction: column; }
+  .pos-shop-cart, .sales-panel, .cart-panel { width: 100%; }
+  .product-grid { grid-template-columns: repeat(2, 1fr); }
+}
 .item-shop-table { width: 100%; border-collapse: collapse; background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.08); }
 .item-shop-table thead th { background: #f8f9fa; padding: 12px 14px; font-size: 0.85rem; text-transform: uppercase; color: #666; border-bottom: 2px solid #dee2e6; text-align: left; }
 .item-shop-table tbody tr { cursor: pointer; transition: background 0.1s; }
