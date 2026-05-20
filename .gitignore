@@ -12,3 +12,5 @@ node_modules/
 check_*.py
 find_error.py
 test_*.py
+*.log
+fix_render_user.py
