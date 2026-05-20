@@ -20,6 +20,8 @@ services:
         value: /var/data/media
       - key: RENDER_STATIC_ROOT
         value: /var/data/staticfiles
+      - key: DATABASE_URL
+        value: postgresql://inventory_ugek_user:0V8C4IoBtmIjFIkaRXGndlCRKIVbtYr3@dpg-d84abpj7uimc739h653g-a/inventory_ugek
       - key: PYTHONUNBUFFERED
         value: 1
     disk:
