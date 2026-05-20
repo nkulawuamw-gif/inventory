@@ -67,6 +67,7 @@ ul { list-style: none; }
   display: flex; align-items: center; gap: 8px; transition: 0.3s;
 }
 .nav-wa-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(37,211,102,0.3); }
+.nav-mobile-only { display: none; }
 .nav-login-btn {
   background: transparent; color: var(--text); padding: 10px 18px;
   border-radius: 50px; font-size: 0.8rem; font-weight: 600;
@@ -217,7 +218,7 @@ footer { background: var(--dark); color: rgba(255,255,255,0.8); padding: 60px 0 
 .fade-in { opacity: 0; transform: translateY(40px); transition: 0.8s ease; }
 .fade-in.visible { opacity: 1; transform: translateY(0); }
 @media (max-width: 992px) { .about-wrapper, .contact-wrapper { grid-template-columns: 1fr; } .about-image { order: -1; } .footer-content { grid-template-columns: 1fr 1fr; } }
-@media (max-width: 768px) { .nav-links, .nav-wa-btn, .nav-login-btn { display: none; } .hamburger { display: flex; } .nav-links.active { display: flex; flex-direction: column; position: absolute; top: 100%; left: 0; width: 100%; background: white; padding: 20px 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); gap: 16px; align-items: center; } .hero-stats { gap: 24px; } .about-features { grid-template-columns: 1fr; } .footer-content { grid-template-columns: 1fr; } .contact-info { grid-template-columns: 1fr; } .why-grid { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 768px) { .nav-links, .nav-wa-btn, .nav-login-btn { display: none; } .hamburger { display: flex; } .nav-links.active { display: flex; flex-direction: column; position: absolute; top: 100%; left: 0; width: 100%; background: white; padding: 20px 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); gap: 16px; align-items: center; } .hero-stats { gap: 24px; } .about-features { grid-template-columns: 1fr; } .footer-content { grid-template-columns: 1fr; } .contact-info { grid-template-columns: 1fr; } .why-grid { grid-template-columns: 1fr 1fr; } .desktop-only { display: none !important; } .nav-mobile-only { display: block !important; } }
 .hero-top-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
 .hero-title { flex: 1; }
 .img-table { width: 460px; height: 400px; position: relative; overflow: hidden; border-radius: var(--radius); background: rgba(255,255,255,0.15); border: 2px solid rgba(255,255,255,0.2); flex-shrink: 0; }
@@ -239,9 +240,11 @@ footer { background: var(--dark); color: rgba(255,255,255,0.8); padding: 60px 0 
       <li><a href="#products">Products</a></li>
       <li><a href="#why-us">Why Us</a></li>
       <li><a href="#contact">Contact</a></li>
+      <li class="nav-mobile-only"><a href="https://wa.me/{{ landing.data.contact.whatsapp|cut:'+'|cut:' '|default:'265883994035' }}" target="_blank"><i class="fab fa-whatsapp"></i> Order Now</a></li>
+      <li class="nav-mobile-only"><a href="{% url 'login' %}"><i class="fas fa-user-lock"></i> Staff Login</a></li>
     </ul>
-    <a href="https://wa.me/{{ landing.data.contact.whatsapp|cut:'+'|cut:' '|default:'265883994035' }}" target="_blank" class="nav-wa-btn"><i class="fab fa-whatsapp"></i> Order Now</a>
-    <a href="{% url 'login' %}" class="nav-login-btn"><i class="fas fa-user-lock"></i> Staff Login</a>
+    <a href="https://wa.me/{{ landing.data.contact.whatsapp|cut:'+'|cut:' '|default:'265883994035' }}" target="_blank" class="nav-wa-btn desktop-only"><i class="fab fa-whatsapp"></i> Order Now</a>
+    <a href="{% url 'login' %}" class="nav-login-btn desktop-only"><i class="fas fa-user-lock"></i> Staff Login</a>
     <div class="hamburger" id="hamburger" onclick="toggleMenu()">
       <span></span><span></span><span></span>
     </div>
