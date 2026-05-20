@@ -27,9 +27,10 @@
         .online-dot { width: 10px; height: 10px; background: #2ecc71; border-radius: 50%; display: inline-block; }
         .offline-dot { width: 10px; height: 10px; background: #95a5a6; border-radius: 50%; display: inline-block; }
         @media (max-width: 767px) {
-            .sidebar { position: fixed; left: -250px; width: 250px; height: 100%; z-index: 1040; transition: 0.3s; top: 56px; }
-            .sidebar.show, .sidebar.active { left: 0; }
-            main, .main-content { margin-left: 0 !important; width: 100% !important; padding: 12px !important; }
+            .sidebar { position: fixed; left: -260px; top: 0; width: 260px; height: 100%; z-index: 9999; transition: 0.3s ease; }
+            .sidebar.active { left: 0; }
+            .main-content { margin-left: 0 !important; width: 100% !important; }
+            .menu-toggle { display: block !important; }
             .table-container { padding: 10px; border-radius: 8px; }
             .stat-card .card-body { padding: 0.8rem; }
             .stat-card .icon { font-size: 1.5rem; }
