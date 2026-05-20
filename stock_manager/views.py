@@ -302,24 +302,7 @@ def dashboard_bulk_import(request):
             messages.error(request, f'{len(errors)} errors occurred. First: {errors[0]}')
 
         return redirect('dashboard_bulk_import')
-    # ========================
-    # HANDLE POST ACTIONS
-    # ========================
-    if request.method == 'POST':
-        action = request.POST.get('action')
 
-        # ADD ITEM
-        if action == 'add_warehouse_item':
-            item_name = request.POST.get('item_name', '').strip()
-            quantity = request.POST.get('quantity', 0)
-            unit_price = request.POST.get('unit_price', 0)
-            category = request.POST.get('category', '').strip()
-
-            try:
-                quantity = int(quantity)
-                unit_price = float(unit_price)
-            except (ValueError, TypeError):
-                messages.error(request, 'Invalid quantity or price')
     return redirect('dashboard')
 
 
@@ -328,73 +311,6 @@ def create_admin(request):
         User.objects.create_superuser(username="admin", password="admin123")
         return HttpResponse("Admin created")
     return HttpResponse("Admin already exists")
-
-            warehouse = Shop.objects.filter(name='Warehouse').first()
-
-            if warehouse and item_name and quantity > 0:
-                existing = Item.objects.filter(
-                    name__iexact=item_name,
-                    shop=warehouse
-                ).first()
-
-                if existing:
-                    existing.quantity += quantity
-                    existing.unit_price = unit_price
-                    if category:
-                        existing.category = category
-                    existing.save()
-                else:
-                    Item.objects.create(
-                        name=item_name,
-                        shop=warehouse,
-                        quantity=quantity,
-                        unit_price=unit_price,
-                        category=category,
-                    )
-
-                messages.success(request, f'Item "{item_name}" saved successfully')
-            else:
-                messages.error(request, 'Missing required fields')
-
-            return redirect('dashboard')
-
-        # EDIT ITEM
-        elif action == 'edit_warehouse_item':
-            item_id = request.POST.get('item_id')
-
-            try:
-                item = Item.objects.get(id=item_id, shop__name='Warehouse')
-
-                item.quantity = int(request.POST.get('quantity', 0))
-                item.unit_price = float(request.POST.get('unit_price', 0))
-                item.category = request.POST.get('category', '').strip()
-                item.save()
-
-                messages.success(request, f'Updated "{item.name}"')
-
-            except Item.DoesNotExist:
-                messages.error(request, 'Item not found')
-            except (ValueError, TypeError):
-                messages.error(request, 'Invalid values')
-
-            return redirect('dashboard')
-
-        # DELETE ITEM ✅ FIXED ERROR HERE
-        elif action == 'delete_warehouse_item':
-            item_id = request.POST.get('item_id')
-
-            try:
-                item = Item.objects.get(id=item_id, shop__name='Warehouse')
-                name = item.name
-                item.delete()
-                messages.success(request, f'Deleted "{name}"')
-
-            except Item.DoesNotExist:
-                messages.error(request, 'Item not found')
-
-            return redirect('dashboard')
-
-    return redirect('dashboard')
 
 
 # =========================
