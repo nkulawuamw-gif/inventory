@@ -306,13 +306,6 @@ def dashboard_bulk_import(request):
     return redirect('dashboard')
 
 
-def create_admin(request):
-    if not User.objects.filter(username="admin").exists():
-        User.objects.create_superuser(username="admin", password="admin123")
-        return HttpResponse("Admin created")
-    return HttpResponse("Admin already exists")
-
-
 # =========================
 # RECEIPT NUMBER GENERATOR
 # =========================
