@@ -6,7 +6,11 @@
 .pos-container { display: flex; gap: 20px; min-height: calc(100vh - 120px); }
 .pos-items { flex: 1; }
 .pos-cart { width: 500px; flex-shrink: 0; }
-@media (max-width: 1100px) { .pos-container { flex-direction: column; } .pos-cart { width: 100%; } }
+@media (max-width: 1100px) {
+  .pos-container { flex-direction: column; }
+  .pos-cart, .products-section, .cart-section { width: 100%; }
+  .product-grid { grid-template-columns: repeat(2, 1fr); }
+}
 .item-list { width: 100%; border-collapse: collapse; }
 .item-list thead th { background: #f8f9fa; padding: 12px 14px; font-size: 0.85rem; text-transform: uppercase; color: #666; border-bottom: 2px solid #dee2e6; text-align: left; }
 .item-list tbody tr { cursor: pointer; transition: background 0.1s; }
