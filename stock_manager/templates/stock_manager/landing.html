@@ -144,12 +144,10 @@ img { max-width: 100%; height: auto; }
 .about { padding: 100px 0; background: var(--white); }
 .about-wrapper { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; }
 .about-img-placeholder {
-  width: 100%; aspect-ratio: 1; border-radius: var(--radius);
-  background: linear-gradient(135deg, var(--pink-light), var(--pink-lighter));
-  display: flex; align-items: center; justify-content: center;
-  border: 1px solid rgba(233,30,99,0.1);
+  width: 100%; border-radius: var(--radius);
+  overflow: hidden;
 }
-.about-img-placeholder i { font-size: 6rem; color: var(--pink); opacity: 0.4; }
+.about-img-placeholder img { width: 100%; height: auto; display: block; object-fit: cover; }
 .about-text h2 { font-family: 'Playfair Display', serif; font-size: 2rem; color: var(--dark); margin-bottom: 16px; }
 .about-text p { color: var(--text); line-height: 1.8; margin-bottom: 12px; font-size: 0.95rem; }
 .about-features { margin-top: 24px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
@@ -318,7 +316,7 @@ footer { background: var(--dark); color: rgba(255,255,255,0.8); padding: 60px 0 
   <div class="container">
     <div class="about-wrapper">
       <div class="about-image fade-in">
-        <div class="about-img-placeholder"><i class="fas fa-spa"></i></div>
+        <div class="about-img-placeholder"><img src="{% static 'images/who we are.png' %}" alt="Who We Are"></div>
       </div>
       <div class="about-text fade-in">
         <span class="section-tag">{{ landing.data.about.tag|default:"About Us" }}</span>
