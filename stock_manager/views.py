@@ -1194,14 +1194,13 @@ def settings_view(request):
             elif User.objects.filter(username=username).exists():
                 messages.error(request, f'Username "{username}" is already taken.')
             else:
-                user = User.objects.create(
+                user = User.objects.create_user(
                     username=username,
                     email=email,
                     first_name=first_name,
                     last_name=last_name,
+                    password=password,
                 )
-                user.set_password(password)
-                user.save()
                 assigned_shop = Shop.objects.filter(id=shop_id).first() if shop_id else None
                 UserProfile.objects.create(
                     user=user,
