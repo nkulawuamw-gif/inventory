@@ -63,6 +63,7 @@
             nav.navbar .container-fluid { flex-wrap: nowrap; }
         }
         .offcanvas-sidebar-btn, .menu-toggle { display: none; }
+        .menu-toggle { background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; padding: 4px 10px; line-height: 1; }
         @media (max-width: 575px) {
             .page-title { font-size: 20px; }
             .card { padding: 15px; }
@@ -185,9 +186,7 @@
     <nav class="navbar navbar-dark bg-dark fixed-top" style="z-index: 1030;">
         <div class="container-fluid px-2">
             <div class="d-flex align-items-center gap-1">
-                <button class="btn btn-dark btn-sm d-md-none offcanvas-sidebar-btn menu-toggle" id="sidebarToggle" style="display:none" onclick="toggleSidebar()">
-                    <i class="bi bi-list" style="font-size:1.4rem;"></i>
-                </button>
+                <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
                 <a class="navbar-brand py-0" href="{% url 'dashboard' %}" style="font-size:1rem;">
                     <i class="bi bi-box-seam"></i> Stock Manager
                 </a>
@@ -410,24 +409,8 @@
 
     <script>
     function toggleSidebar() {
-        document.querySelector(".sidebar").classList.toggle("active");
+        document.querySelector('.sidebar').classList.toggle('active');
     }
-
-    document.addEventListener('DOMContentLoaded', function() {
-        const toggle = document.getElementById('sidebarToggle');
-        const sidebar = document.getElementById('mainSidebar');
-        if (toggle && sidebar) {
-            toggle.addEventListener('click', function() {
-                sidebar.classList.toggle('show');
-                sidebar.classList.toggle('active');
-            });
-            document.addEventListener('click', function(e) {
-                if (window.innerWidth < 768 && (sidebar.classList.contains('show') || sidebar.classList.contains('active')) && !sidebar.contains(e.target) && e.target !== toggle && !toggle.contains(e.target)) {
-                    sidebar.classList.remove('show', 'active');
-                }
-            });
-        }
-    });
 
     function showConfirm(opts) {
         return new Promise((resolve) => {
