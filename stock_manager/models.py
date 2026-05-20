@@ -75,6 +75,7 @@ class Sale(models.Model):
     quantity_sold = models.PositiveIntegerField()
     unit_price = models.DecimalField(max_digits=10, decimal_places=2)
     total_amount = models.DecimalField(max_digits=10, decimal_places=2)
+    receipt = models.ForeignKey('Receipt', on_delete=models.CASCADE, null=True, blank=True, related_name='sales')
     sold_at = models.DateTimeField(default=timezone.now)
 
     class Meta:
@@ -388,7 +389,7 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 
 
-@receiver(post_save, sender=User)
+@receiver(post_save, sender=User, dispatch_uid='create_user_profile')
 def create_user_profile(sender, instance, created, **kwargs):
     if created:
         UserProfile.objects.create(user=instance)

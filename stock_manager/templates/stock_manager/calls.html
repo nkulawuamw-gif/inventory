@@ -18,8 +18,15 @@
     <div class="col-md-6">
         <div class="table-container">
             <h5 class="mb-3"><i class="bi bi-telephone-outbound text-primary"></i> Start a Call</h5>
-            <div id="user-list" class="list-group">
-            </div>
+<div class="input-group mb-2">
+    <input type="text" id="callUsername" class="form-control" placeholder="Select or type username..." list="userDatalist" autocomplete="off">
+    <datalist id="userDatalist"></datalist>
+    <button class="btn btn-outline-primary" onclick="startCall('voice')"><i class="bi bi-telephone"></i> Voice</button>
+    <button class="btn btn-outline-success" onclick="startCall('video')"><i class="bi bi-camera-video"></i> Video</button>
+</div>
+<div id="callStatus" class="small text-muted"></div>
+<div id="user-list" class="list-group">
+</div>
         </div>
     </div>
     <div class="col-md-6">
@@ -52,14 +59,24 @@
 </div>
 
 <script>
+function getCSRFToken() {
+    return document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
+}
+
 function loadUsers() {
     fetch('{% url "online_users" %}')
         .then(r => r.json())
         .then(data => {
             const list = document.getElementById('user-list');
-            list.innerHTML = '';
+            list.innerHTML = '<h6 class="list-group-item bg-light"><i class="bi bi-people"></i> Online Users</h6>';
+            const datalist = document.getElementById('userDatalist');
+            datalist.innerHTML = '';
             data.users.forEach(user => {
                 if (user.id !== {{ request.user.id }}) {
+                    const opt = document.createElement('option');
+                    opt.value = user.username;
+                    datalist.appendChild(opt);
+
                     const item = document.createElement('div');
                     item.className = 'list-group-item d-flex justify-content-between align-items-center';
                     item.innerHTML = `
@@ -69,10 +86,10 @@ function loadUsers() {
                             <small class="text-muted ms-2">${user.shop}</small>
                         </div>
                         <div>
-                            <button class="btn btn-sm btn-outline-primary me-1" onclick="startCall(${user.id}, 'voice')">
+                            <button class="btn btn-sm btn-outline-primary me-1" onclick="startCallByUsername('${user.username}', 'voice')">
                                 <i class="bi bi-telephone"></i> Voice
                             </button>
-                            <button class="btn btn-sm btn-outline-success" onclick="startCall(${user.id}, 'video')">
+                            <button class="btn btn-sm btn-outline-success" onclick="startCallByUsername('${user.username}', 'video')">
                                 <i class="bi bi-camera-video"></i> Video
                             </button>
                         </div>
@@ -83,22 +100,40 @@ function loadUsers() {
         });
 }
 
-function startCall(userId, type) {
+function startCallByUsername(username, type) {
     fetch('{% url "initiate_call" %}', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
             'X-CSRFToken': getCSRFToken(),
         },
-        body: JSON.stringify({ callee_id: userId, call_type: type }),
+        body: JSON.stringify({ callee_username: username, call_type: type }),
     })
     .then(r => r.json())
     .then(data => {
+        const status = document.getElementById('callStatus');
         if (data.status === 'initiated') {
             window.location.href = `/calls/${data.call_id}/`;
+        } else {
+            status.textContent = data.error || 'Call failed';
+            status.className = 'small text-danger';
         }
     });
 }
+
+function startCall(type) {
+    const username = document.getElementById('callUsername').value.trim();
+    if (!username) {
+        document.getElementById('callStatus').textContent = 'Please enter a username';
+        document.getElementById('callStatus').className = 'small text-danger';
+        return;
+    }
+    startCallByUsername(username, type);
+}
+
+document.getElementById('callUsername').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') startCall('voice');
+});
 
 loadUsers();
 setInterval(loadUsers, 5000);

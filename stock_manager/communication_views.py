@@ -250,11 +250,15 @@ def calls_view(request):
 def initiate_call(request):
     if request.method == 'POST':
         data = json.loads(request.body)
-        callee_id = data.get('callee_id')
+        callee_username = data.get('callee_username', '').strip()
         call_type = data.get('call_type', 'voice')
 
-        if callee_id:
-            callee = get_object_or_404(User, id=callee_id)
+        if callee_username:
+            try:
+                callee = User.objects.get(username=callee_username)
+            except User.DoesNotExist:
+                return JsonResponse({'status': 'error', 'error': 'User not found'}, status=404)
+
             call = Call.objects.create(
                 caller=request.user,
                 callee=callee,
@@ -266,7 +270,7 @@ def initiate_call(request):
                 'call_id': call.id,
             })
 
-    return JsonResponse({'status': 'error'}, status=400)
+    return JsonResponse({'status': 'error', 'error': 'Invalid request'}, status=400)
 
 
 @shop_access_required

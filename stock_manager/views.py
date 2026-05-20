@@ -197,18 +197,81 @@ def dashboard(request):
     if not request.user.is_authenticated:
         return redirect('login')
 
-    if request.user.is_superuser:
-        return redirect('admin:index')
+    profile = get_user_profile(request.user)
+    user_is_admin = profile is None or profile.is_admin
 
-    try:
-        profile = request.user.profile
-        if profile.assigned_shop:
-            shop_slug = profile.assigned_shop.name.replace(' ', '-').lower()
-            return redirect('shop_dashboard', shop_slug=shop_slug)
-        else:
-            return redirect('admin:index')
-    except:
-        return redirect('admin:index')
+    if not user_is_admin and profile and profile.assigned_shop:
+        shop_slug = profile.assigned_shop.name.replace(' ', '-').lower()
+        return redirect('shop_dashboard', shop_slug=shop_slug)
+
+    all_shops = Shop.objects.all()
+    active_period = get_active_period()
+    opening_stock = get_period_opening_stock(active_period) if active_period else {}
+
+    inventory_data = get_shop_inventory_data(opening_stock)
+
+    shop_items = Item.objects.all()
+    total_items = shop_items.count()
+    total_stock_value = sum(float(item.total_value) for item in shop_items)
+    low_stock_items = shop_items.filter(quantity__lt=5)
+    low_stock_count = low_stock_items.count()
+
+    total_sales = Sale.objects.filter(item__in=shop_items)
+    total_sales_count = total_sales.count()
+    total_sales_amount = total_sales.aggregate(total=Sum('total_amount'))['total'] or 0
+
+    shop_stock_data = []
+    shop_value_data = []
+    for s in all_shops:
+        s_items = Item.objects.filter(shop=s)
+        total_qty = sum(item.quantity for item in s_items)
+        total_val = sum(float(item.total_value) for item in s_items)
+        shop_stock_data.append({'shop': s.name, 'quantity': total_qty})
+        shop_value_data.append({'value': total_val})
+
+    category_data = defaultdict(int)
+    for item in shop_items:
+        cat = item.category or 'Uncategorized'
+        category_data[cat] += item.quantity
+
+    category_labels = list(category_data.keys())
+    category_values = list(category_data.values())
+
+    shop_sales_data = []
+    for s in all_shops:
+        s_items = Item.objects.filter(shop=s)
+        s_sales = Sale.objects.filter(item__in=s_items)
+        s_count = s_sales.count()
+        s_amount = s_sales.aggregate(total=Sum('total_amount'))['total'] or 0
+        sales_persons = UserProfile.objects.filter(
+            user__receipt__shop=s
+        ).distinct()
+        shop_sales_data.append({
+            'shop': s,
+            'sales_persons': sales_persons,
+            'count': s_count,
+            'total_amount': float(s_amount),
+        })
+
+    context = {
+        'inventory_data': inventory_data,
+        'total_items': total_items,
+        'total_stock_value': total_stock_value,
+        'low_stock_items': low_stock_items,
+        'low_stock_count': low_stock_count,
+        'total_sales_count': total_sales_count,
+        'total_sales_amount': total_sales_amount,
+        'all_shops': all_shops,
+        'active_period': active_period,
+        'page_title': 'Main Inventory Dashboard',
+        'shop_stock_data_json': json.dumps(shop_stock_data),
+        'shop_value_data_json': json.dumps(shop_value_data),
+        'category_labels_json': json.dumps(category_labels),
+        'category_values_json': json.dumps(category_values),
+        'shop_sales_data': shop_sales_data,
+    }
+
+    return render(request, 'stock_manager/dashboard.html', context)
 
 
 # =========================
@@ -324,104 +387,7 @@ def dashboard_bulk_import(request):
 
             return redirect('dashboard')
 
-    # ========================
-    # INVENTORY DATA
-    # ========================
-    if user_is_admin:
-        inventory_data = get_shop_inventory_data(opening_stock)
-    else:
-        items = filter_items_by_user(request.user, Item.objects.select_related('shop'))
-
-        grouped = defaultdict(lambda: {
-            'name': '',
-            'shops': {},
-            'total_stocked_in': 0,
-            'total_stocked_out': 0,
-            'total_qty': 0,
-            'total_value': 0,
-            'category': '',
-            'opening_qty': 0,
-            'opening_value': 0,
-        })
-
-        for item in items:
-            key = item.name.lower()
-            open_data = opening_stock.get(key, {})
-
-            if not grouped[key]['name']:
-                grouped[key].update({
-                    'name': item.name,
-                    'category': item.category,
-                    'opening_qty': open_data.get('quantity', 0),
-                    'opening_value': open_data.get('quantity', 0) * open_data.get('unit_price', 0),
-                })
-
-            sold_qty = Sale.objects.filter(item=item).aggregate(
-                total=Sum('quantity_sold')
-            )['total'] or 0
-
-            stocked_in = item.quantity + sold_qty
-
-            grouped[key]['shops'][item.shop.name] = {
-                'stocked_in': stocked_in,
-                'stocked_out': sold_qty,
-                'balance': item.quantity,
-                'unit_price': item.unit_price,
-                'value': item.quantity * item.unit_price,
-                'is_low_stock': item.is_low_stock,
-            }
-
-            grouped[key]['total_stocked_in'] += stocked_in
-            grouped[key]['total_stocked_out'] += sold_qty
-            grouped[key]['total_qty'] += item.quantity
-            grouped[key]['total_value'] += float(item.quantity * item.unit_price)
-
-        # Calculate averages
-        for item_data in grouped.values():
-            item_data['avg_unit_price'] = (
-                item_data['total_value'] / item_data['total_qty']
-                if item_data['total_qty'] > 0 else 0
-            )
-
-        inventory_data = sorted(grouped.values(), key=lambda x: x['name'])
-
-    # ========================
-    # SUMMARY DATA
-    # ========================
-    shop_items = Item.objects.all()
-
-    if not user_is_admin and profile and profile.assigned_shop:
-        shop_items = shop_items.filter(shop=profile.assigned_shop)
-
-    total_items = shop_items.count()
-    total_stock_value = sum(item.total_value for item in shop_items)
-
-    low_stock_items = shop_items.filter(quantity__lt=5)
-    low_stock_count = low_stock_items.count()
-
-    total_sales = Sale.objects.filter(item__in=shop_items)
-    total_sales_count = total_sales.count()
-    total_sales_amount = total_sales.aggregate(
-        total=Sum('total_amount')
-    )['total'] or 0
-
-    # ========================
-    # CONTEXT
-    # ========================
-    context = {
-        'inventory_data': inventory_data,
-        'total_items': total_items,
-        'total_stock_value': total_stock_value,
-        'low_stock_items': low_stock_items,
-        'low_stock_count': low_stock_count,
-        'total_sales_count': total_sales_count,
-        'total_sales_amount': total_sales_amount,
-        'all_shops': all_shops,
-        'active_period': active_period,
-        'page_title': 'Main Inventory Dashboard',
-    }
-
-    return render(request, 'stock_manager/dashboard.html', context)
+    return redirect('dashboard')
 
 
 # =========================
@@ -586,6 +552,7 @@ def point_of_sale(request, shop_slug):
                 return JsonResponse({
                     'success': True,
                     'receipt_id': receipt.id,
+                    'receipt_number': receipt.receipt_number,
                     'change': float(change),
                     'message': 'Sale completed successfully'
                 })
@@ -1115,25 +1082,94 @@ def search_items(request):
 
 
 def shop_dashboard(request, shop_slug):
-    print("USER:", request.user)
+    shop = get_object_or_404(
+        Shop,
+        name__iexact=shop_slug.replace('-', ' ')
+    )
 
-    try:
-        profile = request.user.profile
-        print("PROFILE:", profile)
-        print("ASSIGNED SHOP:", profile.assigned_shop)
-    except Exception as e:
-        print("ERROR GETTING PROFILE:", e)
-        return redirect('admin:index')
+    profile = get_user_profile(request.user)
+    user_is_admin = profile is None or profile.is_admin
 
-    if not profile.assigned_shop:
-        print("NO SHOP ASSIGNED")
-        return redirect('admin:index')
+    if not user_is_admin and profile and profile.assigned_shop and profile.assigned_shop != shop:
+        messages.error(request, 'Access denied to this shop.')
+        allowed_slug = profile.assigned_shop.name.replace(' ', '-').lower()
+        return redirect('shop_dashboard', shop_slug=allowed_slug)
 
-    allowed_slug = profile.assigned_shop.name.replace(' ', '-').lower()
-    print("EXPECTED SLUG:", allowed_slug)
-    print("URL SLUG:", shop_slug)
+    is_warehouse = shop.name == 'Warehouse'
+    all_shops = Shop.objects.all()
+    other_shops = all_shops.exclude(name='Warehouse') if is_warehouse else []
+    active_period = get_active_period()
+    opening_stock = get_period_opening_stock(active_period) if active_period else {}
 
-    return render(request, 'stock_manager/dashboard.html')
+    items = Item.objects.filter(shop=shop).order_by('name')
+
+    total_items = items.count()
+    total_qty = items.aggregate(total=Sum('quantity'))['total'] or 0
+    total_value = sum(float(item.total_value) for item in items)
+    low_stock_items = items.filter(quantity__lt=5)
+
+    opening_by_item = {}
+    stock_out_by_item = {}
+    total_value_by_item = {}
+    warehouse_stocked_in = 0
+    warehouse_stocked_out = 0
+
+    for item in items:
+        key = item.name.lower()
+        open_data = opening_stock.get(key, {})
+        opening_by_item[item.id] = open_data.get('quantity', 0)
+
+        sold_qty = Sale.objects.filter(item=item).aggregate(
+            total=Sum('quantity_sold')
+        )['total'] or 0
+        stock_out_by_item[item.id] = sold_qty
+        total_value_by_item[item.id] = float(item.total_value)
+
+        if is_warehouse:
+            warehouse_stocked_in += item.quantity + sold_qty
+            warehouse_stocked_out += sold_qty
+
+    today_total = 0
+    shop_sales = Sale.objects.none()
+    if not is_warehouse:
+        today_start = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        shop_sales_qs = Sale.objects.filter(item__in=items).select_related('item')
+        today_sales = shop_sales_qs.filter(sold_at__gte=today_start)
+        today_total = today_sales.aggregate(total=Sum('total_amount'))['total'] or 0
+        shop_sales = shop_sales_qs.order_by('-sold_at')[:50]
+
+    stock_transactions = StockTransaction.objects.filter(
+        Q(source_shop=shop) | Q(target_shop=shop)
+    ).select_related('item', 'source_shop', 'target_shop').order_by('-created_at')[:50]
+    total_transactions = stock_transactions.count()
+    total_transferred_qty = stock_transactions.aggregate(
+        total=Sum('quantity')
+    )['total'] or 0
+
+    context = {
+        'shop': shop,
+        'is_warehouse': is_warehouse,
+        'total_items': total_items,
+        'total_qty': total_qty,
+        'total_value': total_value,
+        'today_total': today_total,
+        'low_stock_items': low_stock_items,
+        'warehouse_stocked_in': warehouse_stocked_in,
+        'warehouse_stocked_out': warehouse_stocked_out,
+        'items': items,
+        'other_shops': other_shops,
+        'opening_by_item': opening_by_item,
+        'stock_out_by_item': stock_out_by_item,
+        'total_value_by_item': total_value_by_item,
+        'active_period': active_period,
+        'total_transactions': total_transactions,
+        'total_transferred_qty': total_transferred_qty,
+        'stock_transactions': stock_transactions,
+        'shop_sales': shop_sales,
+        'page_title': f'{shop.name} Dashboard',
+    }
+
+    return render(request, 'stock_manager/shop_dashboard.html', context)
 
 
 
