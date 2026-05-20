@@ -73,10 +73,12 @@
         <p><strong>{{ company.company_name|default:"Inventory Management System" }}</strong></p>
       </div>
 
-      {% if form.errors %}
+      {% if messages %}
+      {% for message in messages %}
       <div class="alert alert-danger">
-        <i class="bi bi-exclamation-triangle"></i> Invalid username or password.
+        <i class="bi bi-exclamation-triangle"></i> {{ message }}
       </div>
+      {% endfor %}
       {% endif %}
 
       <form method="post" action="{% url 'login' %}">
