@@ -60,6 +60,46 @@ let peerConnection = null;
 let isMuted = false;
 let isCameraOff = false;
 let processedSignals = new Set();
+let callingAudioCtx = null;
+let callingOsc1 = null;
+let callingOsc2 = null;
+let callingGain = null;
+let callingInterval = null;
+
+function startCallingTone() {
+    try {
+        callingAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        callingGain = callingAudioCtx.createGain();
+        callingGain.gain.value = 0.12;
+        callingGain.connect(callingAudioCtx.destination);
+
+        callingOsc1 = callingAudioCtx.createOscillator();
+        callingOsc1.type = 'sine';
+        callingOsc1.frequency.value = 440;
+        callingOsc1.connect(callingGain);
+
+        callingOsc2 = callingAudioCtx.createOscillator();
+        callingOsc2.type = 'sine';
+        callingOsc2.frequency.value = 480;
+        callingOsc2.connect(callingGain);
+
+        callingOsc1.start();
+        callingOsc2.start();
+
+        callingInterval = setInterval(function() {
+            callingGain.gain.value = callingGain.gain.value > 0 ? 0 : 0.12;
+        }, 800);
+    } catch(e) {}
+}
+
+function stopCallingTone() {
+    try {
+        if (callingInterval) { clearInterval(callingInterval); callingInterval = null; }
+        if (callingOsc1) { callingOsc1.stop(); callingOsc1 = null; }
+        if (callingOsc2) { callingOsc2.stop(); callingOsc2 = null; }
+        if (callingAudioCtx) { callingAudioCtx.close(); callingAudioCtx = null; }
+    } catch(e) {}
+}
 
 const config = {
     iceServers: [
@@ -105,6 +145,7 @@ async function startCaller() {
 
         peerConnection.onconnectionstatechange = () => {
             if (peerConnection.connectionState === 'disconnected' || peerConnection.connectionState === 'failed') {
+                stopCallingTone();
                 document.getElementById('call-status').innerHTML = '<span class="badge bg-danger fs-6">Disconnected</span>';
             }
         };
@@ -113,6 +154,7 @@ async function startCaller() {
         await peerConnection.setLocalDescription(offer);
         signalPeer('offer', { sdp: { type: offer.type, sdp: offer.sdp } });
 
+        startCallingTone();
         document.getElementById('call-status').innerHTML = '<span class="badge bg-warning fs-6">Ringing...</span>';
 
     } catch (err) {
@@ -201,6 +243,7 @@ async function handleRemoteSignal() {
         if (key === 'answer' && isCaller && peerConnection && peerConnection.localDescription && peerConnection.localDescription.type === 'offer') {
             if (value.sdp) {
                 try {
+                    stopCallingTone();
                     await peerConnection.setRemoteDescription(new RTCSessionDescription(value.sdp));
                     document.getElementById('call-status').innerHTML = '<span class="badge bg-success fs-6">Connected</span>';
                 } catch (e) {
@@ -246,6 +289,7 @@ function toggleCamera() {
 }
 
 function endCall() {
+    stopCallingTone();
     fetch(`/calls/${callId}/end/`, { method: 'POST', headers: { 'X-CSRFToken': getCSRFToken() } });
     if (localStream) {
         localStream.getTracks().forEach(track => track.stop());
