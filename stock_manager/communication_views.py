@@ -32,6 +32,12 @@ def mark_offline(request):
 
 
 @shop_access_required
+def get_all_users(request):
+    users = User.objects.all().values('id', 'username')
+    return JsonResponse({'users': list(users)})
+
+
+@shop_access_required
 def get_online_users(request):
     threshold = timezone.now() - timedelta(seconds=30)
     online_users = UserPresence.objects.filter(

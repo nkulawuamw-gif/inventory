@@ -18,11 +18,14 @@
     <div class="col-md-6">
         <div class="table-container">
             <h5 class="mb-3"><i class="bi bi-telephone-outbound text-primary"></i> Start a Call</h5>
-<div class="input-group mb-2">
-    <input type="text" id="callUsername" class="form-control" placeholder="Select or type username..." list="userDatalist" autocomplete="off">
-    <datalist id="userDatalist"></datalist>
-    <button class="btn btn-outline-primary" onclick="startCall('voice')"><i class="bi bi-telephone"></i> Voice</button>
-    <button class="btn btn-outline-success" onclick="startCall('video')"><i class="bi bi-camera-video"></i> Video</button>
+<div class="mb-2">
+    <select id="callUserSelect" class="form-select mb-2">
+        <option value="">-- Select a user --</option>
+    </select>
+    <div class="d-flex gap-2">
+        <button class="btn btn-outline-primary flex-fill" onclick="startCall('voice')"><i class="bi bi-telephone"></i> Voice</button>
+        <button class="btn btn-outline-success flex-fill" onclick="startCall('video')"><i class="bi bi-camera-video"></i> Video</button>
+    </div>
 </div>
 <div id="callStatus" class="small text-muted"></div>
 <div id="user-list" class="list-group">
@@ -63,20 +66,30 @@ function getCSRFToken() {
     return document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
 }
 
+function populateUserSelect() {
+    fetch('{% url "all_users" %}')
+        .then(r => r.json())
+        .then(data => {
+            const select = document.getElementById('callUserSelect');
+            (data.users || []).forEach(user => {
+                if (user.id === {{ request.user.id }}) return;
+                const opt = document.createElement('option');
+                opt.value = user.username;
+                opt.textContent = user.username;
+                select.appendChild(opt);
+            });
+        })
+        .catch(err => console.error('populateUserSelect error:', err));
+}
+
 function loadUsers() {
     fetch('{% url "online_users" %}')
         .then(r => r.json())
         .then(data => {
             const list = document.getElementById('user-list');
             list.innerHTML = '<h6 class="list-group-item bg-light"><i class="bi bi-people"></i> Online Users</h6>';
-            const datalist = document.getElementById('userDatalist');
-            datalist.innerHTML = '';
             (data.users || []).forEach(user => {
                 if (user.id !== {{ request.user.id }}) {
-                    const opt = document.createElement('option');
-                    opt.value = user.username;
-                    datalist.appendChild(opt);
-
                     const item = document.createElement('div');
                     item.className = 'list-group-item d-flex justify-content-between align-items-center';
                     item.innerHTML = `
@@ -141,19 +154,16 @@ function startCallByUsername(username, type) {
 
 function startCall(type) {
     console.log('startCall called:', type);
-    const username = document.getElementById('callUsername').value.trim();
+    const username = document.getElementById('callUserSelect').value;
     if (!username) {
-        document.getElementById('callStatus').textContent = 'Please enter a username';
+        document.getElementById('callStatus').textContent = 'Please select a user';
         document.getElementById('callStatus').className = 'small text-danger';
         return;
     }
     startCallByUsername(username, type);
 }
 
-document.getElementById('callUsername').addEventListener('keydown', function(e) {
-    if (e.key === 'Enter') startCall('voice');
-});
-
+populateUserSelect();
 loadUsers();
 setInterval(loadUsers, 5000);
 </script>

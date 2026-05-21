@@ -21,6 +21,7 @@ urlpatterns = [
 
     path('heartbeat/', comm.heartbeat, name='heartbeat'),
     path('mark-offline/', comm.mark_offline, name='mark_offline'),
+    path('api/all-users/', comm.get_all_users, name='all_users'),
     path('api/online-users/', comm.get_online_users, name='online_users'),
     path('chat/', comm.chat_view, name='chat'),
     path('chat/send/', comm.send_message, name='send_message'),
