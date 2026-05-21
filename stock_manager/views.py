@@ -6,7 +6,7 @@ from datetime import date
 from collections import defaultdict
 
 from django.shortcuts import render, get_object_or_404, redirect
-from django.http import HttpResponse, JsonResponse
+from django.http import HttpResponse, HttpResponseForbidden, JsonResponse
 from django.db.models import Q, Sum, F, ExpressionWrapper, DecimalField
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout as auth_logout
@@ -208,9 +208,12 @@ def dashboard(request):
     active_period = get_active_period()
     opening_stock = get_period_opening_stock(active_period) if active_period else {}
 
-    inventory_data = get_shop_inventory_data(opening_stock)
-
-    shop_items = Item.objects.all()
+    if user_is_admin or request.user.is_superuser:
+        inventory_data = get_shop_inventory_data(opening_stock)
+        shop_items = Item.objects.all()
+    else:
+        inventory_data = {}
+        shop_items = Item.objects.filter(shop=profile.assigned_shop) if profile and profile.assigned_shop else Item.objects.none()
     total_items = shop_items.count()
     total_stock_value = sum(float(item.total_value) for item in shop_items)
     low_stock_items = shop_items.filter(quantity__lt=5)
@@ -220,14 +223,35 @@ def dashboard(request):
     total_sales_count = total_sales.count()
     total_sales_amount = total_sales.aggregate(total=Sum('total_amount'))['total'] or 0
 
-    shop_stock_data = []
-    shop_value_data = []
-    for s in all_shops:
-        s_items = Item.objects.filter(shop=s)
-        total_qty = sum(item.quantity for item in s_items)
-        total_val = sum(float(item.total_value) for item in s_items)
-        shop_stock_data.append({'shop': s.name, 'quantity': total_qty})
-        shop_value_data.append({'value': total_val})
+    if user_is_admin or request.user.is_superuser:
+        shop_stock_data = []
+        shop_value_data = []
+        for s in all_shops:
+            s_items = Item.objects.filter(shop=s)
+            total_qty = sum(item.quantity for item in s_items)
+            total_val = sum(float(item.total_value) for item in s_items)
+            shop_stock_data.append({'shop': s.name, 'quantity': total_qty})
+            shop_value_data.append({'value': total_val})
+
+        shop_sales_data = []
+        for s in all_shops:
+            s_items = Item.objects.filter(shop=s)
+            s_sales = Sale.objects.filter(item__in=s_items)
+            s_count = s_sales.count()
+            s_amount = s_sales.aggregate(total=Sum('total_amount'))['total'] or 0
+            sales_persons = UserProfile.objects.filter(
+                user__receipt__shop=s
+            ).distinct()
+            shop_sales_data.append({
+                'shop': s,
+                'sales_persons': sales_persons,
+                'count': s_count,
+                'total_amount': float(s_amount),
+            })
+    else:
+        shop_stock_data = []
+        shop_value_data = []
+        shop_sales_data = []
 
     category_data = defaultdict(int)
     for item in shop_items:
@@ -236,22 +260,6 @@ def dashboard(request):
 
     category_labels = list(category_data.keys())
     category_values = list(category_data.values())
-
-    shop_sales_data = []
-    for s in all_shops:
-        s_items = Item.objects.filter(shop=s)
-        s_sales = Sale.objects.filter(item__in=s_items)
-        s_count = s_sales.count()
-        s_amount = s_sales.aggregate(total=Sum('total_amount'))['total'] or 0
-        sales_persons = UserProfile.objects.filter(
-            user__receipt__shop=s
-        ).distinct()
-        shop_sales_data.append({
-            'shop': s,
-            'sales_persons': sales_persons,
-            'count': s_count,
-            'total_amount': float(s_amount),
-        })
 
     context = {
         'inventory_data': inventory_data,
@@ -673,10 +681,10 @@ def admin_manage(request):
             category = request.POST.get('category', '').strip()
 
             try:
-                item = Item.objects.get(id=item_id)
-                if not user_is_admin and profile.assigned_shop and item.shop_id != profile.assigned_shop.id:
-                    messages.error(request, 'You can only edit items in your assigned shop.')
-                    return redirect('admin_manage')
+                if user_is_admin or request.user.is_superuser:
+                    item = Item.objects.get(id=item_id)
+                else:
+                    item = Item.objects.get(id=item_id, shop=profile.assigned_shop)
                 item.name = item_name or item.name
                 item.quantity = int(request.POST.get('quantity', 0))
                 item.unit_price = float(request.POST.get('unit_price', 0))
@@ -694,10 +702,10 @@ def admin_manage(request):
             item_id = request.POST.get('item_id')
 
             try:
-                item = Item.objects.get(id=item_id)
-                if not user_is_admin and profile.assigned_shop and item.shop_id != profile.assigned_shop.id:
-                    messages.error(request, 'You can only delete items in your assigned shop.')
-                    return redirect('admin_manage')
+                if user_is_admin or request.user.is_superuser:
+                    item = Item.objects.get(id=item_id)
+                else:
+                    item = Item.objects.get(id=item_id, shop=profile.assigned_shop)
                 name = item.name
                 item.delete()
                 messages.success(request, f'Deleted "{name}"')
@@ -843,7 +851,9 @@ def admin_manage(request):
 
     stock_transactions = StockTransaction.objects.select_related('item__shop', 'source_shop', 'target_shop').order_by('-created_at')[:50]
     if not user_is_admin and profile.assigned_shop:
-        stock_transactions = stock_transactions.filter(source_shop=profile.assigned_shop)
+        stock_transactions = stock_transactions.filter(
+            Q(source_shop=profile.assigned_shop) | Q(target_shop=profile.assigned_shop)
+        )
 
     context = {
         'all_shops': all_shops,
@@ -1017,18 +1027,12 @@ def search_items(request):
 
 @shop_access_required
 def shop_dashboard(request, shop_slug):
-    shop = get_object_or_404(
-        Shop,
-        name__iexact=shop_slug.replace('-', ' ')
-    )
+    shop = get_object_or_404(Shop, slug=shop_slug)
 
-    profile = get_user_profile(request.user)
-    user_is_admin = profile is None or profile.is_admin
-
-    if not user_is_admin and profile and profile.assigned_shop and profile.assigned_shop != shop:
-        messages.error(request, 'Access denied to this shop.')
-        allowed_slug = profile.assigned_shop.name.replace(' ', '-').lower()
-        return redirect('shop_dashboard', shop_slug=allowed_slug)
+    if not request.user.is_superuser:
+        profile = getattr(request.user, 'profile', None)
+        if profile is None or profile.assigned_shop != shop:
+            return HttpResponseForbidden("Access Denied")
 
     is_warehouse = shop.name == 'Warehouse'
     all_shops = Shop.objects.all()
@@ -1187,6 +1191,7 @@ def shop_inventory(request, shop_slug):
 
 
 
+@login_required
 def settings_view(request):
     profile = get_user_profile(request.user)
     user_is_admin = profile is None or profile.is_admin
@@ -1615,7 +1620,12 @@ def login_view(request):
 
         if user is not None:
             login(request, user)
-            return redirect('dashboard')
+            if request.user.is_superuser:
+                return redirect('admin_manage')
+            elif hasattr(request.user, 'profile') and request.user.profile.assigned_shop:
+                return redirect('shop_dashboard', shop_slug=request.user.profile.assigned_shop.slug)
+            else:
+                return redirect('login')
         else:
             messages.error(request, 'Invalid username or password.')
 

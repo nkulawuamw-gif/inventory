@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.models import User
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from .models import Shop, Item, Sale, StockTransaction, UserProfile, UserPresence, Message, Call, Meeting, MeetingParticipant, BusinessPeriod, CompanyProfile, WhatsAppSetting, WhatsAppMessage
+from .models import Shop, Item, Sale, StockTransaction, UserProfile, Profile, UserPresence, Message, Call, Meeting, MeetingParticipant, BusinessPeriod, CompanyProfile, WhatsAppSetting, WhatsAppMessage
 
 
 class UserProfileInline(admin.StackedInline):
@@ -28,6 +28,7 @@ class CustomUserAdmin(BaseUserAdmin):
 
 admin.site.unregister(User)
 admin.site.register(User, CustomUserAdmin)
+admin.site.register(Profile)
 
 
 class ItemInline(admin.TabularInline):

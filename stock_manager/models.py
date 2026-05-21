@@ -2,13 +2,20 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.utils import timezone
+from django.utils.text import slugify
 
 
 class Shop(models.Model):
     name = models.CharField(max_length=100, unique=True)
+    slug = models.SlugField(unique=True, null=True, blank=True)
 
     class Meta:
         ordering = ['name']
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = slugify(self.name)
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.name
@@ -41,6 +48,15 @@ class UserProfile(models.Model):
     @property
     def assigned_shop_name(self):
         return self.assigned_shop.name if self.assigned_shop else 'All Shops'
+
+
+class Profile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='shop_profile')
+    shop = models.ForeignKey(Shop, on_delete=models.CASCADE, null=True, blank=True)
+    is_shop_user = models.BooleanField(default=False)
+
+    def __str__(self):
+        return self.user.username
 
 
 class Item(models.Model):
@@ -393,4 +409,14 @@ from django.dispatch import receiver
 def create_user_profile(sender, instance, created, **kwargs):
     if created:
         UserProfile.objects.create(user=instance)
+
+
+@receiver(post_save, sender=User, dispatch_uid='create_shop_profile')
+def create_shop_profile(sender, instance, created, **kwargs):
+    if created:
+        Profile.objects.create(user=instance)
+
+@receiver(post_save, sender=User, dispatch_uid='save_shop_profile')
+def save_shop_profile(sender, instance, **kwargs):
+    instance.shop_profile.save()
 
