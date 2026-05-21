@@ -507,7 +507,15 @@
             <select name="user_id" id="edit_user_id" class="form-select" required>
               <option value="">-- Choose a user --</option>
               {% for u in users %}
-              <option value="{{ u.id }}">{{ u.get_full_name|default:u.username }} ({{ u.username }})</option>
+              <option value="{{ u.id }}"
+                data-username="{{ u.username }}"
+                data-email="{{ u.email|default:'' }}"
+                data-first-name="{{ u.first_name|default:'' }}"
+                data-last-name="{{ u.last_name|default:'' }}"
+                data-role="{{ u.profile.role }}"
+                data-shop-id="{{ u.profile.assigned_shop.id|default:'' }}">
+                {{ u.get_full_name|default:u.username }} ({{ u.username }})
+              </option>
               {% endfor %}
             </select>
           </div>
@@ -1063,4 +1071,21 @@ function saveAllSettings() {
         </div>
     </div>
 </div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var editSelect = document.getElementById('edit_user_id');
+    if (editSelect) {
+        editSelect.addEventListener('change', function() {
+            var opt = this.options[this.selectedIndex];
+            if (!opt || !opt.value) return;
+            document.getElementById('edit_username').value = opt.dataset.username || '';
+            document.getElementById('edit_user_email').value = opt.dataset.email || '';
+            document.getElementById('edit_first_name').value = opt.dataset.firstName || '';
+            document.getElementById('edit_last_name').value = opt.dataset.lastName || '';
+            document.getElementById('edit_user_role').value = opt.dataset.role || 'shop_user';
+            document.getElementById('edit_assigned_shop').value = opt.dataset.shopId || '';
+        });
+    }
+});
+</script>
 {% endblock %}
