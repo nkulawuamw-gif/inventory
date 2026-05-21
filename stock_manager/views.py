@@ -1498,8 +1498,8 @@ def financial_report(request):
 def landing_view(request):
     company = CompanyProfile.get_profile()
     landing = LandingPageContent.get_content()
-    shops = Shop.objects.exclude(name__iexact='warehouse').prefetch_related('items')
-    return render(request, 'stock_manager/landing.html', {'company': company, 'landing': landing, 'shops': shops})
+    items = Item.objects.filter(quantity__gt=0).exclude(shop__name__iexact='warehouse').select_related('shop').order_by('shop__name', 'name')
+    return render(request, 'stock_manager/landing.html', {'company': company, 'landing': landing, 'items': items})
 
 
 
