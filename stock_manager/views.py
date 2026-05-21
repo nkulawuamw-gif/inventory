@@ -997,6 +997,7 @@ def search_items(request):
     return render(request, 'stock_manager/search.html', context)
 
 
+@shop_access_required
 def shop_dashboard(request, shop_slug):
     shop = get_object_or_404(
         Shop,
