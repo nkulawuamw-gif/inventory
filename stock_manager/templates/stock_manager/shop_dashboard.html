@@ -373,7 +373,7 @@ async function shopCompleteSale() {
         let btn = document.getElementById('shopCompleteBtn'); btn.disabled = true; btn.textContent = 'Processing...';
         let ac = new AbortController();
         setTimeout(() => ac.abort(), 30000);
-        let resp = await fetch('{% url "point_of_sale" shop.name|slugify %}', {
+        let resp = await fetch('{% url "point_of_sale" shop.slug %}', {
             method:'POST', signal:ac.signal,
             headers:{'Content-Type':'application/json','X-CSRFToken':document.querySelector('[name=csrfmiddlewaretoken]')?.value||''},
             body: JSON.stringify({action:'complete_sale', items: shopCart.map(x=>({item_id:x.id,quantity:x.qty})), customer_name: document.getElementById('shopCustomerName').value, amount_received: r})
@@ -386,7 +386,8 @@ async function shopCompleteSale() {
         }
         let data = await resp.json();
         document.getElementById('shopReceiptNum').textContent = data.receipt_number;
-        document.getElementById('shopPrintReceipt').href = `/receipt/${data.receipt_id}/print/`;
+        const shopPrintBase = document.getElementById('shopPrintReceipt').getAttribute('data-print-url');
+        document.getElementById('shopPrintReceipt').href = shopPrintBase.replace('/0/', `/${data.receipt_id}/`);
         document.getElementById('shopReceiptOverlay').classList.add('active');
         showToast(`Sale complete! Receipt: ${data.receipt_number}`, 'success');
     } catch(e) { showToast('Error: '+e.message, 'error'); btn.disabled=false; btn.innerHTML='<i class="bi bi-check-lg"></i> Complete Sale'; }
@@ -405,7 +406,7 @@ function shopNewSale() {
         <h3>Sale Complete!</h3>
         <div class="rcp-num" id="shopReceiptNum"></div>
         <div class="actions">
-            <a href="#" class="btn-print" id="shopPrintReceipt" target="_blank"><i class="bi bi-printer"></i> Print Receipt</a>
+            <a href="#" class="btn-print" id="shopPrintReceipt" target="_blank" data-print-url="{% url 'print_receipt' 0 %}"><i class="bi bi-printer"></i> Print Receipt</a>
             <button class="btn-new" onclick="shopNewSale()"><i class="bi bi-plus-lg"></i> New Sale</button>
         </div>
     </div>
@@ -930,8 +931,6 @@ if (whBulkTransferForm) {
             input.value = cb.value;
             whBulkTransferForm.appendChild(input);
         });
-    });
-
     });
 }
 

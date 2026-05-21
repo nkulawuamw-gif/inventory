@@ -138,7 +138,7 @@
         <h3>Sale Complete!</h3>
         <div class="rcp-num" id="receiptNum"></div>
         <div class="actions">
-            <a href="#" class="btn-print" id="printReceiptBtn"><i class="bi bi-printer"></i> Print Receipt</a>
+            <a href="#" class="btn-print" id="printReceiptBtn" data-print-url="{% url 'print_receipt' 0 %}"><i class="bi bi-printer"></i> Print Receipt</a>
             <button class="btn-new" onclick="newSale()"><i class="bi bi-plus-lg"></i> New Sale</button>
         </div>
     </div>
@@ -262,7 +262,8 @@ async function completeSale() {
             lastReceiptId = data.receipt_id;
             document.getElementById('receiptNum').textContent = data.receipt_number;
             document.getElementById('receiptOverlay').classList.add('active');
-            document.getElementById('printReceiptBtn').href = `/receipt/${data.receipt_id}/print/`;
+            const printBase = document.getElementById('printReceiptBtn').getAttribute('data-print-url');
+            document.getElementById('printReceiptBtn').href = printBase.replace('/0/', `/${data.receipt_id}/`);
             showToast(`Sale complete! Receipt: ${data.receipt_number}`, 'success');
         } else {
             console.error('Sale error:', data);

@@ -36,7 +36,7 @@ def get_online_users(request):
     threshold = timezone.now() - timedelta(seconds=30)
     online_users = UserPresence.objects.filter(
         is_online=True, last_seen__gte=threshold
-    ).select_related('user__profile__assigned_shop')
+    ).select_related('user__user_profile__assigned_shop')
 
     users = []
     for presence in online_users:
@@ -113,7 +113,7 @@ def chat_view(request):
             'is_online': other_id in online_ids,
         }
 
-    all_users = User.objects.exclude(id=request.user.id).select_related('profile__assigned_shop')
+    all_users = User.objects.exclude(id=request.user.id).select_related('user_profile__assigned_shop')
     for u in all_users:
         uid = u.id
         if uid not in contacts:

@@ -13,7 +13,7 @@ EXEMPT_PATHS = [
 ]
 
 ADMIN_ONLY_VIEWS = ['admin_manage', 'financial_report', 'dashboard_bulk_import', 'export_csv']
-SHOP_RESTRICTED_VIEWS = ['shop_dashboard', 'point_of_sale', 'print_receipt']
+SHOP_RESTRICTED_VIEWS = ['shop_dashboard', 'point_of_sale']
 
 ACCESS_DENIED = {
     'dashboard': 'You do not have access to the main dashboard.',
@@ -87,7 +87,7 @@ def shop_access_required(view_func):
             shop_slug = kwargs.get('shop_slug', '')
 
             if profile.assigned_shop:
-                allowed_slug = profile.assigned_shop.name.replace(' ', '-').lower()
+                allowed_slug = profile.assigned_shop.slug
                 if shop_slug != allowed_slug:
                     messages.error(request, 'Access denied to this shop.')
                     return redirect('shop_dashboard', shop_slug=allowed_slug)

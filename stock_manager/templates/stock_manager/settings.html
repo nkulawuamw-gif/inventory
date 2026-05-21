@@ -447,13 +447,13 @@
                 <td>{{ u.get_full_name|default:"-" }}</td>
                 <td>{{ u.email|default:"-" }}</td>
                 <td>
-                  {% if u.profile.is_admin %}
+                  {% if u.user_profile.is_admin %}
                   <span class="badge bg-warning text-dark">Admin</span>
                   {% else %}
                   <span class="badge bg-info text-white">Shop User</span>
                   {% endif %}
                 </td>
-                <td>{{ u.profile.assigned_shop.name|default:"All Shops" }}</td>
+                <td>{{ u.user_profile.assigned_shop.name|default:"All Shops" }}</td>
               </tr>
               {% empty %}
               <tr>
@@ -512,8 +512,8 @@
                 data-email="{{ u.email|default:'' }}"
                 data-first-name="{{ u.first_name|default:'' }}"
                 data-last-name="{{ u.last_name|default:'' }}"
-                data-role="{{ u.profile.role }}"
-                data-shop-id="{{ u.profile.assigned_shop.id|default:'' }}">
+                data-role="{{ u.user_profile.role }}"
+                data-shop-id="{{ u.user_profile.assigned_shop.id|default:'' }}">
                 {{ u.get_full_name|default:u.username }} ({{ u.username }})
               </option>
               {% endfor %}
@@ -1048,13 +1048,13 @@ function saveAllSettings() {
                                 <td>{{ u.get_full_name|default:"-" }}</td>
                                 <td>{{ u.email|default:"-" }}</td>
                                 <td>
-                                    {% if u.profile.is_admin %}
+                                    {% if u.user_profile.is_admin %}
                                     <span class="badge bg-warning text-dark">Admin</span>
                                     {% else %}
                                     <span class="badge bg-info text-white">Shop User</span>
                                     {% endif %}
                                 </td>
-                                <td>{{ u.profile.assigned_shop.name|default:"All Shops" }}</td>
+                                <td>{{ u.user_profile.assigned_shop.name|default:"All Shops" }}</td>
                             </tr>
                             {% empty %}
                             <tr>

@@ -201,8 +201,7 @@ def dashboard(request):
     user_is_admin = profile is None or profile.is_admin
 
     if not user_is_admin and profile and profile.assigned_shop:
-        shop_slug = profile.assigned_shop.name.replace(' ', '-').lower()
-        return redirect('shop_dashboard', shop_slug=shop_slug)
+        return redirect('shop_dashboard', shop_slug=profile.assigned_shop.slug)
 
     all_shops = Shop.objects.all()
     active_period = get_active_period()
@@ -1116,7 +1115,7 @@ def shop_inventory(request, shop_slug):
 
     if not user_is_admin and profile and profile.assigned_shop and profile.assigned_shop != shop:
         messages.error(request, 'Access denied to this shop.')
-        return redirect('shop_dashboard', shop_slug=profile.assigned_shop.name.replace(' ', '-').lower())
+        return redirect('shop_dashboard', shop_slug=profile.assigned_shop.slug)
 
     if request.method == 'POST':
         action = request.POST.get('action')
@@ -1468,7 +1467,7 @@ def settings_view(request):
     periods = BusinessPeriod.objects.all()
     active_period = periods.filter(is_closed=False).first()
     opening_count = PeriodOpeningStock.objects.filter(period=active_period).count() if active_period else 0
-    users = User.objects.filter(is_superuser=False).select_related('profile__assigned_shop').order_by('username')
+    users = User.objects.filter(is_superuser=False).select_related('user_profile__assigned_shop').order_by('username')
 
     landing_content = LandingPageContent.get_content()
     landing_data = landing_content.data
@@ -1608,19 +1607,14 @@ def login_view(request):
         username = request.POST.get('username')
         password = request.POST.get('password')
 
-        print("USERNAME:", username)
-        print("PASSWORD:", password)
-
         user = authenticate(request, username=username, password=password)
-
-        print("USER:", user)
 
         if user is not None:
             login(request, user)
             if request.user.is_superuser:
                 return redirect('admin_manage')
-            elif hasattr(request.user, 'profile') and request.user.profile.shop:
-                return redirect('shop_dashboard', shop_slug=request.user.profile.shop.slug)
+            elif hasattr(request.user, 'user_profile') and request.user.user_profile.assigned_shop:
+                return redirect('shop_dashboard', shop_slug=request.user.user_profile.assigned_shop.slug)
             else:
                 return redirect('login')
         else:
