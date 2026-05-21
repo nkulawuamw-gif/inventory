@@ -3,12 +3,16 @@ from .models import Shop, UserProfile, CompanyProfile, WhatsAppSetting
 
 def get_user_access(user):
     if user.is_superuser:
-        return {'is_admin': True, 'assigned_shop': None}
+        return {'is_admin': True, 'assigned_shop': None, 'permissions': []}
     try:
         profile = user.user_profile
-        return {'is_admin': profile.is_admin, 'assigned_shop': profile.assigned_shop}
+        return {
+            'is_admin': profile.is_admin,
+            'assigned_shop': profile.assigned_shop,
+            'permissions': profile.permissions or [],
+        }
     except UserProfile.DoesNotExist:
-        return {'is_admin': True, 'assigned_shop': None}
+        return {'is_admin': True, 'assigned_shop': None, 'permissions': []}
 
 
 def global_context(request):

@@ -16,7 +16,7 @@ from django.db import connection
 from django.utils import timezone
 
 from .models import (
-    Shop, Item, Sale, StockTransaction, UserProfile,
+    Shop, Item, Sale, StockTransaction, UserProfile, PERMISSION_CHOICES,
     BusinessPeriod, PeriodOpeningStock, Receipt, ReceiptItem,
     CompanyProfile, WhatsAppSetting, WhatsAppMessage, LandingPageContent
 )
@@ -1348,6 +1348,8 @@ def settings_view(request):
                         profile, created = UserProfile.objects.get_or_create(user=user)
                         profile.role = role
                         profile.assigned_shop = Shop.objects.filter(id=shop_id).first() if shop_id else None
+                        perms = request.POST.getlist('permissions')
+                        profile.permissions = perms if perms else None
                         profile.save()
                         messages.success(request, f'User "{username}" updated.')
                 except User.DoesNotExist:
@@ -1479,6 +1481,7 @@ def settings_view(request):
         'users': users,
         'page_title': 'Settings',
         'landing_data': landing_data,
+        'permission_choices': PERMISSION_CHOICES,
     }
     return render(request, 'stock_manager/settings.html', context)
 

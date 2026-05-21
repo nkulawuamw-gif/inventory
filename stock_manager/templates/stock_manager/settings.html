@@ -513,7 +513,8 @@
                 data-first-name="{{ u.first_name|default:'' }}"
                 data-last-name="{{ u.last_name|default:'' }}"
                 data-role="{{ u.user_profile.role }}"
-                data-shop-id="{{ u.user_profile.assigned_shop.id|default:'' }}">
+                data-shop-id="{{ u.user_profile.assigned_shop.id|default:'' }}"
+                data-permissions="{{ u.user_profile.permissions|default:'' }}">
                 {{ u.get_full_name|default:u.username }} ({{ u.username }})
               </option>
               {% endfor %}
@@ -552,6 +553,20 @@
               <option value="{{ shop.id }}">{{ shop.name }}</option>
               {% endfor %}
             </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Access Permissions</label>
+            <div id="permissionsCheckboxes" class="row g-2">
+              {% for key, label in permission_choices %}
+              <div class="col-6 col-md-4">
+                <div class="form-check">
+                  <input class="form-check-input permission-checkbox" type="checkbox" name="permissions" value="{{ key }}" id="perm_{{ key }}">
+                  <label class="form-check-label" for="perm_{{ key }}">{{ label }}</label>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+            <small class="text-muted">Grant specific access to this user. Admin users automatically have all access.</small>
           </div>
           <button type="submit" class="btn btn-primary w-100">
             <i class="bi bi-pencil"></i> Edit Salesman
@@ -1038,6 +1053,7 @@ function saveAllSettings() {
                                 <th>Email</th>
                                 <th>Role</th>
                                 <th>Shop</th>
+                                <th>Permissions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -1055,10 +1071,23 @@ function saveAllSettings() {
                                     {% endif %}
                                 </td>
                                 <td>{{ u.user_profile.assigned_shop.name|default:"All Shops" }}</td>
+                                <td>
+                                    {% if u.user_profile.is_admin %}
+                                    <small class="text-muted">All (admin)</small>
+                                    {% elif u.user_profile.permissions %}
+                                    {% for key, label in permission_choices %}
+                                    {% if key in u.user_profile.permissions %}
+                                    <span class="badge bg-secondary">{{ label }}</span>
+                                    {% endif %}
+                                    {% endfor %}
+                                    {% else %}
+                                    <small class="text-muted">None</small>
+                                    {% endif %}
+                                </td>
                             </tr>
                             {% empty %}
                             <tr>
-                                <td colspan="6" class="text-center text-muted py-3">No users created yet</td>
+                                <td colspan="7" class="text-center text-muted py-3">No users created yet</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -1084,6 +1113,10 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('edit_last_name').value = opt.dataset.lastName || '';
             document.getElementById('edit_user_role').value = opt.dataset.role || 'shop_user';
             document.getElementById('edit_assigned_shop').value = opt.dataset.shopId || '';
+            var perms = (opt.dataset.permissions || '').replace(/[\[\]']/g, '').split(',').map(function(s) { return s.trim(); }).filter(function(s) { return s; });
+            document.querySelectorAll('.permission-checkbox').forEach(function(cb) {
+                cb.checked = perms.indexOf(cb.value) !== -1;
+            });
         });
     }
 });

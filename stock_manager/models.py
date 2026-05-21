@@ -25,6 +25,23 @@ class Shop(models.Model):
         return self.name.strip().lower() == 'warehouse'
 
 
+PERMISSION_CHOICES = [
+    ('dashboard', 'Main Dashboard'),
+    ('admin_manage', 'Manage Inventory'),
+    ('financial_report', 'Financial Report'),
+    ('sales_history', 'Sales History'),
+    ('chat', 'Chat'),
+    ('calls', 'Calls'),
+    ('meetings', 'Meetings'),
+    ('whatsapp', 'WhatsApp'),
+    ('point_of_sale', 'Point of Sale'),
+    ('inventory', 'Inventory'),
+    ('export_csv', 'Export CSV'),
+    ('dashboard_bulk_import', 'Bulk Import'),
+    ('settings', 'Settings'),
+]
+
+
 class UserProfile(models.Model):
     ROLE_CHOICES = [
         ('admin', 'Admin (All Shops)'),
@@ -34,6 +51,7 @@ class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='user_profile')
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='shop_user')
     assigned_shop = models.ForeignKey(Shop, on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_users')
+    permissions = models.JSONField(null=True, blank=True, default=None, help_text="List of granted permission keys. None = no extra access.")
 
     class Meta:
         verbose_name = 'User Profile'
@@ -48,6 +66,21 @@ class UserProfile(models.Model):
     @property
     def assigned_shop_name(self):
         return self.assigned_shop.name if self.assigned_shop else 'All Shops'
+
+    def has_permission(self, perm_name):
+        if self.is_admin:
+            return True
+        if self.permissions is None:
+            return False
+        return perm_name in self.permissions
+
+    def get_permissions_display(self):
+        if self.is_admin:
+            return 'All (admin)'
+        if not self.permissions:
+            return 'None'
+        perm_map = dict(PERMISSION_CHOICES)
+        return ', '.join(perm_map.get(p, p) for p in self.permissions)
 
 
 class Profile(models.Model):

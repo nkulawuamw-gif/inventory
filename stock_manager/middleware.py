@@ -15,6 +15,12 @@ EXEMPT_PATHS = [
 ADMIN_ONLY_VIEWS = ['admin_manage', 'financial_report', 'dashboard_bulk_import', 'export_csv']
 SHOP_RESTRICTED_VIEWS = ['shop_dashboard', 'point_of_sale']
 
+PERMISSION_GATED_VIEWS = [
+    'dashboard', 'admin_manage', 'financial_report', 'sales_history',
+    'chat', 'calls', 'meetings', 'whatsapp',
+    'settings', 'export_csv', 'dashboard_bulk_import', 'inventory',
+]
+
 ACCESS_DENIED = {
     'dashboard': 'You do not have access to the main dashboard.',
     'admin_manage': 'You do not have permission to manage inventory.',
@@ -79,6 +85,8 @@ def shop_access_required(view_func):
             return view_func(request, *args, **kwargs)
 
         if url_name in ACCESS_DENIED:
+            if profile.has_permission(url_name):
+                return view_func(request, *args, **kwargs)
             msg = ACCESS_DENIED.get(url_name, 'No access.')
             messages.error(request, msg)
             return redirect('dashboard')
@@ -93,6 +101,10 @@ def shop_access_required(view_func):
                     return redirect('shop_dashboard', shop_slug=allowed_slug)
             else:
                 return redirect('dashboard')
+
+        if profile.permissions is not None and url_name in PERMISSION_GATED_VIEWS and url_name not in profile.permissions:
+            messages.error(request, 'Access denied.')
+            return redirect('dashboard')
 
         return view_func(request, *args, **kwargs)
 
