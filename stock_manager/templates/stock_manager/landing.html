@@ -183,6 +183,9 @@ img { max-width: 100%; height: auto; }
 .shop-table tbody tr:hover { background: var(--pink-lighter); }
 .shop-table .product-name { font-weight: 600; color: var(--dark); }
 .shop-table .product-price-cell { color: var(--pink); font-weight: 700; }
+.shop-filter { text-align: center; margin-bottom: 32px; }
+.shop-filter select { padding: 10px 20px; border: 2px solid #e0e0e0; border-radius: 50px; font-size: 0.9rem; font-weight: 500; color: var(--dark); background: white; cursor: pointer; min-width: 240px; outline: none; transition: 0.3s; }
+.shop-filter select:focus { border-color: var(--pink); box-shadow: 0 0 0 3px rgba(233,30,99,0.1); }
 .why-us { padding: 100px 0; background: var(--white); }
 .why-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 24px; }
 .why-card { text-align: center; padding: 40px 24px; border-radius: var(--radius); background: var(--pink-lighter); transition: 0.4s; border: 1px solid rgba(233,30,99,0.06); }
@@ -364,9 +367,17 @@ footer { background: var(--dark); color: rgba(255,255,255,0.8); padding: 60px 0 
       <h2>{{ landing.data.products.heading|default:"Shop by Category" }}</h2>
       <p>{{ landing.data.products.subtitle|default:"Explore our range of premium hygiene and beauty products" }}</p>
     </div>
+    <div class="shop-filter fade-in">
+      <select id="shopFilter" onchange="filterShop()">
+        <option value="all">All Shops</option>
+        {% for shop in shops %}
+        <option value="{{ shop.name|slugify }}">{{ shop.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
     {% regroup items by shop as shop_groups %}
     {% for group in shop_groups %}
-    <div class="shop-table-wrapper fade-in">
+    <div class="shop-table-wrapper fade-in" data-shop="{{ group.grouper.name|slugify }}">
       <div class="shop-table-header">
         <h3><i class="fas fa-store"></i> {{ group.grouper.name }}</h3>
       </div>
@@ -523,6 +534,7 @@ window.addEventListener('scroll',()=>{btt.classList.toggle('show',window.scrollY
 const obs=new IntersectionObserver(e=>{e.forEach(en=>{if(en.isIntersecting)en.target.classList.add('visible');});},{threshold:0.15});
 document.querySelectorAll('.fade-in').forEach(el=>obs.observe(el));
 (function(){const s=document.getElementById('heroSlider');if(!s)return;const sl=s.querySelectorAll('.slide');let i=0;setInterval(()=>{sl[i].classList.remove('active');i=(i+1)%sl.length;sl[i].classList.add('active');},3000);})();
+function filterShop(){const v=document.getElementById('shopFilter').value;document.querySelectorAll('.shop-table-wrapper').forEach(w=>{w.style.display=v==='all'||w.dataset.shop===v?'':'none';});}
 </script>
 </body>
 </html>
