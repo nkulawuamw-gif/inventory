@@ -251,7 +251,7 @@
                     <li class="nav-item"><a class="nav-link py-1" href="{% url 'calls' %}"><i class="bi bi-telephone"></i> Calls</a></li>
                     <li class="nav-item"><a class="nav-link py-1" href="{% url 'meetings' %}"><i class="bi bi-camera-video"></i> Meetings</a></li>
                     <li class="nav-item"><a class="nav-link py-1" href="{% url 'whatsapp_inbox' %}"><i class="bi bi-whatsapp text-success"></i> WhatsApp</a></li>
-                    <li class="nav-item"><a class="nav-link py-1" href="{% url 'settings' %}"><i class="bi bi-gear-wide-connected"></i> Settings</a></li>
+                    <li class="nav-item"><a class="nav-link py-1" href="#" data-bs-toggle="modal" data-bs-target="#settingsModal"><i class="bi bi-gear-wide-connected"></i> Settings</a></li>
                     <li class="nav-item"><a class="nav-link py-1" href="{% url 'export_csv' %}"><i class="bi bi-download"></i> Export CSV</a></li>
                     <li><hr class="text-secondary mx-2 my-1"></li>
                     {% for shop in all_shops %}
@@ -335,7 +335,7 @@
                     </div>
                     {% if user_access.is_admin %}
                     <hr class="text-secondary mx-3">
-                    <a href="{% url 'settings' %}" class="{% if request.resolver_match.url_name == 'settings' %}active{% endif %}">
+                    <a href="#" data-bs-toggle="modal" data-bs-target="#settingsModal">
                         <i class="bi bi-gear-wide-connected"></i> Settings
                     </a>
                     {% endif %}
@@ -561,6 +561,95 @@
         </div>
     </div>
 </div>
+<div class="modal fade" id="settingsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title"><i class="bi bi-gear-wide-connected"></i> Settings</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <ul class="nav nav-tabs mb-3" id="settingsModalTabs">
+                    <li class="nav-item"><a class="nav-link active" href="#modalCompany" data-bs-toggle="tab">Company</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#modalWhatsapp" data-bs-toggle="tab">WhatsApp</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#modalPeriods" data-bs-toggle="tab">Periods</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#modalUsers" data-bs-toggle="tab">Users</a></li>
+                </ul>
+                <div class="tab-content">
+                    <div class="tab-pane fade show active" id="modalCompany">
+                        <form id="modalCompanyForm">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="save_company">
+                            <div class="mb-2">
+                                <label class="form-label small">Company Name *</label>
+                                <input type="text" name="company_name" class="form-control form-control-sm" value="{{ company.company_name }}" required>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-6">
+                                    <label class="form-label small">Phone</label>
+                                    <input type="text" name="phone" class="form-control form-control-sm" value="{{ company.phone }}">
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label small">Email</label>
+                                    <input type="email" name="email" class="form-control form-control-sm" value="{{ company.email }}">
+                                </div>
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label small">Address</label>
+                                <textarea name="address" class="form-control form-control-sm" rows="2">{{ company.address }}</textarea>
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label small">Receipt Footer</label>
+                                <input type="text" name="receipt_footer" class="form-control form-control-sm" value="{{ company.receipt_footer }}">
+                            </div>
+                            <button type="submit" class="btn btn-dark btn-sm w-100"><i class="bi bi-check-lg"></i> Save Company</button>
+                        </form>
+                    </div>
+                    <div class="tab-pane fade" id="modalWhatsapp">
+                        <p class="text-muted small">Manage WhatsApp settings on the <a href="{% url 'settings' %}" data-bs-dismiss="modal">full settings page</a>.</p>
+                    </div>
+                    <div class="tab-pane fade" id="modalPeriods">
+                        <p class="text-muted small">Manage business periods on the <a href="{% url 'settings' %}" data-bs-dismiss="modal">full settings page</a>.</p>
+                    </div>
+                    <div class="tab-pane fade" id="modalUsers">
+                        <p class="text-muted small">Manage users on the <a href="{% url 'settings' %}" data-bs-dismiss="modal">full settings page</a>.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <a href="{% url 'settings' %}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-box-arrow-up-right"></i> Open Full Settings</a>
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var companyForm = document.getElementById('modalCompanyForm');
+    if (companyForm) {
+        companyForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            var formData = new FormData(this);
+            fetch('{% url "settings" %}', {
+                method: 'POST',
+                body: formData,
+                headers: { 'X-CSRFToken': formData.get('csrfmiddlewaretoken') }
+            }).then(function(r) {
+                if (r.ok) {
+                    showToast('Company settings saved!', 'success');
+                    setTimeout(function() { window.location.reload(); }, 1500);
+                } else {
+                    showToast('Failed to save settings.', 'error');
+                }
+            }).catch(function() {
+                showToast('Network error.', 'error');
+            });
+        });
+    }
+});
+</script>
+
 <a href="https://wa.me/{{ whatsapp.phone_number|default:company.phone|default:'265888888888' }}" target="_blank"
    class="wa-float-btn"
    style="position:fixed;bottom:20px;right:20px;z-index:9999;width:56px;height:56px;border-radius:50%;
