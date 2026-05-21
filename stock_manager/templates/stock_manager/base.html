@@ -255,14 +255,14 @@
                     <li class="nav-item"><a class="nav-link py-1" href="{% url 'export_csv' %}"><i class="bi bi-download"></i> Export CSV</a></li>
                     <li><hr class="text-secondary mx-2 my-1"></li>
                     {% for shop in all_shops %}
-                    <li class="nav-item"><a class="nav-link py-1" href="{% url 'shop_dashboard' shop.name|slugify %}"><i class="bi bi-shop"></i> {{ shop.name }}</a></li>
+                    <li class="nav-item"><a class="nav-link py-1" href="{% url 'shop_dashboard' shop.slug %}"><i class="bi bi-shop"></i> {{ shop.name }}</a></li>
                     {% endfor %}
                     <li><hr class="text-secondary mx-2 my-1"></li>
                     <li class="nav-item"><a class="nav-link py-1 text-danger" href="{% url 'logout' %}"><i class="bi bi-box-arrow-left"></i> Logout</a></li>
                     {% else %}
                     {% if user_access.assigned_shop %}
-                    <li class="nav-item"><a class="nav-link py-1" href="{% url 'shop_dashboard' user_access.assigned_shop.name|slugify %}"><i class="bi bi-shop"></i> {{ user_access.assigned_shop.name }}</a></li>
-                    <li class="nav-item"><a class="nav-link py-1" href="{% url 'shop_inventory' user_access.assigned_shop.name|slugify %}"><i class="bi bi-box-seam"></i> Inventory</a></li>
+                    <li class="nav-item"><a class="nav-link py-1" href="{% url 'shop_dashboard' user_access.assigned_shop.slug %}"><i class="bi bi-shop"></i> {{ user_access.assigned_shop.name }}</a></li>
+                    <li class="nav-item"><a class="nav-link py-1" href="{% url 'shop_inventory' user_access.assigned_shop.slug %}"><i class="bi bi-box-seam"></i> Inventory</a></li>
                     {% endif %}
                     <li class="nav-item"><a class="nav-link py-1" href="{% url 'logout' %}"><i class="bi bi-box-arrow-left"></i> Logout</a></li>
                     {% endif %}
@@ -317,17 +317,17 @@
                         </a>
                         {% for shop in all_shops %}
                         {% if shop.name != 'Warehouse' %}
-                        <a href="{% url 'shop_dashboard' shop.name|slugify %}" class="{% if shop.name|slugify == shop_slug %}active{% endif %}">
+                        <a href="{% url 'shop_dashboard' shop.slug %}" class="{% if shop.slug == shop_slug %}active{% endif %}">
                             <i class="bi bi-shop"></i> {{ shop.name }}
                         </a>
                         {% endif %}
                         {% endfor %}
                     {% else %}
                     {% if user_access.assigned_shop %}
-                    <a href="{% url 'shop_dashboard' user_access.assigned_shop.name|slugify %}" class="{% if shop_slug == user_access.assigned_shop.name|slugify %}active{% endif %}">
+                    <a href="{% url 'shop_dashboard' user_access.assigned_shop.slug %}" class="{% if shop_slug == user_access.assigned_shop.slug %}active{% endif %}">
                         <i class="bi bi-shop"></i> {{ user_access.assigned_shop.name }}
                     </a>
-                    <a href="{% url 'shop_inventory' user_access.assigned_shop.name|slugify %}" class="{% if request.resolver_match.url_name == 'shop_inventory' %}active{% endif %}">
+                    <a href="{% url 'shop_inventory' user_access.assigned_shop.slug %}" class="{% if request.resolver_match.url_name == 'shop_inventory' %}active{% endif %}">
                         <i class="bi bi-box-seam"></i> Inventory
                     </a>
                     {% endif %}

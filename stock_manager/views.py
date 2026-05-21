@@ -343,10 +343,7 @@ def generate_receipt_number():
 
 @shop_access_required
 def point_of_sale(request, shop_slug):
-    shop = get_object_or_404(
-        Shop,
-        name__iexact=shop_slug.replace('-', ' ')
-    )
+    shop = get_object_or_404(Shop, slug=shop_slug)
 
     is_warehouse = shop.name == 'Warehouse'
 
@@ -1030,8 +1027,8 @@ def shop_dashboard(request, shop_slug):
     shop = get_object_or_404(Shop, slug=shop_slug)
 
     if not request.user.is_superuser:
-        profile = getattr(request.user, 'profile', None)
-        if profile is None or profile.assigned_shop != shop:
+        profile = get_user_profile(request.user)
+        if not profile or not profile.assigned_shop or profile.assigned_shop != shop:
             return HttpResponseForbidden("Access Denied")
 
     is_warehouse = shop.name == 'Warehouse'
@@ -1113,7 +1110,7 @@ def shop_dashboard(request, shop_slug):
 
 @shop_access_required
 def shop_inventory(request, shop_slug):
-    shop = get_object_or_404(Shop, name__iexact=shop_slug.replace('-', ' '))
+    shop = get_object_or_404(Shop, slug=shop_slug)
     profile = get_user_profile(request.user)
     user_is_admin = profile is None or profile.is_admin
 
