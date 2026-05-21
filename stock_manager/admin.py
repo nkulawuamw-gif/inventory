@@ -18,7 +18,7 @@ class CustomUserAdmin(BaseUserAdmin):
     @admin.display(description='Role / Shop')
     def get_shop_role(self, obj):
         try:
-            profile = obj.profile
+            profile = obj.user_profile
             if profile.is_admin:
                 return 'Admin (All Shops)'
             return f'Shop User: {profile.assigned_shop_name}'

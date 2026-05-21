@@ -31,7 +31,7 @@ def get_user_profile(user):
         if user.is_superuser:
             return None
         try:
-            return user.profile
+            return user.user_profile
         except UserProfile.DoesNotExist:
             return None
     return None

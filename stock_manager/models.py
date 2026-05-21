@@ -31,7 +31,7 @@ class UserProfile(models.Model):
         ('shop_user', 'Shop User (Single Shop)'),
     ]
 
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='user_profile')
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='shop_user')
     assigned_shop = models.ForeignKey(Shop, on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_users')
 
@@ -51,7 +51,7 @@ class UserProfile(models.Model):
 
 
 class Profile(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='shop_profile')
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
     shop = models.ForeignKey(Shop, on_delete=models.CASCADE, null=True, blank=True)
     is_shop_user = models.BooleanField(default=False)
 
@@ -403,6 +403,7 @@ class WhatsAppMessage(models.Model):
 
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from django.contrib.auth.models import User
 
 
 @receiver(post_save, sender=User, dispatch_uid='create_user_profile')
@@ -411,12 +412,14 @@ def create_user_profile(sender, instance, created, **kwargs):
         UserProfile.objects.create(user=instance)
 
 
-@receiver(post_save, sender=User, dispatch_uid='create_shop_profile')
+@receiver(post_save, sender=User)
 def create_shop_profile(sender, instance, created, **kwargs):
     if created:
-        Profile.objects.create(user=instance)
+        Profile.objects.get_or_create(user=instance)
 
-@receiver(post_save, sender=User, dispatch_uid='save_shop_profile')
+
+@receiver(post_save, sender=User)
 def save_shop_profile(sender, instance, **kwargs):
-    instance.shop_profile.save()
+    Profile.objects.get_or_create(user=instance)
+    instance.profile.save()
 

@@ -5,7 +5,7 @@ def get_user_access(user):
     if user.is_superuser:
         return {'is_admin': True, 'assigned_shop': None}
     try:
-        profile = user.profile
+        profile = user.user_profile
         return {'is_admin': profile.is_admin, 'assigned_shop': profile.assigned_shop}
     except UserProfile.DoesNotExist:
         return {'is_admin': True, 'assigned_shop': None}

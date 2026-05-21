@@ -47,7 +47,7 @@ def get_online_users(request):
             shop_name = 'Admin'
         else:
             try:
-                profile = user.profile
+                profile = user.user_profile
                 if profile.assigned_shop:
                     shop_name = profile.assigned_shop.name
                 if profile.is_admin:
@@ -86,7 +86,7 @@ def chat_view(request):
             shop_name = 'Admin'
         else:
             try:
-                po = other_user.profile
+                po = other_user.user_profile
                 if po.assigned_shop:
                     shop_name = po.assigned_shop.name
             except UserProfile.DoesNotExist:
@@ -122,7 +122,7 @@ def chat_view(request):
                 shop_name = 'Admin'
             else:
                 try:
-                    pu = u.profile
+                    pu = u.user_profile
                     if pu.assigned_shop:
                         shop_name = pu.assigned_shop.name
                 except UserProfile.DoesNotExist:
@@ -193,7 +193,7 @@ def get_messages(request, user_id):
         if user.is_superuser:
             return 'Admin'
         try:
-            p = user.profile
+            p = user.user_profile
             if p.assigned_shop:
                 return p.assigned_shop.name
         except UserProfile.DoesNotExist:

@@ -32,7 +32,7 @@ def get_user_profile(user):
     if user.is_superuser:
         return None
     try:
-        return user.profile
+        return user.user_profile
     except UserProfile.DoesNotExist:
         return None
 
@@ -1622,8 +1622,8 @@ def login_view(request):
             login(request, user)
             if request.user.is_superuser:
                 return redirect('admin_manage')
-            elif hasattr(request.user, 'profile') and request.user.profile.assigned_shop:
-                return redirect('shop_dashboard', shop_slug=request.user.profile.assigned_shop.slug)
+            elif hasattr(request.user, 'user_profile') and request.user.user_profile.assigned_shop:
+                return redirect('shop_dashboard', shop_slug=request.user.user_profile.assigned_shop.slug)
             else:
                 return redirect('login')
         else:
