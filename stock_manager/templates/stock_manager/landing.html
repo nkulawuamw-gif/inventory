@@ -1,4 +1,4 @@
-{% load static humanize %}
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -376,7 +376,7 @@ footer { background: var(--dark); color: rgba(255,255,255,0.8); padding: 60px 0 
             {% for item in shop.items.all %}
             <tr>
               <td class="product-name">{{ item.name }}</td>
-              <td class="product-price-cell">MWK {{ item.unit_price|floatformat:0|intcomma }}</td>
+              <td class="product-price-cell">MWK {{ item.unit_price|floatformat:0 }}</td>
             </tr>
             {% empty %}
             <tr>
