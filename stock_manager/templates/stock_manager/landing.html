@@ -373,7 +373,7 @@ footer { background: var(--dark); color: rgba(255,255,255,0.8); padding: 60px 0 
       <select id="shopFilter" onchange="filterShop()">
         <option value="all">All Shops</option>
         {% for shop in shops %}
-        <option value="{{ shop.name|slugify }}">{{ shop.name }}</option>
+        <option value="{{ shop.name|slugify }}" {% if forloop.first %}selected{% endif %}>{{ shop.name }}</option>
         {% endfor %}
       </select>
     </div>
@@ -537,6 +537,7 @@ const obs=new IntersectionObserver(e=>{e.forEach(en=>{if(en.isIntersecting)en.ta
 document.querySelectorAll('.fade-in').forEach(el=>obs.observe(el));
 (function(){const s=document.getElementById('heroSlider');if(!s)return;const sl=s.querySelectorAll('.slide');let i=0;setInterval(()=>{sl[i].classList.remove('active');i=(i+1)%sl.length;sl[i].classList.add('active');},3000);})();
 function filterShop(){const v=document.getElementById('shopFilter').value;document.querySelectorAll('.shop-table-wrapper').forEach(w=>{w.style.display=v==='all'||w.dataset.shop===v?'':'none';});}
+filterShop();
 </script>
 </body>
 </html>
