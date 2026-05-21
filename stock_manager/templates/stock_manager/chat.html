@@ -220,6 +220,35 @@
     }
   });
 
+  function renderMessage(msg, container) {
+    const msgDate = new Date(msg.created_at);
+    const lastSep = container.querySelector('.date-separator:last-child');
+    let lastDate = null;
+    if (lastSep) {
+      const txt = lastSep.textContent.trim();
+      if (txt === 'Today') lastDate = new Date();
+      else if (txt === 'Yesterday') { lastDate = new Date(); lastDate.setDate(lastDate.getDate() - 1); }
+      else lastDate = new Date(txt);
+    }
+    if (!lastDate || !sameDay(msgDate, lastDate)) {
+      const sep = document.createElement('div');
+      sep.className = 'date-separator';
+      sep.innerHTML = '<span>' + formatDateSeparator(msg.created_at) + '</span>';
+      container.appendChild(sep);
+    }
+    const isMine = msg.sender === {{ request.user.id }};
+    const div = document.createElement('div');
+    div.className = 'd-flex mb-2 ' + (isMine ? 'justify-content-end' : '');
+    div.innerHTML = '<div class="message-bubble p-2 px-3 rounded-3" data-msg-id="' + msg.id + '">' +
+      msg.body.replace(/\n/g, '<br>') +
+      '<div class="d-flex justify-content-end align-items-center gap-1 mt-1" style="font-size: 0.7rem;">' +
+      '<span class="' + (isMine ? 'text-white-50' : 'text-muted') + '">' + formatTime(msg.created_at) + '</span>' +
+      (isMine ? '<span class="text-white-50"><i class="bi bi-check"></i></span>' : '') +
+      '</div></div>';
+    container.appendChild(div);
+    if (isNearBottom) container.scrollTop = container.scrollHeight;
+  }
+
   messageForm.addEventListener('submit', function(e) {
     e.preventDefault();
     const body = messageInput.value.trim();
@@ -230,16 +259,23 @@
     clearTimeout(typingTimer);
     clearTyping();
 
+    const optimisticMsg = {
+      id: Date.now(),
+      sender: {{ request.user.id }},
+      body: body,
+      created_at: new Date().toISOString(),
+      is_read: false,
+    };
+    const container = document.getElementById('chat-messages');
+    renderMessage(optimisticMsg, container);
+    lastMessageCount++;
+    messageInput.value = '';
+
     fetch('{% url "send_message" %}', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
       body: JSON.stringify({ receiver_id: userId, body: body }),
-    }).then(r => r.json()).then(data => {
-      if (data.status === 'sent') {
-        messageInput.value = '';
-        loadMessages();
-      }
-    });
+    }).then(r => r.json()).then(function() {});
   });
 
   fetch('{% url "mark_read" %}', {
@@ -288,38 +324,20 @@
             }
           }
         }
-        if (data.messages.length === lastMessageCount && lastMessageCount > 0) return;
-        lastMessageCount = data.messages.length;
+        if (data.messages.length <= lastMessageCount) return;
         const container = document.getElementById('chat-messages');
-        container.innerHTML = '';
-        let prevDate = null;
-        data.messages.forEach(msg => {
-          const msgDate = new Date(msg.created_at);
-          if (!prevDate || !sameDay(msgDate, prevDate)) {
-            const sep = document.createElement('div');
-            sep.className = 'date-separator';
-            sep.innerHTML = '<span>' + formatDateSeparator(msg.created_at) + '</span>';
-            container.appendChild(sep);
-            prevDate = msgDate;
-          }
-          const isMine = msg.sender === {{ request.user.id }};
-          const div = document.createElement('div');
-          div.className = 'd-flex mb-2 ' + (isMine ? 'justify-content-end' : '');
-          const readIcon = msg.is_read ? 'text-info' : 'text-white-50';
-          div.innerHTML = '<div class="message-bubble p-2 px-3 rounded-3 ' +
-            (isMine ? 'bg-primary text-white' : 'bg-white') + '">' +
-            msg.body.replace(/\n/g, '<br>') +
-            '<div class="d-flex justify-content-end align-items-center gap-1 mt-1" style="font-size: 0.7rem;">' +
-            '<span class="' + (isMine ? 'text-white-50' : 'text-muted') + '">' + formatTime(msg.created_at) + '</span>' +
-            (isMine ? '<span class="' + readIcon + '"><i class="bi bi-check-all"></i></span>' : '') +
-            '</div></div>';
-          container.appendChild(div);
+        var existing = container.querySelectorAll('.message-bubble');
+        var existingIds = new Set();
+        existing.forEach(function(el) { existingIds.add(el.dataset.msgId); });
+        data.messages.forEach(function(msg) {
+          if (existingIds.has(String(msg.id))) return;
+          renderMessage(msg, container);
         });
-        if (isNearBottom) container.scrollTop = container.scrollHeight;
+        lastMessageCount = data.messages.length;
       });
   }
 
-  setInterval(loadMessages, 2000);
+  setInterval(loadMessages, 1000);
 })();
 </script>
 {% endif %}
