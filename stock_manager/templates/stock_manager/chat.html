@@ -343,17 +343,12 @@
     fetch('{% url "get_messages" selected_user.id %}')
       .then(r => r.json())
       .then(data => {
-        if (data.typing && !typingHeartbeat) {
+        if (data.typing) {
           typingIndicator.style.display = 'block';
           if (statusText) statusText.textContent = 'typing...';
         } else {
           typingIndicator.style.display = 'none';
-          if (statusText && data.messages.length > 0) {
-            var last = data.messages[data.messages.length - 1];
-            if (last.sender !== {{ request.user.id }}) {
-              statusText.textContent = 'Online';
-            }
-          }
+          if (statusText) statusText.textContent = 'Online';
         }
         if (data.messages.length <= lastMessageCount) return;
         const container = document.getElementById('chat-messages');
