@@ -12,11 +12,12 @@ EXEMPT_PATHS = [
     '/whatsapp/webhook/',
 ]
 
-ADMIN_ONLY_VIEWS = ['financial_report', 'dashboard_bulk_import', 'export_csv']
+ADMIN_ONLY_VIEWS = ['admin_manage', 'financial_report', 'dashboard_bulk_import', 'export_csv']
 SHOP_RESTRICTED_VIEWS = ['shop_dashboard', 'point_of_sale', 'print_receipt']
 
 ACCESS_DENIED = {
     'dashboard': 'You do not have access to the main dashboard.',
+    'admin_manage': 'You do not have permission to manage inventory.',
     'financial_report': 'You do not have access to the financial report.',
     'sales_history': 'You do not have access to sales history.',
     'export_csv': 'You do not have access to export.',

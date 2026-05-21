@@ -200,11 +200,9 @@ def dashboard(request):
     profile = get_user_profile(request.user)
     user_is_admin = profile is None or profile.is_admin
 
-    if not user_is_admin:
-        if profile and profile.assigned_shop:
-            shop_slug = profile.assigned_shop.name.replace(' ', '-').lower()
-            return redirect('shop_dashboard', shop_slug=shop_slug)
-        return redirect('admin_manage')
+    if not user_is_admin and profile and profile.assigned_shop:
+        shop_slug = profile.assigned_shop.name.replace(' ', '-').lower()
+        return redirect('shop_dashboard', shop_slug=shop_slug)
 
     all_shops = Shop.objects.all()
     active_period = get_active_period()
@@ -1107,6 +1105,84 @@ def shop_dashboard(request, shop_slug):
     }
 
     return render(request, 'stock_manager/shop_dashboard.html', context)
+
+
+@shop_access_required
+def shop_inventory(request, shop_slug):
+    shop = get_object_or_404(Shop, name__iexact=shop_slug.replace('-', ' '))
+    profile = get_user_profile(request.user)
+    user_is_admin = profile is None or profile.is_admin
+
+    if not user_is_admin and profile and profile.assigned_shop and profile.assigned_shop != shop:
+        messages.error(request, 'Access denied to this shop.')
+        return redirect('shop_dashboard', shop_slug=profile.assigned_shop.name.replace(' ', '-').lower())
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+
+        if action == 'add_item':
+            item_name = request.POST.get('item_name', '').strip()
+            category = request.POST.get('category', '').strip()
+            try:
+                quantity = int(request.POST.get('quantity', 0))
+                unit_price = float(request.POST.get('unit_price', 0))
+            except (ValueError, TypeError):
+                messages.error(request, 'Invalid quantity or price')
+                return redirect('shop_inventory', shop_slug=shop_slug)
+
+            if item_name:
+                existing = Item.objects.filter(name__iexact=item_name, shop=shop).first()
+                if existing:
+                    existing.quantity += quantity
+                    existing.unit_price = unit_price
+                    if category:
+                        existing.category = category
+                    existing.save()
+                    messages.success(request, f'Added {quantity}x "{item_name}" (now {existing.quantity})')
+                else:
+                    Item.objects.create(name=item_name, shop=shop, quantity=quantity, unit_price=unit_price, category=category)
+                    messages.success(request, f'Added "{item_name}"')
+            return redirect('shop_inventory', shop_slug=shop_slug)
+
+        elif action == 'edit_item':
+            item_id = request.POST.get('item_id')
+            item_name = request.POST.get('item_name', '').strip()
+            category = request.POST.get('category', '').strip()
+            try:
+                item = Item.objects.get(id=item_id, shop=shop)
+                item.name = item_name or item.name
+                item.quantity = int(request.POST.get('quantity', 0))
+                item.unit_price = float(request.POST.get('unit_price', 0))
+                item.category = category
+                item.save()
+                messages.success(request, f'Updated "{item.name}"')
+            except Item.DoesNotExist:
+                messages.error(request, 'Item not found')
+            return redirect('shop_inventory', shop_slug=shop_slug)
+
+        elif action == 'delete_item':
+            item_id = request.POST.get('item_id')
+            try:
+                item = Item.objects.get(id=item_id, shop=shop)
+                name = item.name
+                item.delete()
+                messages.success(request, f'Deleted "{name}"')
+            except Item.DoesNotExist:
+                messages.error(request, 'Item not found')
+            return redirect('shop_inventory', shop_slug=shop_slug)
+
+    items = Item.objects.filter(shop=shop).order_by('name')
+    total_items = items.count()
+    total_value = sum(float(item.total_value) for item in items)
+
+    return render(request, 'stock_manager/shop_inventory.html', {
+        'shop': shop,
+        'items': items,
+        'total_items': total_items,
+        'total_value': total_value,
+        'page_title': f'{shop.name} Inventory',
+    })
+
 
 
 
