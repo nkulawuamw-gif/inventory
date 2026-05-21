@@ -2,15 +2,24 @@
 {% load stock_filters %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2 class="mb-0">
+<style>
+@media (max-width: 767px) {
+  .d-flex.gap-2.align-items-center.mb-3, .d-flex.gap-2 { flex-wrap: wrap; gap: 4px !important; }
+  .d-flex.gap-2 .btn, .d-flex.gap-2 a.btn { font-size: 0.7rem !important; padding: 3px 6px !important; white-space: nowrap; }
+  .d-flex.justify-content-between.align-items-center.mb-3, .d-flex.justify-content-between.align-items-center.mb-4 { flex-direction: column; align-items: flex-start !important; gap: 8px; }
+  .d-flex.justify-content-between.align-items-center.mb-3 h5, .d-flex.justify-content-between.align-items-center.mb-4 h2 { width: 100%; }
+  .d-flex.justify-content-between.align-items-center.mb-3 h5 .badge, .d-flex.justify-content-between.align-items-center.mb-4 h2 .badge { font-size: 0.6rem; }
+}
+</style>
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <h2 class="mb-0" style="font-size:clamp(1rem, 4vw, 1.5rem);">
         {% if is_warehouse %}
         <i class="bi bi-building"></i> {{ shop.name }} Inventory
         {% else %}
         <i class="bi bi-shop"></i> {{ shop.name }} Inventory
         {% endif %}
     </h2>
-    <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Back to Dashboard</a>
+    <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Back to Dashboard</a>
 </div>
 
 <div class="row mb-4">

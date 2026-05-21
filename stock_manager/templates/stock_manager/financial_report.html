@@ -71,8 +71,8 @@
             <h5 class="mb-0"><i class="bi bi-receipt text-primary"></i> Shop Financial Breakdown</h5>
             <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#reportModal">View All</button>
         </div>
-        <form method="GET" class="d-flex gap-2">
-            <select name="shop" class="form-select form-select-sm" style="width: 200px;">
+        <form method="GET" class="d-flex gap-2 flex-wrap">
+            <select name="shop" class="form-select form-select-sm" style="width: auto; min-width:140px;">
                 <option value="">All Shops</option>
                 {% for shop in all_shops %}
                 <option value="{{ shop.id }}" {% if shop.id|stringformat:"s" == selected_shop %}selected{% endif %}>{{ shop.name }}</option>

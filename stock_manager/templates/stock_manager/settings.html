@@ -849,11 +849,16 @@ function showLandingSection(name) {
     margin-left: 16.666%;
 }
 @media (max-width: 768px) {
-    .settings-save-bar { margin-left: 0; }
-    .settings-container { padding: 15px; }
+    .settings-save-bar { margin-left: 0; padding: 8px 12px; }
+    .settings-save-bar .btn-lg { font-size: 0.9rem; padding: 10px 24px; }
+    .settings-container { padding: 10px; }
     .settings-form { width: 100%; }
     .settings-tabs { flex-direction: column; }
     .settings-tabs button { width: 100%; }
+    .d-flex.gap-2.mb-4.flex-wrap button { font-size: 0.75rem; padding: 6px 12px; white-space: nowrap; }
+    #settingsPage .row .col-6 { width: 100%; }
+    #settingsPage .card-body { padding: 0.8rem; }
+    #settingsPage h2 { font-size: 1.1rem; }
 }
 </style>
 

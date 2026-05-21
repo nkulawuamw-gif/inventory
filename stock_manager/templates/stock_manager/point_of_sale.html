@@ -11,6 +11,20 @@
   .pos-cart, .products-section, .cart-section { width: 100%; }
   .product-grid { grid-template-columns: repeat(2, 1fr); }
 }
+@media (max-width: 576px) {
+  .pos-container { gap: 12px; min-height: auto; }
+  .item-list thead th { padding: 6px 8px; font-size: 0.7rem; }
+  .item-list tbody td { padding: 8px; font-size: 0.8rem; }
+  .item-list tbody td .num { width: 22px; height: 22px; line-height: 22px; font-size: 0.65rem; }
+  .cart-item { padding: 8px 12px; font-size: 0.8rem; flex-wrap: wrap; }
+  .cart-item .qty-controls button { width: 28px; height: 28px; font-size: 0.8rem; }
+  .cart-totals { padding: 12px 16px; }
+  .cart-totals .row-line { font-size: 0.85rem; }
+  .cart-totals .row-line.total { font-size: 1rem; }
+  .cart-header { padding: 12px 16px; font-size: 0.9rem; }
+  .cart-items { max-height: 260px; }
+  .complete-btn { padding: 12px; font-size: 1rem; }
+}
 .item-list { width: 100%; border-collapse: collapse; }
 .item-list thead th { background: #f8f9fa; padding: 12px 14px; font-size: 0.85rem; text-transform: uppercase; color: #666; border-bottom: 2px solid #dee2e6; text-align: left; }
 .item-list tbody tr { cursor: pointer; transition: background 0.1s; }

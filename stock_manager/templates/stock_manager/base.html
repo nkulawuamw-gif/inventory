@@ -29,23 +29,26 @@
         .online-dot { width: 10px; height: 10px; background: #2ecc71; border-radius: 50%; display: inline-block; }
         .offline-dot { width: 10px; height: 10px; background: #95a5a6; border-radius: 50%; display: inline-block; }
         @media (max-width: 767px) {
-            .sidebar { display: block; transform: translateX(-100%); position: fixed; top: 0; left: 0; width: 260px; height: 100%; z-index: 9999; overflow-y: scroll; transition: 0.3s ease; }
+            .sidebar { display: block; transform: translateX(-100%); position: fixed; top: 56px; left: 0; width: 260px; height: calc(100% - 56px); z-index: 9999; overflow-y: auto; transition: 0.3s ease; -webkit-overflow-scrolling: touch; }
             .sidebar.active { transform: translateX(0); }
-            main { margin-left: 0 !important; width: 100% !important; max-width: 100% !important; }
+            body.sidebar-open { overflow: hidden; }
+            main { margin-left: 0 !important; width: 100% !important; max-width: 100% !important; padding-left: 8px !important; padding-right: 8px !important; }
             .menu-toggle { display: block !important; }
-            .table-container { padding: 10px; border-radius: 8px; }
-            .stat-card .card-body { padding: 0.8rem; }
-            .stat-card .icon { font-size: 1.5rem; }
-            .stat-card h2 { font-size: 1.2rem; }
-            .stat-card h6 { font-size: 0.7rem; }
-            .d-flex.gap-2 { flex-wrap: wrap; gap: 4px !important; }
-            .d-flex.gap-2 .btn { font-size: 0.75rem; padding: 4px 8px; }
-            .navbar form { width: 100% !important; margin: 8px 0 !important; }
-            .table-responsive { overflow-x: auto; font-size: 0.7rem !important; }
+            .table-container { padding: 8px; border-radius: 8px; overflow: hidden; }
+            .stat-card .card-body { padding: 0.6rem; }
+            .stat-card .icon { font-size: 1.3rem; }
+            .stat-card h2 { font-size: 1rem; }
+            .stat-card h6 { font-size: 0.65rem; }
+            .d-flex.gap-2:not(.gap-2-keep) { flex-wrap: wrap; gap: 4px !important; }
+            .d-flex.gap-2 .btn:not(.btn-sm) { font-size: 0.75rem; padding: 4px 8px; }
+            .navbar form { width: 100% !important; margin: 4px 0 !important; }
+            nav.navbar .container-fluid { flex-wrap: wrap !important; }
+            .table-responsive { overflow-x: auto; font-size: 0.7rem !important; -webkit-overflow-scrolling: touch; }
             .table-responsive .btn { font-size: 0.65rem !important; padding: 2px 6px !important; }
-            .table-responsive table { min-width: 700px; }
-            .modal-dialog { margin: 8px; }
-            .modal-content { width: 95%; }
+            .table-responsive table { min-width: 600px; }
+            .modal-dialog { margin: 4px; }
+            .modal-content { width: 98%; }
+            .modal-body { padding: 0.6rem; }
             .confirm-box { width: 95vw !important; }
             .confirm-footer { flex-direction: column; gap: 8px; }
             .confirm-footer button { width: 100%; }
@@ -53,26 +56,30 @@
             .btn-group { flex-wrap: wrap; }
             button, input, select, textarea { min-height: 44px; }
             .form-row { flex-direction: column; }
-            button:not(.navbar-btn):not(.btn-group .btn) { width: 100%; }
-            h2 { font-size: 1.3rem !important; }
-            h5 { font-size: 0.95rem !important; }
-            .badge { font-size: 0.65rem !important; }
+            button.w-100-mobile { width: 100%; }
+            h2 { font-size: 1.2rem !important; }
+            h5 { font-size: 0.9rem !important; }
+            .badge { font-size: 0.6rem !important; }
             input, select, textarea { font-size: 16px !important; }
             .row.mb-4 > div { margin-bottom: 8px; }
             .pos-shop-items { flex-direction: column !important; }
             .pos-shop-cart { width: 100% !important; }
             .offcanvas-sidebar-btn, .menu-toggle { display: inline-block !important; }
-            nav.navbar .container-fluid { flex-wrap: nowrap; }
+            [style*="position:fixed"][style*="bottom:"][style*="right:"] { max-width: 44px; max-height: 44px; font-size: 1.2rem !important; }
+            .position-fixed.bottom-90 { bottom: 70px !important; }
+            #calculator.position-fixed { right: 8px !important; width: calc(100vw - 16px) !important; max-width: 280px; }
         }
         .offcanvas-sidebar-btn, .menu-toggle { display: none; }
         .menu-toggle { background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; padding: 4px 10px; line-height: 1; }
         @media (max-width: 575px) {
-            .page-title { font-size: 20px; }
-            .card { padding: 15px; }
-            .stat-card .card-body { padding: 0.6rem; }
-            .table-container { padding: 6px; }
-            main { padding: 8px !important; }
+            .page-title { font-size: 18px; }
+            .card { padding: 12px; }
+            .stat-card .card-body { padding: 0.5rem; }
+            .table-container { padding: 4px; }
+            main { padding: 6px !important; }
             input, select, textarea { font-size: 16px; }
+            .table td, .table th { padding: 0.15rem 0.2rem !important; font-size: 0.65rem; }
+            .table .btn { font-size: 0.55rem !important; padding: 0.05rem 0.15rem !important; }
         }
         @media (orientation: landscape) and (max-height: 600px) {
             main { padding-bottom: 80px !important; }
@@ -416,7 +423,15 @@
     <script>
     function toggleSidebar() {
         document.querySelector('.sidebar').classList.toggle('active');
+        document.body.classList.toggle('sidebar-open');
     }
+    document.addEventListener('click', function(e) {
+        var sidebar = document.querySelector('.sidebar');
+        var toggle = document.querySelector('.menu-toggle');
+        if (window.innerWidth <= 767 && sidebar && sidebar.classList.contains('active') && !sidebar.contains(e.target) && toggle && !toggle.contains(e.target)) {
+            toggleSidebar();
+        }
+    });
 
     function showConfirm(opts) {
         return new Promise((resolve) => {
@@ -529,6 +544,7 @@
     </div>
 </div>
 <a href="https://wa.me/{{ whatsapp.phone_number|default:company.phone|default:'265888888888' }}" target="_blank"
+   class="wa-float-btn"
    style="position:fixed;bottom:20px;right:20px;z-index:9999;width:56px;height:56px;border-radius:50%;
           background:#25D366;color:white;display:flex;align-items:center;justify-content:center;
           box-shadow:0 4px 12px rgba(0,0,0,0.3);text-decoration:none;"
@@ -536,7 +552,7 @@
   <i class="bi bi-whatsapp" style="font-size:1.8rem;"></i>
 </a>
 
-<div class="position-fixed" style="bottom: 90px; right: 20px; z-index: 1000;">
+<div class="position-fixed bottom-90" style="bottom: 90px; right: 20px; z-index: 1000;">
     <button class="btn btn-primary btn-lg rounded-circle shadow" id="calcToggle" style="width: 50px; height: 50px; font-size:1.3rem;">
         <i class="bi bi-calculator-fill"></i>
     </button>

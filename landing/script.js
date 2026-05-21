@@ -1,7 +1,7 @@
 // ===== MOBILE MENU =====
 function toggleMenu() {
   document.getElementById('navLinks').classList.toggle('active');
-  document.querySelectorAll('.hamburger span').forEach(s => s.classList.toggle('open'));
+  document.getElementById('hamburger').classList.toggle('active');
 }
 
 document.querySelectorAll('.nav-links a').forEach(link => {
