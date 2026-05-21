@@ -398,45 +398,64 @@
   var cancelRecordingBtn = document.getElementById('cancelRecordingBtn');
   var sendRecordingBtn = document.getElementById('sendRecordingBtn');
 
-  voiceBtn.addEventListener('click', function() {
-    if (mediaRecorder && mediaRecorder.state === 'recording') return;
-    navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream) {
-      audioChunks = [];
-      mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
-      mediaRecorder.ondataavailable = function(e) { audioChunks.push(e.data); };
-      mediaRecorder.onstop = function() {
-        stream.getTracks().forEach(function(t) { t.stop(); });
-      };
-      mediaRecorder.start();
-      voiceBtn.innerHTML = '<i class="bi bi-mic-fill text-danger"></i>';
-      recordingBar.classList.remove('d-none');
-      recordingBar.classList.add('d-flex');
-      recordingStartTime = Date.now();
-      recordingTimer.textContent = '0:00';
-      recordingTimerInterval = setInterval(function() {
-        var elapsed = Math.floor((Date.now() - recordingStartTime) / 1000);
-        recordingTimer.textContent = formatDuration(elapsed);
-      }, 500);
-    }).catch(function() {
-      alert('Microphone access denied. Please allow microphone permissions.');
+  if (voiceBtn) {
+    voiceBtn.addEventListener('click', function() {
+      if (mediaRecorder && mediaRecorder.state === 'recording') return;
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        alert('Voice recording is not supported in this browser. Please use a modern browser like Chrome or Edge.');
+        return;
+      }
+      navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream) {
+        audioChunks = [];
+        var mimeType = 'audio/webm;codecs=opus';
+        if (!MediaRecorder.isTypeSupported(mimeType)) {
+          mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : '';
+        }
+        try {
+          mediaRecorder = mimeType ? new MediaRecorder(stream, { mimeType: mimeType }) : new MediaRecorder(stream);
+        } catch(e) {
+          mediaRecorder = new MediaRecorder(stream);
+        }
+        mediaRecorder.ondataavailable = function(e) {
+          if (e.data.size > 0) audioChunks.push(e.data);
+        };
+        mediaRecorder.onstop = function() {
+          stream.getTracks().forEach(function(t) { t.stop(); });
+        };
+        mediaRecorder.start();
+        voiceBtn.innerHTML = '<i class="bi bi-mic-fill text-danger"></i>';
+        recordingBar.classList.remove('d-none');
+        recordingBar.classList.add('d-flex');
+        recordingStartTime = Date.now();
+        recordingTimer.textContent = '0:00';
+        recordingTimerInterval = setInterval(function() {
+          var elapsed = Math.floor((Date.now() - recordingStartTime) / 1000);
+          recordingTimer.textContent = formatDuration(elapsed);
+        }, 500);
+      }).catch(function(err) {
+        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+          alert('Microphone access denied. Please allow microphone permissions in your browser settings.');
+        } else {
+          alert('Could not start recording: ' + err.message);
+        }
+      });
     });
-  });
 
-  cancelRecordingBtn.addEventListener('click', function() {
-    if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
-    mediaRecorder = null;
-    audioChunks = [];
-    clearInterval(recordingTimerInterval);
-    voiceBtn.innerHTML = '<i class="bi bi-mic"></i>';
-    recordingBar.classList.add('d-none');
-    recordingBar.classList.remove('d-flex');
-  });
+    cancelRecordingBtn.addEventListener('click', function() {
+      if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
+      mediaRecorder = null;
+      audioChunks = [];
+      clearInterval(recordingTimerInterval);
+      voiceBtn.innerHTML = '<i class="bi bi-mic"></i>';
+      recordingBar.classList.add('d-none');
+      recordingBar.classList.remove('d-flex');
+    });
 
-  sendRecordingBtn.addEventListener('click', function() {
-    if (!mediaRecorder || audioChunks.length === 0) return;
-    var duration = (Date.now() - recordingStartTime) / 1000;
-    if (mediaRecorder.state === 'recording') mediaRecorder.stop();
-    clearInterval(recordingTimerInterval);
+    sendRecordingBtn.addEventListener('click', function() {
+      if (!mediaRecorder || audioChunks.length === 0) return;
+      var duration = (Date.now() - recordingStartTime) / 1000;
+      if (mediaRecorder.state === 'recording') mediaRecorder.stop();
+      clearInterval(recordingTimerInterval);
     voiceBtn.innerHTML = '<i class="bi bi-mic"></i>';
     recordingBar.classList.add('d-none');
     recordingBar.classList.remove('d-flex');
@@ -467,6 +486,7 @@
       }
     });
   });
+  }
 
   setInterval(loadMessages, 1000);
 })();
