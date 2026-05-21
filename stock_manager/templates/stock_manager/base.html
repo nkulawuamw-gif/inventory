@@ -251,7 +251,7 @@
                     <li class="nav-item"><a class="nav-link py-1" href="{% url 'calls' %}"><i class="bi bi-telephone"></i> Calls</a></li>
                     <li class="nav-item"><a class="nav-link py-1" href="{% url 'meetings' %}"><i class="bi bi-camera-video"></i> Meetings</a></li>
                     <li class="nav-item"><a class="nav-link py-1" href="{% url 'whatsapp_inbox' %}"><i class="bi bi-whatsapp text-success"></i> WhatsApp</a></li>
-                    <li class="nav-item"><a class="nav-link py-1" href="#" data-bs-toggle="modal" data-bs-target="#settingsModal"><i class="bi bi-gear-wide-connected"></i> Quick Settings</a></li>
+                    <li class="nav-item"><a class="nav-link py-1" href="#" data-bs-toggle="modal" data-bs-target="#settingsModal"><i class="bi bi-gear-wide-connected"></i> Settings</a></li>
                     <li class="nav-item"><a class="nav-link py-1" href="{% url 'export_csv' %}"><i class="bi bi-download"></i> Export CSV</a></li>
                     <li><hr class="text-secondary mx-2 my-1"></li>
                     {% for shop in all_shops %}
@@ -336,10 +336,7 @@
                     {% if user_access.is_admin %}
                     <hr class="text-secondary mx-3">
                     <a href="#" data-bs-toggle="modal" data-bs-target="#settingsModal">
-                        <i class="bi bi-gear-wide-connected"></i> Quick Settings
-                    </a>
-                    <a href="{% url 'settings' %}" class="small" style="padding-left:42px;font-size:0.8rem;">
-                        <i class="bi bi-box-arrow-up-right"></i> Open Full Settings
+                        <i class="bi bi-gear-wide-connected"></i> Settings
                     </a>
                     {% endif %}
                     <hr class="text-secondary mx-3">
@@ -565,7 +562,7 @@
     </div>
 </div>
 <div class="modal fade" id="settingsModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header bg-dark text-white">
                 <h5 class="modal-title"><i class="bi bi-gear-wide-connected"></i> Settings</h5>
@@ -576,11 +573,13 @@
                     <li class="nav-item"><a class="nav-link active" href="#modalCompany" data-bs-toggle="tab">Company</a></li>
                     <li class="nav-item"><a class="nav-link" href="#modalWhatsapp" data-bs-toggle="tab">WhatsApp</a></li>
                     <li class="nav-item"><a class="nav-link" href="#modalPeriods" data-bs-toggle="tab">Periods</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#modalShops" data-bs-toggle="tab">Shops</a></li>
                     <li class="nav-item"><a class="nav-link" href="#modalUsers" data-bs-toggle="tab">Users</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#modalLanding" data-bs-toggle="tab">Landing</a></li>
                 </ul>
                 <div class="tab-content">
                     <div class="tab-pane fade show active" id="modalCompany">
-                        <form id="modalCompanyForm">
+                        <form id="modalCompanyForm" data-settings-form>
                             {% csrf_token %}
                             <input type="hidden" name="action" value="save_company">
                             <div class="mb-2">
@@ -602,38 +601,336 @@
                                 <textarea name="address" class="form-control form-control-sm" rows="2">{{ company.address }}</textarea>
                             </div>
                             <div class="mb-2">
+                                <label class="form-label small">Tax ID</label>
+                                <input type="text" name="tax_id" class="form-control form-control-sm" value="{{ company.tax_id }}">
+                            </div>
+                            <div class="mb-2">
                                 <label class="form-label small">Receipt Footer</label>
                                 <input type="text" name="receipt_footer" class="form-control form-control-sm" value="{{ company.receipt_footer }}">
                             </div>
-                            <button type="submit" class="btn btn-dark btn-sm w-100"><i class="bi bi-check-lg"></i> Save Company</button>
+                            <button type="submit" class="btn btn-dark w-100"><i class="bi bi-check-lg"></i> Save Company</button>
                         </form>
                     </div>
                     <div class="tab-pane fade" id="modalWhatsapp">
-                        <div class="text-center py-4">
-                            <i class="bi bi-whatsapp text-success" style="font-size:2rem;"></i>
-                            <p class="mt-2">Manage WhatsApp Business API settings, greeting messages, and webhook configuration.</p>
-                            <a href="{% url 'settings' %}" class="btn btn-success btn-sm" data-bs-dismiss="modal"><i class="bi bi-box-arrow-up-right"></i> Open WhatsApp Settings</a>
-                        </div>
+                        <form id="modalWhatsappForm" data-settings-form>
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="save_whatsapp">
+                            <div class="mb-2">
+                                <label class="form-label small">WhatsApp Business Phone Number</label>
+                                <input type="text" name="phone_number" class="form-control form-control-sm" value="{{ whatsapp.phone_number }}" placeholder="e.g. 265999000000">
+                                <div class="form-text small">Include country code. No + or spaces.</div>
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label small">Business Name</label>
+                                <input type="text" name="business_name" class="form-control form-control-sm" value="{{ whatsapp.business_name }}">
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label small">Greeting Message</label>
+                                <textarea name="greeting_message" class="form-control form-control-sm" rows="2">{{ whatsapp.greeting_message }}</textarea>
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label small">Webhook Secret</label>
+                                <input type="text" name="webhook_secret" class="form-control form-control-sm" value="{{ whatsapp.webhook_secret }}">
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label small">API Key</label>
+                                <input type="password" name="api_key" class="form-control form-control-sm" value="{{ whatsapp.api_key }}">
+                            </div>
+                            <div class="form-check mb-2">
+                                <input type="checkbox" name="is_active" class="form-check-input" id="modalWaActive" value="1" {% if whatsapp.is_active %}checked{% endif %}>
+                                <label class="form-check-label small" for="modalWaActive">Enable WhatsApp integration</label>
+                            </div>
+                            <button type="submit" class="btn btn-success w-100"><i class="bi bi-check-lg"></i> Save WhatsApp Settings</button>
+                        </form>
                     </div>
                     <div class="tab-pane fade" id="modalPeriods">
-                        <div class="text-center py-4">
-                            <i class="bi bi-calendar-range text-primary" style="font-size:2rem;"></i>
-                            <p class="mt-2">Create and close business periods for financial reporting and opening stock tracking.</p>
-                            <a href="{% url 'settings' %}" class="btn btn-primary btn-sm" data-bs-dismiss="modal"><i class="bi bi-box-arrow-up-right"></i> Open Period Settings</a>
+                        <div class="row">
+                            <div class="col-md-5">
+                                <div class="card mb-3">
+                                    <div class="card-header bg-primary text-white py-2"><h6 class="mb-0"><i class="bi bi-calendar-plus"></i> Open New Period</h6></div>
+                                    <div class="card-body p-2">
+                                        <form id="modalOpenPeriodForm" data-settings-form>
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="open_period">
+                                            <div class="mb-2">
+                                                <label class="form-label small">Period Name *</label>
+                                                <input type="text" name="name" class="form-control form-control-sm" placeholder="e.g. June 2026" required>
+                                            </div>
+                                            <div class="mb-2">
+                                                <label class="form-label small">Type</label>
+                                                <select name="period_type" class="form-select form-select-sm">
+                                                    <option value="monthly">Monthly</option>
+                                                    <option value="quarterly">Quarterly</option>
+                                                    <option value="yearly">Yearly</option>
+                                                    <option value="custom">Custom</option>
+                                                </select>
+                                            </div>
+                                            <div class="row mb-2">
+                                                <div class="col-6">
+                                                    <label class="form-label small">Start *</label>
+                                                    <input type="date" name="start_date" class="form-control form-control-sm" required>
+                                                </div>
+                                                <div class="col-6">
+                                                    <label class="form-label small">End *</label>
+                                                    <input type="date" name="end_date" class="form-control form-control-sm" required>
+                                                </div>
+                                            </div>
+                                            <div class="mb-2">
+                                                <label class="form-label small">Notes</label>
+                                                <textarea name="notes" class="form-control form-control-sm" rows="2"></textarea>
+                                            </div>
+                                            <button type="submit" class="btn btn-primary w-100"><i class="bi bi-check-lg"></i> Open Period</button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-7">
+                                {% if active_period %}
+                                <div class="alert alert-success py-2 small d-flex justify-content-between align-items-center">
+                                    <div><strong><i class="bi bi-clock"></i> Active:</strong> {{ active_period.name }} ({{ active_period.start_date|date:"d/m/y" }} - {{ active_period.end_date|date:"d/m/y" }})</div>
+                                    <form method="post" action="{% url 'settings' %}" data-settings-form>
+                                        {% csrf_token %}
+                                        <input type="hidden" name="action" value="close_period">
+                                        <input type="hidden" name="period_id" value="{{ active_period.id }}">
+                                        <button type="submit" class="btn btn-sm btn-danger">Close</button>
+                                    </form>
+                                </div>
+                                {% endif %}
+                                <div class="table-responsive" style="max-height:300px">
+                                    <table class="table table-sm table-hover mb-0">
+                                        <thead class="table-light">
+                                            <tr><th>Name</th><th>Type</th><th>Start</th><th>End</th><th>Status</th></tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for period in periods %}
+                                            <tr>
+                                                <td><strong>{{ period.name }}</strong></td>
+                                                <td><span class="badge bg-secondary">{{ period.get_period_type_display }}</span></td>
+                                                <td>{{ period.start_date|date:"d/m/y" }}</td>
+                                                <td>{{ period.end_date|date:"d/m/y" }}</td>
+                                                <td>{% if period.is_closed %}<span class="badge bg-danger">Closed</span>{% else %}<span class="badge bg-success">Open</span>{% endif %}</td>
+                                            </tr>
+                                            {% empty %}
+                                            <tr><td colspan="5" class="text-center text-muted py-3">No periods created yet</td></tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="tab-pane fade" id="modalShops">
+                        <div class="row">
+                            <div class="col-md-5">
+                                <div class="card mb-2">
+                                    <div class="card-header bg-success text-white py-2"><h6 class="mb-0"><i class="bi bi-plus-circle"></i> Add Shop</h6></div>
+                                    <div class="card-body p-2">
+                                        <form id="modalAddShopForm" data-settings-form>
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="add_shop">
+                                            <div class="mb-2">
+                                                <label class="form-label small">Shop Name *</label>
+                                                <input type="text" name="name" class="form-control form-control-sm" placeholder="e.g. New Shop" required>
+                                            </div>
+                                            <button type="submit" class="btn btn-success w-100"><i class="bi bi-check-lg"></i> Add Shop</button>
+                                        </form>
+                                    </div>
+                                </div>
+                                <div class="card mb-2">
+                                    <div class="card-header bg-primary text-white py-2"><h6 class="mb-0"><i class="bi bi-pencil"></i> Rename Shop</h6></div>
+                                    <div class="card-body p-2">
+                                        <form id="modalRenameShopForm" data-settings-form>
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="edit_shop">
+                                            <div class="mb-2">
+                                                <label class="form-label small">Select Shop *</label>
+                                                <select name="shop_id" class="form-select form-select-sm" required>
+                                                    <option value="">-- Choose --</option>
+                                                    {% for shop in all_shops %}
+                                                    <option value="{{ shop.id }}">{{ shop.name }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                            <div class="mb-2">
+                                                <label class="form-label small">New Name *</label>
+                                                <input type="text" name="name" class="form-control form-control-sm" placeholder="New name" required>
+                                            </div>
+                                            <button type="submit" class="btn btn-primary w-100"><i class="bi bi-check-lg"></i> Rename</button>
+                                        </form>
+                                    </div>
+                                </div>
+                                <div class="card mb-2">
+                                    <div class="card-header bg-danger text-white py-2"><h6 class="mb-0"><i class="bi bi-trash"></i> Delete Shop</h6></div>
+                                    <div class="card-body p-2">
+                                        <form id="modalDeleteShopForm" data-settings-form>
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="delete_shop">
+                                            <div class="mb-2">
+                                                <label class="form-label small">Select Shop *</label>
+                                                <select name="shop_id" class="form-select form-select-sm" required>
+                                                    <option value="">-- Choose --</option>
+                                                    {% for shop in all_shops %}
+                                                    <option value="{{ shop.id }}">{{ shop.name }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                            <button type="submit" class="btn btn-danger w-100"><i class="bi bi-x-circle"></i> Delete Shop</button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-7">
+                                <div class="table-responsive" style="max-height:400px">
+                                    <table class="table table-sm table-hover mb-0">
+                                        <thead class="table-light">
+                                            <tr><th>#</th><th>Shop Name</th><th>Users</th><th>Sales Person</th></tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for shop in all_shops %}
+                                            <tr>
+                                                <td>{{ forloop.counter }}</td>
+                                                <td><strong>{{ shop.name }}</strong></td>
+                                                <td>{{ shop.assigned_users.count }}</td>
+                                                <td>{% with users=shop.assigned_users.all %}{% if users %}{% for u in users %}{{ u.user.get_full_name|default:u.user.username }}{% if not forloop.last %}, {% endif %}{% endfor %}{% else %}<span class="text-muted">-</span>{% endif %}{% endwith %}</td>
+                                            </tr>
+                                            {% empty %}
+                                            <tr><td colspan="4" class="text-center text-muted py-3">No shops created yet</td></tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div class="tab-pane fade" id="modalUsers">
-                        <div class="text-center py-4">
-                            <i class="bi bi-people text-info" style="font-size:2rem;"></i>
-                            <p class="mt-2">Add, edit, delete users and assign shops or admin roles.</p>
-                            <a href="{% url 'settings' %}" class="btn btn-info btn-sm text-white" data-bs-dismiss="modal"><i class="bi bi-box-arrow-up-right"></i> Open User Settings</a>
+                        <div class="row">
+                            <div class="col-md-5">
+                                <div class="card mb-2">
+                                    <div class="card-header bg-info text-white py-2"><h6 class="mb-0"><i class="bi bi-person-plus"></i> Add User</h6></div>
+                                    <div class="card-body p-2">
+                                        <form id="modalAddUserForm" data-settings-form>
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="add_user">
+                                            <div class="mb-2">
+                                                <label class="form-label small">Username *</label>
+                                                <input type="text" name="username" class="form-control form-control-sm" required>
+                                            </div>
+                                            <div class="mb-2">
+                                                <label class="form-label small">Password *</label>
+                                                <input type="password" name="password" class="form-control form-control-sm" required>
+                                            </div>
+                                            <div class="row mb-2">
+                                                <div class="col-6">
+                                                    <label class="form-label small">First Name</label>
+                                                    <input type="text" name="first_name" class="form-control form-control-sm">
+                                                </div>
+                                                <div class="col-6">
+                                                    <label class="form-label small">Last Name</label>
+                                                    <input type="text" name="last_name" class="form-control form-control-sm">
+                                                </div>
+                                            </div>
+                                            <div class="mb-2">
+                                                <label class="form-label small">Email</label>
+                                                <input type="email" name="email" class="form-control form-control-sm">
+                                            </div>
+                                            <div class="mb-2">
+                                                <label class="form-label small">Role</label>
+                                                <select name="role" class="form-select form-select-sm">
+                                                    <option value="shop_user">Shop User</option>
+                                                    <option value="admin">Admin (All Shops)</option>
+                                                </select>
+                                            </div>
+                                            <div class="mb-2">
+                                                <label class="form-label small">Assigned Shop</label>
+                                                <select name="shop_id" class="form-select form-select-sm">
+                                                    <option value="">-- No shop (admin) --</option>
+                                                    {% for shop in all_shops %}
+                                                    <option value="{{ shop.id }}">{{ shop.name }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                            <button type="submit" class="btn btn-info w-100 text-white"><i class="bi bi-person-plus"></i> Add User</button>
+                                        </form>
+                                    </div>
+                                </div>
+                                <div class="card mb-2">
+                                    <div class="card-header bg-warning text-dark py-2"><h6 class="mb-0"><i class="bi bi-key"></i> Reset Password</h6></div>
+                                    <div class="card-body p-2">
+                                        <form id="modalResetPwdForm" data-settings-form>
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="reset_password">
+                                            <div class="mb-2">
+                                                <label class="form-label small">Select User *</label>
+                                                <select name="user_id" class="form-select form-select-sm" required>
+                                                    <option value="">-- Choose --</option>
+                                                    {% for u in users %}
+                                                    <option value="{{ u.id }}">{{ u.get_full_name|default:u.username }} ({{ u.username }})</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                            <div class="mb-2">
+                                                <label class="form-label small">New Password *</label>
+                                                <input type="text" name="new_password" class="form-control form-control-sm" required minlength="4">
+                                            </div>
+                                            <button type="submit" class="btn btn-warning w-100 text-dark"><i class="bi bi-key"></i> Reset Password</button>
+                                        </form>
+                                    </div>
+                                </div>
+                                <div class="card mb-2">
+                                    <div class="card-header bg-danger text-white py-2"><h6 class="mb-0"><i class="bi bi-person-x"></i> Delete User</h6></div>
+                                    <div class="card-body p-2">
+                                        <form id="modalDeleteUserForm" data-settings-form>
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="delete_user">
+                                            <div class="mb-2">
+                                                <label class="form-label small">Select User *</label>
+                                                <select name="user_id" class="form-select form-select-sm" required>
+                                                    <option value="">-- Choose --</option>
+                                                    {% for u in users %}
+                                                    <option value="{{ u.id }}">{{ u.get_full_name|default:u.username }} ({{ u.username }})</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                            <button type="submit" class="btn btn-danger w-100"><i class="bi bi-x-circle"></i> Delete User</button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-7">
+                                <div class="table-responsive" style="max-height:400px">
+                                    <table class="table table-sm table-hover mb-0">
+                                        <thead class="table-light">
+                                            <tr><th>#</th><th>Username</th><th>Name</th><th>Role</th><th>Shop</th></tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for u in users %}
+                                            <tr>
+                                                <td>{{ forloop.counter }}</td>
+                                                <td><strong>{{ u.username }}</strong></td>
+                                                <td>{{ u.get_full_name|default:"-" }}</td>
+                                                <td>{% if u.user_profile.is_admin %}<span class="badge bg-warning text-dark">Admin</span>{% else %}<span class="badge bg-info text-white">Shop User</span>{% endif %}</td>
+                                                <td>{{ u.user_profile.assigned_shop.name|default:"All Shops" }}</td>
+                                            </tr>
+                                            {% empty %}
+                                            <tr><td colspan="5" class="text-center text-muted py-3">No users created yet</td></tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="tab-pane fade" id="modalLanding">
+                        <div class="text-center py-3">
+                            <i class="bi bi-house-door text-dark" style="font-size:2rem;"></i>
+                            <p class="mt-2">Customize hero, about, products, why-us, contact, and footer sections of the public landing page.</p>
+                            <a href="{% url 'settings' %}" class="btn btn-dark" data-bs-dismiss="modal"><i class="bi bi-box-arrow-up-right"></i> Open Landing Page Settings</a>
                         </div>
                     </div>
                 </div>
             </div>
             <div class="modal-footer">
-                <a href="{% url 'settings' %}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-box-arrow-up-right"></i> Open Full Settings</a>
-                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
             </div>
         </div>
     </div>
@@ -641,27 +938,30 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    var companyForm = document.getElementById('modalCompanyForm');
-    if (companyForm) {
-        companyForm.addEventListener('submit', function(e) {
+    document.querySelectorAll('form[data-settings-form]').forEach(function(form) {
+        form.addEventListener('submit', function(e) {
             e.preventDefault();
+            var btn = this.querySelector('button[type="submit"]');
+            if (btn) { btn.disabled = true; btn.innerHTML = 'Saving...'; }
             var formData = new FormData(this);
             fetch('{% url "settings" %}', {
                 method: 'POST',
                 body: formData,
                 headers: { 'X-CSRFToken': formData.get('csrfmiddlewaretoken') }
             }).then(function(r) {
-                if (r.ok) {
-                    showToast('Company settings saved!', 'success');
+                if (r.ok || r.redirected) {
+                    showToast('Saved successfully!', 'success');
                     setTimeout(function() { window.location.reload(); }, 1500);
                 } else {
-                    showToast('Failed to save settings.', 'error');
+                    showToast('Failed to save.', 'error');
+                    if (btn) { btn.disabled = false; btn.innerHTML = btn.getAttribute('data-orig') || 'Save'; }
                 }
             }).catch(function() {
                 showToast('Network error.', 'error');
+                if (btn) { btn.disabled = false; btn.innerHTML = btn.getAttribute('data-orig') || 'Save'; }
             });
         });
-    }
+    });
 });
 </script>
 
