@@ -12,6 +12,7 @@
                         <strong>{{ other_user.get_full_name|default:other_user.username }}</strong>
                     </h4>
 
+                    <audio id="remote-audio" autoplay style="display:none;"></audio>
                     {% if call.call_type == 'video' %}
                     <div class="row mb-4">
                         <div class="col-12">
@@ -89,9 +90,9 @@ async function startCaller() {
         });
 
         peerConnection.ontrack = (event) => {
-            const remoteVideo = document.getElementById('remote-video');
-            if (remoteVideo) {
-                remoteVideo.srcObject = event.streams[0];
+            const el = document.getElementById('remote-video') || document.getElementById('remote-audio');
+            if (el) {
+                el.srcObject = event.streams[0];
             }
         };
 
@@ -138,9 +139,9 @@ async function startCallee(offerData) {
         });
 
         peerConnection.ontrack = (event) => {
-            const remoteVideo = document.getElementById('remote-video');
-            if (remoteVideo) {
-                remoteVideo.srcObject = event.streams[0];
+            const el = document.getElementById('remote-video') || document.getElementById('remote-audio');
+            if (el) {
+                el.srcObject = event.streams[0];
             }
         };
 
