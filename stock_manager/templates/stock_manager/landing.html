@@ -1,4 +1,4 @@
-{% load static %}
+{% load static humanize %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -169,6 +169,15 @@ img { max-width: 100%; height: auto; }
 .product-card h3 { font-size: 1.05rem; font-weight: 700; color: var(--dark); margin-bottom: 10px; }
 .product-card p { font-size: 0.85rem; color: var(--text-light); line-height: 1.6; margin-bottom: 16px; }
 .product-price { display: inline-block; background: var(--pink-light); color: var(--pink); padding: 6px 18px; border-radius: 50px; font-size: 0.85rem; font-weight: 700; }
+.shop-table-wrapper { background: var(--white); border-radius: var(--radius); overflow: hidden; margin-bottom: 32px; box-shadow: var(--shadow); border: 1px solid rgba(0,0,0,0.04); }
+.shop-table-header { background: var(--gradient-accent); color: white; padding: 16px 24px; }
+.shop-table-header h3 { margin: 0; font-size: 1.1rem; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+.shop-table { width: 100%; border-collapse: collapse; }
+.shop-table thead th { background: #f8f9fa; color: var(--text); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; padding: 12px 24px; text-align: left; font-weight: 600; border-bottom: 2px solid #eee; }
+.shop-table tbody td { padding: 10px 24px; font-size: 0.92rem; border-bottom: 1px solid #f1f3f5; }
+.shop-table tbody tr:hover { background: var(--pink-lighter); }
+.shop-table .product-name { font-weight: 600; color: var(--dark); }
+.shop-table .product-price-cell { color: var(--pink); font-weight: 700; }
 .why-us { padding: 100px 0; background: var(--white); }
 .why-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 24px; }
 .why-card { text-align: center; padding: 40px 24px; border-radius: var(--radius); background: var(--pink-lighter); transition: 0.4s; border: 1px solid rgba(233,30,99,0.06); }
@@ -350,50 +359,35 @@ footer { background: var(--dark); color: rgba(255,255,255,0.8); padding: 60px 0 
       <h2>{{ landing.data.products.heading|default:"Shop by Category" }}</h2>
       <p>{{ landing.data.products.subtitle|default:"Explore our range of premium hygiene and beauty products" }}</p>
     </div>
-    <div class="product-grid">
-      <div class="product-card fade-in">
-        <div class="product-icon" style="background: linear-gradient(135deg, #fce4ec, #f8bbd0);"><i class="fas fa-jar" style="color:#c2185b;"></i></div>
-        <h3>Petroleum Jelly</h3>
-        <p>Deep moisturizing petroleum jelly for soft, supple skin.</p>
-        <span class="product-price">MWK 2,500</span>
+    {% for shop in shops %}
+    <div class="shop-table-wrapper fade-in">
+      <div class="shop-table-header">
+        <h3><i class="fas fa-store"></i> {{ shop.name }}</h3>
       </div>
-      <div class="product-card fade-in">
-        <div class="product-icon" style="background: linear-gradient(135deg, #f3e5f5, #e1bee7);"><i class="fas fa-spray-can" style="color:#7b1fa2;"></i></div>
-        <h3>Perfumes</h3>
-        <p>Long-lasting premium fragrances for men and women.</p>
-        <span class="product-price">MWK 8,000 - 25,000</span>
-      </div>
-      <div class="product-card fade-in">
-        <div class="product-icon" style="background: linear-gradient(135deg, #fff3e0, #ffccbc);"><i class="fas fa-soap" style="color:#e64a19;"></i></div>
-        <h3>Soaps</h3>
-        <p>Gentle, nourishing soaps infused with natural ingredients.</p>
-        <span class="product-price">MWK 1,500</span>
-      </div>
-      <div class="product-card fade-in">
-        <div class="product-icon" style="background: linear-gradient(135deg, #e8f5e9, #c8e6c9);"><i class="fas fa-bottle-water" style="color:#2e7d32;"></i></div>
-        <h3>Roll-on Deodorants</h3>
-        <p>Stay fresh all day with our mild, long-lasting roll-on deodorants.</p>
-        <span class="product-price">MWK 3,500</span>
-      </div>
-      <div class="product-card fade-in">
-        <div class="product-icon" style="background: linear-gradient(135deg, #fce4ec, #f8bbd0);"><i class="fas fa-hand-sparkles" style="color:#d81b60;"></i></div>
-        <h3>Body Lotion</h3>
-        <p>Rich, silky body lotions that hydrate and nourish your skin.</p>
-        <span class="product-price">MWK 4,500</span>
-      </div>
-      <div class="product-card fade-in">
-        <div class="product-icon" style="background: linear-gradient(135deg, #fff8e1, #ffecb3);"><i class="fas fa-user" style="color:#f57f17;"></i></div>
-        <h3>Skin Care</h3>
-        <p>Complete skincare solutions — cleansers, moisturizers, treatments.</p>
-        <span class="product-price">MWK 3,000 - 15,000</span>
-      </div>
-      <div class="product-card fade-in">
-        <div class="product-icon" style="background: linear-gradient(135deg, #e0f7fa, #b2ebf2);"><i class="fas fa-cut" style="color:#00838f;"></i></div>
-        <h3>Hair Care</h3>
-        <p>Shampoos, conditioners, and treatments for healthy hair.</p>
-        <span class="product-price">MWK 5,500</span>
+      <div class="table-responsive">
+        <table class="shop-table">
+          <thead>
+            <tr>
+              <th>Product</th>
+              <th>Price</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in shop.items.all %}
+            <tr>
+              <td class="product-name">{{ item.name }}</td>
+              <td class="product-price-cell">MWK {{ item.unit_price|floatformat:0|intcomma }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="2" class="text-muted">No products available</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
       </div>
     </div>
+    {% endfor %}
   </div>
 </section>
 
