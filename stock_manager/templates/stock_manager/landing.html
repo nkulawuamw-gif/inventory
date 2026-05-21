@@ -169,12 +169,17 @@ img { max-width: 100%; height: auto; }
 .product-card h3 { font-size: 1.05rem; font-weight: 700; color: var(--dark); margin-bottom: 10px; }
 .product-card p { font-size: 0.85rem; color: var(--text-light); line-height: 1.6; margin-bottom: 16px; }
 .product-price { display: inline-block; background: var(--pink-light); color: var(--pink); padding: 6px 18px; border-radius: 50px; font-size: 0.85rem; font-weight: 700; }
-.shop-table-wrapper { background: var(--white); border-radius: var(--radius); overflow: hidden; margin-bottom: 32px; box-shadow: var(--shadow); border: 1px solid rgba(0,0,0,0.04); }
-.shop-table-header { background: var(--gradient-accent); color: white; padding: 16px 24px; }
-.shop-table-header h3 { margin: 0; font-size: 1.1rem; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+.shop-table-wrapper { background: var(--white); border-radius: 12px; overflow: hidden; margin-bottom: 20px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); border: 1px solid rgba(0,0,0,0.04); }
+.shop-table-header { background: var(--gradient-accent); color: white; padding: 10px 16px; }
+.shop-table-header h3 { margin: 0; font-size: 0.95rem; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+.table-responsive { max-height: 240px; overflow-y: auto; }
+.table-responsive::-webkit-scrollbar { width: 6px; }
+.table-responsive::-webkit-scrollbar-track { background: #f1f3f5; border-radius: 3px; }
+.table-responsive::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
+.table-responsive::-webkit-scrollbar-thumb:hover { background: #aaa; }
 .shop-table { width: 100%; border-collapse: collapse; }
-.shop-table thead th { background: #f8f9fa; color: var(--text); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; padding: 12px 24px; text-align: left; font-weight: 600; border-bottom: 2px solid #eee; }
-.shop-table tbody td { padding: 10px 24px; font-size: 0.92rem; border-bottom: 1px solid #f1f3f5; }
+.shop-table thead th { background: #f8f9fa; color: var(--text); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; padding: 8px 16px; text-align: left; font-weight: 600; border-bottom: 2px solid #eee; position: sticky; top: 0; z-index: 1; }
+.shop-table tbody td { padding: 6px 16px; font-size: 0.85rem; border-bottom: 1px solid #f1f3f5; }
 .shop-table tbody tr:hover { background: var(--pink-lighter); }
 .shop-table .product-name { font-weight: 600; color: var(--dark); }
 .shop-table .product-price-cell { color: var(--pink); font-weight: 700; }
