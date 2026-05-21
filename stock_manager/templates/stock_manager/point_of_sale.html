@@ -65,8 +65,16 @@
 .receipt-card .actions .btn-print { background: linear-gradient(135deg, #667eea, #764ba2); color: white; }
 .receipt-card .actions .btn-new { background: #f1f3f5; color: #555; }
 
-.search-items { margin-bottom: 16px; }
+.search-items { margin-bottom: 16px; position: relative; }
 .search-items input { width: 100%; padding: 10px 16px; border: 2px solid #e9ecef; border-radius: 12px; font-size: 0.95rem; }
+.suggestions-dropdown { position: absolute; top: 100%; left: 0; right: 0; z-index: 9999; background: #fff; border: 1px solid #dee2e6; border-radius: 0 0 12px 12px; max-height: 320px; overflow-y: auto; display: none; box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
+.suggestions-dropdown .s-item { padding: 10px 16px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f1f3f5; transition: background 0.1s; }
+.suggestions-dropdown .s-item:last-child { border-bottom: none; border-radius: 0 0 12px 12px; }
+.suggestions-dropdown .s-item:hover { background: #f0f4ff; }
+.suggestions-dropdown .s-item .s-name { font-weight: 600; color: #333; }
+.suggestions-dropdown .s-item .s-price { font-weight: 700; color: #667eea; }
+.suggestions-dropdown .s-item .s-stock { font-size: 0.8rem; color: #888; }
+.suggestions-dropdown .s-item .s-stock.low { color: #e74c3c; font-weight: 600; }
 </style>
 
 <div class="d-flex justify-content-between align-items-center mb-3">
@@ -80,7 +88,8 @@
 <div class="pos-container">
     <div class="pos-items">
         <div class="search-items">
-            <input type="text" id="itemSearch" placeholder="Search items..." oninput="filterItems(this.value)">
+            <input type="text" id="itemSearch" placeholder="Search items..." autocomplete="off" oninput="onSearchInput(this.value)">
+            <div class="suggestions-dropdown" id="suggestionsDropdown"></div>
         </div>
         <div class="table-responsive">
             <table class="item-list" id="itemTable">
@@ -289,6 +298,52 @@ function newSale() {
     document.getElementById('completeBtn').disabled = true;
     document.getElementById('completeBtn').innerHTML = '<i class="bi bi-check-lg"></i> Complete Sale';
 }
+
+function onSearchInput(val) {
+    const q = val.toLowerCase().trim();
+    const dropdown = document.getElementById('suggestionsDropdown');
+
+    document.querySelectorAll('#itemTable tbody tr').forEach(el => {
+        el.style.display = !q || el.dataset.name.includes(q) ? '' : 'none';
+    });
+
+    if (!q) { dropdown.style.display = 'none'; return; }
+
+    let html = '';
+    let count = 0;
+    document.querySelectorAll('#itemTable tbody tr').forEach(el => {
+        if (!el.dataset.name.includes(q)) return;
+        if (count >= 20) return;
+        count++;
+        const onclick = el.getAttribute('onclick') || '';
+        const name = el.querySelector('.name')?.textContent || '';
+        const price = el.querySelector('.price')?.textContent || '';
+        const stockEl = el.querySelector('.stock-badge');
+        const stock = stockEl?.textContent || '';
+        const isLow = stockEl?.classList.contains('low') || false;
+        html += `<div class="s-item" onclick="${onclick}; document.getElementById('itemSearch').value=''; document.getElementById('suggestionsDropdown').style.display='none'; filterItems('')">
+            <div>
+                <div class="s-name">${name}</div>
+                <div class="${isLow ? 's-stock low' : 's-stock'}">Stock: ${stock}</div>
+            </div>
+            <div class="s-price">${price}</div>
+        </div>`;
+    });
+
+    if (!html) {
+        dropdown.innerHTML = '<div class="text-muted text-center py-2" style="font-size:0.9rem;">No items found</div>';
+    } else {
+        dropdown.innerHTML = html;
+    }
+    dropdown.style.display = 'block';
+}
+
+document.addEventListener('click', function(e) {
+    const dropdown = document.getElementById('suggestionsDropdown');
+    if (dropdown && !e.target.closest('.search-items')) {
+        dropdown.style.display = 'none';
+    }
+});
 
 function filterItems(val) {
     const q = val.toLowerCase();
