@@ -24,6 +24,7 @@ urlpatterns = [
     path('api/online-users/', comm.get_online_users, name='online_users'),
     path('chat/', comm.chat_view, name='chat'),
     path('chat/send/', comm.send_message, name='send_message'),
+    path('chat/send-voice/', comm.send_voice_note, name='send_voice_note'),
     path('chat/api/<int:user_id>/', comm.get_messages, name='get_messages'),
     path('chat/unread/', comm.get_unread_count, name='unread_count'),
     path('chat/typing/', comm.send_typing, name='send_typing'),

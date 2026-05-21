@@ -180,6 +180,34 @@ def send_message(request):
 
 
 @shop_access_required
+def send_voice_note(request):
+    if request.method == 'POST':
+        receiver_id = request.POST.get('receiver_id')
+        duration = request.POST.get('duration')
+        audio = request.FILES.get('audio')
+
+        if not receiver_id or not audio:
+            return JsonResponse({'status': 'error', 'error': 'Missing receiver or audio'}, status=400)
+
+        receiver = get_object_or_404(User, id=receiver_id)
+        msg = Message.objects.create(
+            sender=request.user,
+            receiver=receiver,
+            body='',
+            audio_file=audio,
+            duration=float(duration) if duration else None,
+        )
+        return JsonResponse({
+            'status': 'sent',
+            'id': msg.id,
+            'audio_url': msg.audio_file.url,
+            'duration': msg.duration,
+        })
+
+    return JsonResponse({'status': 'error'}, status=400)
+
+
+@shop_access_required
 def get_messages(request, user_id):
     other_user = get_object_or_404(User, id=user_id)
     messages = Message.objects.filter(
@@ -202,14 +230,18 @@ def get_messages(request, user_id):
 
     msg_list = []
     for msg in messages:
-        msg_list.append({
+        item = {
             'id': msg.id,
             'sender': msg.sender.id,
             'sender_name': get_display_name(msg.sender),
             'body': msg.body,
             'created_at': msg.created_at.isoformat(),
             'is_read': msg.is_read,
-        })
+        }
+        if msg.audio_file:
+            item['audio_url'] = msg.audio_file.url
+            item['duration'] = msg.duration
+        msg_list.append(item)
 
     typing = UserPresence.objects.filter(
         user=other_user, typing_to=request.user, is_online=True

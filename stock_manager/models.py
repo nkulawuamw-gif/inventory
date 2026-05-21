@@ -182,9 +182,11 @@ class UserPresence(models.Model):
 class Message(models.Model):
     sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sent_messages')
     receiver = models.ForeignKey(User, on_delete=models.CASCADE, related_name='received_messages')
-    body = models.TextField()
+    body = models.TextField(blank=True, default='')
     is_read = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
+    audio_file = models.FileField(upload_to='voice_notes/%Y/%m/%d/', null=True, blank=True)
+    duration = models.FloatField(null=True, blank=True, help_text='Duration in seconds')
 
     class Meta:
         ordering = ['created_at']
