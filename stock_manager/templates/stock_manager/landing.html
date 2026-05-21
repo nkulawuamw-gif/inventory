@@ -184,6 +184,7 @@ img { max-width: 100%; height: auto; }
 .shop-table .product-name { font-weight: 600; color: var(--dark); }
 .shop-table .product-price-cell { color: var(--pink); font-weight: 700; }
 .shop-filter { text-align: center; margin-bottom: 32px; }
+.shop-filter-label { display: block; margin-bottom: 10px; font-size: 0.9rem; font-weight: 500; color: var(--text); }
 .shop-filter select { padding: 10px 20px; border: 2px solid #e0e0e0; border-radius: 50px; font-size: 0.9rem; font-weight: 500; color: var(--dark); background: white; cursor: pointer; min-width: 240px; outline: none; transition: 0.3s; }
 .shop-filter select:focus { border-color: var(--pink); box-shadow: 0 0 0 3px rgba(233,30,99,0.1); }
 .why-us { padding: 100px 0; background: var(--white); }
@@ -368,6 +369,7 @@ footer { background: var(--dark); color: rgba(255,255,255,0.8); padding: 60px 0 
       <p>{{ landing.data.products.subtitle|default:"Explore our range of premium hygiene and beauty products" }}</p>
     </div>
     <div class="shop-filter fade-in">
+      <label for="shopFilter" class="shop-filter-label">Select a shop to view items</label>
       <select id="shopFilter" onchange="filterShop()">
         <option value="all">All Shops</option>
         {% for shop in shops %}
