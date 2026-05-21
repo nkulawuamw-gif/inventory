@@ -180,6 +180,21 @@ def send_message(request):
 
 
 @shop_access_required
+def send_bulk_message(request):
+    if request.method == 'POST':
+        data = json.loads(request.body)
+        body = data.get('body', '').strip()
+
+        if body:
+            users = User.objects.exclude(id=request.user.id)
+            messages = [Message(sender=request.user, receiver=u, body=body) for u in users]
+            Message.objects.bulk_create(messages)
+            return JsonResponse({'status': 'sent', 'count': len(messages)})
+
+    return JsonResponse({'status': 'error'}, status=400)
+
+
+@shop_access_required
 def send_voice_note(request):
     if request.method == 'POST':
         receiver_id = request.POST.get('receiver_id')
