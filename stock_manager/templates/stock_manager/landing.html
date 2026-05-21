@@ -187,6 +187,9 @@ img { max-width: 100%; height: auto; }
 .shop-filter-label { display: block; margin-bottom: 10px; font-size: 0.9rem; font-weight: 500; color: var(--text); }
 .shop-filter select { padding: 10px 20px; border: 2px solid #e0e0e0; border-radius: 50px; font-size: 0.9rem; font-weight: 500; color: var(--dark); background: white; cursor: pointer; min-width: 240px; outline: none; transition: 0.3s; }
 .shop-filter select:focus { border-color: var(--pink); box-shadow: 0 0 0 3px rgba(233,30,99,0.1); }
+.view-all-btn { display: block; width: 100%; padding: 8px; border: none; background: #f8f9fa; color: var(--pink); font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: 0.3s; border-top: 1px solid #eee; }
+.view-all-btn:hover { background: var(--pink-light); }
+.view-all-btn.expanded { background: var(--pink-light); }
 .why-us { padding: 100px 0; background: var(--white); }
 .why-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 24px; }
 .why-card { text-align: center; padding: 40px 24px; border-radius: var(--radius); background: var(--pink-lighter); transition: 0.4s; border: 1px solid rgba(233,30,99,0.06); }
@@ -405,6 +408,7 @@ footer { background: var(--dark); color: rgba(255,255,255,0.8); padding: 60px 0 
           </tbody>
         </table>
       </div>
+      <button class="view-all-btn" onclick="toggleViewAll(this)">View All</button>
     </div>
     {% empty %}
     <div class="text-center text-muted py-4 fade-in">No products available at the moment.</div>
@@ -537,6 +541,7 @@ const obs=new IntersectionObserver(e=>{e.forEach(en=>{if(en.isIntersecting)en.ta
 document.querySelectorAll('.fade-in').forEach(el=>obs.observe(el));
 (function(){const s=document.getElementById('heroSlider');if(!s)return;const sl=s.querySelectorAll('.slide');let i=0;setInterval(()=>{sl[i].classList.remove('active');i=(i+1)%sl.length;sl[i].classList.add('active');},3000);})();
 function filterShop(){const v=document.getElementById('shopFilter').value;document.querySelectorAll('.shop-table-wrapper').forEach(w=>{w.style.display=v==='all'||w.dataset.shop===v?'':'none';});}
+function toggleViewAll(b){const r=b.previousElementSibling;if(r.style.maxHeight){r.style.maxHeight='';b.textContent='View All';b.classList.remove('expanded')}else{r.style.maxHeight=r.scrollHeight+'px';b.textContent='Show Less';b.classList.add('expanded')}}
 filterShop();
 </script>
 </body>
