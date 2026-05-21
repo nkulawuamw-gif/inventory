@@ -625,6 +625,10 @@ def admin_manage(request):
             shop_id = request.POST.get('shop')
             category = request.POST.get('category', '').strip()
 
+            if not user_is_admin and profile.assigned_shop and str(profile.assigned_shop.id) != shop_id:
+                messages.error(request, 'You can only add items to your assigned shop.')
+                return redirect('admin_manage')
+
             try:
                 quantity = int(request.POST.get('quantity', 0))
                 unit_price = float(request.POST.get('unit_price', 0))
@@ -670,6 +674,9 @@ def admin_manage(request):
 
             try:
                 item = Item.objects.get(id=item_id)
+                if not user_is_admin and profile.assigned_shop and item.shop_id != profile.assigned_shop.id:
+                    messages.error(request, 'You can only edit items in your assigned shop.')
+                    return redirect('admin_manage')
                 item.name = item_name or item.name
                 item.quantity = int(request.POST.get('quantity', 0))
                 item.unit_price = float(request.POST.get('unit_price', 0))
@@ -688,6 +695,9 @@ def admin_manage(request):
 
             try:
                 item = Item.objects.get(id=item_id)
+                if not user_is_admin and profile.assigned_shop and item.shop_id != profile.assigned_shop.id:
+                    messages.error(request, 'You can only delete items in your assigned shop.')
+                    return redirect('admin_manage')
                 name = item.name
                 item.delete()
                 messages.success(request, f'Deleted "{name}"')
@@ -701,6 +711,10 @@ def admin_manage(request):
             to_shop_id = request.POST.get('to_shop')
             quantity = int(request.POST.get('quantity', 0))
             reason = request.POST.get('reason', '').strip()
+
+            if not user_is_admin and profile.assigned_shop and str(profile.assigned_shop.id) != to_shop_id:
+                messages.error(request, 'You can only stock in to your assigned shop.')
+                return redirect('admin_manage')
 
             if item_id and to_shop_id and quantity > 0:
                 try:
@@ -738,6 +752,10 @@ def admin_manage(request):
             quantity = int(request.POST.get('quantity', 0))
             reason = request.POST.get('reason', '').strip()
             transaction_type = request.POST.get('transaction_type', 'transfer')
+
+            if not user_is_admin and profile.assigned_shop and str(profile.assigned_shop.id) != from_shop_id:
+                messages.error(request, 'You can only transfer stock from your assigned shop.')
+                return redirect('admin_manage')
 
             if not from_shop_id:
                 messages.error(request, 'Please select a source shop')
