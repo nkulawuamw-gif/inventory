@@ -1614,12 +1614,7 @@ def login_view(request):
 
         if user is not None:
             login(request, user)
-            if request.user.is_superuser:
-                return redirect('admin_manage')
-            elif hasattr(request.user, 'user_profile') and request.user.user_profile.assigned_shop:
-                return redirect('shop_dashboard', shop_slug=request.user.user_profile.assigned_shop.slug)
-            else:
-                return redirect('login')
+            return redirect('dashboard')
         else:
             messages.error(request, 'Invalid username or password.')
 
