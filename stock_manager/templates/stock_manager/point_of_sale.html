@@ -26,16 +26,20 @@
   .complete-btn { padding: 12px; font-size: 1rem; }
 }
 .item-list { width: 100%; border-collapse: collapse; }
-.item-list thead th { background: #f8f9fa; padding: 12px 14px; font-size: 0.85rem; text-transform: uppercase; color: #666; border-bottom: 2px solid #dee2e6; text-align: left; }
+.item-list-wrap { max-height: 420px; overflow-y: auto; border-radius: 12px; border: 1px solid #dee2e6; }
+.item-list-wrap::-webkit-scrollbar { width: 6px; }
+.item-list-wrap::-webkit-scrollbar-track { background: #f1f3f5; }
+.item-list-wrap::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
+.item-list thead th { background: #f8f9fa; padding: 8px 12px; font-size: 0.75rem; text-transform: uppercase; color: #666; border-bottom: 2px solid #dee2e6; text-align: left; position: sticky; top: 0; z-index: 1; }
 .item-list tbody tr { cursor: pointer; transition: background 0.1s; }
 .item-list tbody tr:hover { background: #f0f4ff; }
 .item-list tbody tr:active { background: #e8eeff; }
 .item-list tbody tr.low-stock { background: #fff5f5; }
-.item-list tbody td { padding: 12px 14px; border-bottom: 1px solid #f1f3f5; font-size: 0.95rem; }
-.item-list tbody td .num { display: inline-block; width: 28px; height: 28px; line-height: 28px; text-align: center; border-radius: 8px; background: #667eea; color: white; font-weight: 700; font-size: 0.8rem; }
+.item-list tbody td { padding: 8px 12px; border-bottom: 1px solid #f1f3f5; font-size: 0.85rem; }
+.item-list tbody td .num { display: inline-block; width: 24px; height: 24px; line-height: 24px; text-align: center; border-radius: 6px; background: #667eea; color: white; font-weight: 700; font-size: 0.7rem; }
 .item-list tbody td .name { font-weight: 600; color: #333; }
 .item-list tbody td .price { font-weight: 700; color: #667eea; }
-.item-list tbody td .stock-badge { font-size: 0.8rem; color: #888; }
+.item-list tbody td .stock-badge { font-size: 0.75rem; color: #888; }
 .item-list tbody td .stock-badge.low { color: #e74c3c; font-weight: 600; }
 .pos-cart .cart-header { background: linear-gradient(135deg, #2c3e50, #34495e); color: white; border-radius: 16px 16px 0 0; padding: 18px 24px; font-size: 1.05rem; }
 .cart-items { max-height: 340px; overflow-y: auto; }
@@ -91,6 +95,7 @@
             <input type="text" id="itemSearch" placeholder="Search items..." autocomplete="off" oninput="onSearchInput(this.value)">
             <div class="suggestions-dropdown" id="suggestionsDropdown"></div>
         </div>
+        <div class="item-list-wrap">
         <div class="table-responsive">
             <table class="item-list" id="itemTable">
                 <thead>
@@ -109,6 +114,7 @@
                     {% endfor %}
                 </tbody>
             </table>
+        </div>
         </div>
     </div>
 
