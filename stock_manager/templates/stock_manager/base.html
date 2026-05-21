@@ -254,12 +254,8 @@
                     {% if user_access.is_admin or 'sales_history' in user_access.permissions %}
                     <li class="nav-item"><a class="nav-link py-1" href="{% url 'sales_history' %}"><i class="bi bi-clock-history"></i> Sales</a></li>
                     {% endif %}
-                    {% if user_access.is_admin or 'chat' in user_access.permissions %}
-                    <li class="nav-item"><a class="nav-link py-1" href="{% url 'chat' %}"><i class="bi bi-chat-dots"></i> Chat</a></li>
-                    {% endif %}
-                    {% if user_access.is_admin or 'calls' in user_access.permissions %}
+                    <li class="nav-item"><a class="nav-link py-1 position-relative" href="{% url 'chat' %}"><i class="bi bi-chat-dots"></i> Chat <span class="badge bg-danger" id="unreadBadgeMobile" style="display:none;">0</span></a></li>
                     <li class="nav-item"><a class="nav-link py-1" href="{% url 'calls' %}"><i class="bi bi-telephone"></i> Calls</a></li>
-                    {% endif %}
                     {% if user_access.is_admin or 'meetings' in user_access.permissions %}
                     <li class="nav-item"><a class="nav-link py-1" href="{% url 'meetings' %}"><i class="bi bi-camera-video"></i> Meetings</a></li>
                     {% endif %}
@@ -272,9 +268,7 @@
                     {% if user_access.is_admin or 'export_csv' in user_access.permissions %}
                     <li class="nav-item"><a class="nav-link py-1" href="{% url 'export_csv' %}"><i class="bi bi-download"></i> Export CSV</a></li>
                     {% endif %}
-                    {% if user_access.is_admin or user_access.permissions %}
                     <li><hr class="text-secondary mx-2 my-1"></li>
-                    {% endif %}
                     {% if user_access.is_admin or 'inventory' in user_access.permissions %}
                     {% for shop in all_shops %}
                     <li class="nav-item"><a class="nav-link py-1" href="{% url 'shop_dashboard' shop.slug %}"><i class="bi bi-shop"></i> {{ shop.name }}</a></li>
@@ -324,16 +318,13 @@
                         <i class="bi bi-clock-history"></i> Sales History
                     </a>
                     {% endif %}
-                    {% if user_access.is_admin or 'chat' in user_access.permissions %}
                     <a href="{% url 'chat' %}" class="{% if request.resolver_match.url_name == 'chat' %}active{% endif %}">
                         <i class="bi bi-chat-dots"></i> Chat
+                        <span class="badge bg-danger ms-auto" id="unreadBadge" style="display:none;">0</span>
                     </a>
-                    {% endif %}
-                    {% if user_access.is_admin or 'calls' in user_access.permissions %}
                     <a href="{% url 'calls' %}" class="{% if request.resolver_match.url_name == 'calls' %}active{% endif %}">
                         <i class="bi bi-telephone"></i> Calls
                     </a>
-                    {% endif %}
                     {% if user_access.is_admin or 'meetings' in user_access.permissions %}
                     <a href="{% url 'meetings' %}" class="{% if request.resolver_match.url_name == 'meetings' %}active{% endif %}">
                         <i class="bi bi-camera-video"></i> Meetings
@@ -344,9 +335,7 @@
                         <i class="bi bi-whatsapp text-success"></i> WhatsApp
                     </a>
                     {% endif %}
-                    {% if user_access.is_admin or user_access.permissions %}
                     <hr class="text-secondary mx-3">
-                    {% endif %}
                     <a href="#shopSubmenu" data-bs-toggle="collapse" role="button" aria-expanded="{% if shop_slug %}true{% else %}false{% endif %}" class="d-flex justify-content-between align-items-center collapsed small text-uppercase px-3" style="font-weight: 700; letter-spacing: 0.5px; color: #ecf0f1;">
                         <span>SHOP INVENTORIES</span>
                         <i class="bi bi-chevron-down small"></i>
@@ -399,6 +388,37 @@
     </div>
 
     <div class="toast-container" id="toastContainer"></div>
+
+    <div class="modal fade" id="incomingCallModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content text-center">
+                <div class="modal-body py-4">
+                    <div class="mb-3">
+                        <i class="bi bi-telephone-ringing text-success" style="font-size:3rem;animation:ringPulse 1s infinite;"></i>
+                    </div>
+                    <h5 id="incomingCallerName" class="fw-bold">Unknown</h5>
+                    <p class="text-muted mb-1" id="incomingCallType">Incoming voice call</p>
+                    <p class="small text-muted">is calling you...</p>
+                    <div class="d-flex justify-content-center gap-3 mt-3">
+                        <a href="#" id="answerCallBtn" class="btn btn-success btn-lg rounded-circle" style="width:60px;height:60px;">
+                            <i class="bi bi-telephone"></i>
+                        </a>
+                        <button id="declineCallBtn" class="btn btn-danger btn-lg rounded-circle" style="width:60px;height:60px;">
+                            <i class="bi bi-telephone-x"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        @keyframes ringPulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.2); opacity: 0.7; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+    </style>
 
     <script>
     function showToast(message, type, duration) {
@@ -732,5 +752,108 @@ document.addEventListener('click', function(e) {
     }
 });
 </script>
+
+<script>
+(function() {
+    var ringingAudioCtx = null;
+    var ringingOsc1 = null;
+    var ringingOsc2 = null;
+    var ringingGain = null;
+    var ringingTimeout = null;
+    var currentCallId = null;
+
+    function startRingingTone() {
+        try {
+            ringingAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            ringingGain = ringingAudioCtx.createGain();
+            ringingGain.gain.value = 0.15;
+            ringingGain.connect(ringingAudioCtx.destination);
+
+            ringingOsc1 = ringingAudioCtx.createOscillator();
+            ringingOsc1.type = 'sine';
+            ringingOsc1.frequency.value = 440;
+            ringingOsc1.connect(ringingGain);
+
+            ringingOsc2 = ringingAudioCtx.createOscillator();
+            ringingOsc2.type = 'sine';
+            ringingOsc2.frequency.value = 480;
+            ringingOsc2.connect(ringingGain);
+
+            ringingOsc1.start();
+            ringingOsc2.start();
+        } catch(e) {
+            // audio not available
+        }
+    }
+
+    function stopRingingTone() {
+        try {
+            if (ringingOsc1) { ringingOsc1.stop(); ringingOsc1 = null; }
+            if (ringingOsc2) { ringingOsc2.stop(); ringingOsc2 = null; }
+            if (ringingAudioCtx) { ringingAudioCtx.close(); ringingAudioCtx = null; }
+        } catch(e) {}
+    }
+
+    function updateBadge(count) {
+        var badge = document.getElementById('unreadBadge');
+        var badgeMobile = document.getElementById('unreadBadgeMobile');
+        if (count > 0) {
+            if (badge) { badge.textContent = count; badge.style.display = 'inline'; }
+            if (badgeMobile) { badgeMobile.textContent = count; badgeMobile.style.display = 'inline'; }
+        } else {
+            if (badge) badge.style.display = 'none';
+            if (badgeMobile) badgeMobile.style.display = 'none';
+        }
+    }
+
+    function checkIncomingCall() {
+        fetch('{% url "check_incoming_call" %}')
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.ringing && data.call_id !== currentCallId) {
+                    currentCallId = data.call_id;
+                    document.getElementById('incomingCallerName').textContent = data.caller;
+                    document.getElementById('incomingCallType').textContent = data.call_type === 'video' ? 'Incoming video call' : 'Incoming voice call';
+                    document.getElementById('answerCallBtn').href = '/calls/' + data.call_id + '/';
+                    var modal = new bootstrap.Modal(document.getElementById('incomingCallModal'));
+                    modal.show();
+                    startRingingTone();
+                } else if (!data.ringing && currentCallId !== null) {
+                    currentCallId = null;
+                    stopRingingTone();
+                    var modalEl = document.getElementById('incomingCallModal');
+                    var modal = bootstrap.Modal.getInstance(modalEl);
+                    if (modal) modal.hide();
+                }
+            })
+            .catch(function() {});
+    }
+
+    function checkUnread() {
+        fetch('{% url "unread_count" %}')
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                updateBadge(data.unread || 0);
+            })
+            .catch(function() {});
+    }
+
+    document.getElementById('declineCallBtn').addEventListener('click', function() {
+        stopRingingTone();
+        currentCallId = null;
+        var modalEl = document.getElementById('incomingCallModal');
+        var modal = bootstrap.Modal.getInstance(modalEl);
+        if (modal) modal.hide();
+    });
+
+    if ({{ request.user.is_authenticated|lower }}) {
+        checkUnread();
+        checkIncomingCall();
+        setInterval(checkUnread, 10000);
+        setInterval(checkIncomingCall, 5000);
+    }
+})();
+</script>
+
 </body>
 </html>

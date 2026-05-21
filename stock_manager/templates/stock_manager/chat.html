@@ -27,6 +27,11 @@
   box-shadow: 0 1px 2px rgba(0,0,0,0.1);
 }
 #chat-messages { background: #e8e8e8; }
+.typing-dots span { animation: dotPulse 1.4s infinite; opacity: 0; }
+.typing-dots span:nth-child(1) { animation-delay: 0s; }
+.typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+.typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes dotPulse { 0%, 60%, 100% { opacity: 0; } 30% { opacity: 1; } }
 </style>
 
 <div class="row" style="height: calc(100vh - 200px);">
@@ -70,7 +75,7 @@
     </div>
   </div>
 
-  <div class="col-md-8 d-flex flex-column p-0">
+    <div class="col-md-8 d-flex flex-column p-0">
     {% if selected_user and selected_contact %}
     <div class="p-3 border-bottom bg-white d-flex align-items-center">
       <div class="position-relative me-2">
@@ -83,7 +88,7 @@
       </div>
       <div>
         <h6 class="mb-0">{{ selected_contact.username }}</h6>
-        <small class="text-muted">{% if selected_contact.is_online %}Online{% else %}Offline{% endif %}</small>
+        <small class="text-muted" id="statusText">{% if selected_contact.is_online %}Online{% else %}Offline{% endif %}</small>
       </div>
     </div>
 
@@ -110,6 +115,9 @@
       {% endfor %}
     </div>
 
+    <div id="typingIndicator" class="px-3 py-1 bg-white border-top" style="font-size:0.8rem;color:#666;display:none;min-height:28px;">
+      <span><i class="bi bi-pencil"></i> <span id="typingName">{{ selected_contact.username }}</span> is typing<span class="typing-dots"><span>.</span><span>.</span><span>.</span></span></span>
+    </div>
     <div class="p-3 border-top bg-white">
       <form id="message-form" class="d-flex gap-2">
         <input type="text" id="message-input" class="form-control" placeholder="Type a message..." autocomplete="off">
@@ -162,13 +170,47 @@
   const chatMessages = document.getElementById('chat-messages');
   const messageForm = document.getElementById('message-form');
   const messageInput = document.getElementById('message-input');
+  const typingIndicator = document.getElementById('typingIndicator');
+  const statusText = document.getElementById('statusText');
   let lastMessageCount = 0;
   let isNearBottom = true;
+  let typingTimer = null;
+  let typingHeartbeat = null;
 
   chatMessages.scrollTop = chatMessages.scrollHeight;
 
   chatMessages.addEventListener('scroll', function() {
     isNearBottom = this.scrollHeight - this.scrollTop - this.clientHeight < 80;
+  });
+
+  function sendTyping(receiverId) {
+    fetch('{% url "send_typing" %}', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
+      body: JSON.stringify({ receiver_id: receiverId }),
+    }).catch(function() {});
+  }
+
+  function clearTyping() {
+    fetch('{% url "send_typing" %}', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
+      body: JSON.stringify({ receiver_id: null }),
+    }).catch(function() {});
+  }
+
+  messageInput.addEventListener('input', function() {
+    if (!this.value.trim()) return;
+    if (!typingHeartbeat) {
+      sendTyping(userId);
+      typingHeartbeat = setInterval(function() { sendTyping(userId); }, 3000);
+    }
+    clearTimeout(typingTimer);
+    typingTimer = setTimeout(function() {
+      clearInterval(typingHeartbeat);
+      typingHeartbeat = null;
+      clearTyping();
+    }, 4000);
   });
 
   messageInput.addEventListener('keydown', function(e) {
@@ -182,6 +224,11 @@
     e.preventDefault();
     const body = messageInput.value.trim();
     if (!body) return;
+
+    clearInterval(typingHeartbeat);
+    typingHeartbeat = null;
+    clearTimeout(typingTimer);
+    clearTyping();
 
     fetch('{% url "send_message" %}', {
       method: 'POST',
@@ -229,6 +276,18 @@
     fetch('{% url "get_messages" selected_user.id %}')
       .then(r => r.json())
       .then(data => {
+        if (data.typing && !typingHeartbeat) {
+          typingIndicator.style.display = 'block';
+          if (statusText) statusText.textContent = 'typing...';
+        } else {
+          typingIndicator.style.display = 'none';
+          if (statusText && data.messages.length > 0) {
+            var last = data.messages[data.messages.length - 1];
+            if (last.sender !== {{ request.user.id }}) {
+              statusText.textContent = 'Online';
+            }
+          }
+        }
         if (data.messages.length === lastMessageCount && lastMessageCount > 0) return;
         lastMessageCount = data.messages.length;
         const container = document.getElementById('chat-messages');

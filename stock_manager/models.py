@@ -170,6 +170,7 @@ class UserPresence(models.Model):
     last_seen = models.DateTimeField(auto_now=True)
     is_online = models.BooleanField(default=False)
     current_shop = models.ForeignKey(Shop, on_delete=models.SET_NULL, null=True, blank=True)
+    typing_to = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='typing_by')
 
     class Meta:
         ordering = ['-last_seen']

@@ -211,7 +211,27 @@ def get_messages(request, user_id):
             'is_read': msg.is_read,
         })
 
-    return JsonResponse({'messages': msg_list})
+    typing = UserPresence.objects.filter(
+        user=other_user, typing_to=request.user, is_online=True
+    ).exists()
+
+    return JsonResponse({'messages': msg_list, 'typing': typing})
+
+
+@shop_access_required
+def send_typing(request):
+    if request.method == 'POST':
+        data = json.loads(request.body)
+        receiver_id = data.get('receiver_id')
+
+        presence, _ = UserPresence.objects.get_or_create(user=request.user)
+        presence.typing_to = get_object_or_404(User, id=receiver_id) if receiver_id else None
+        presence.is_online = True
+        presence.save()
+
+        return JsonResponse({'status': 'ok'})
+
+    return JsonResponse({'status': 'error'}, status=400)
 
 
 @shop_access_required
@@ -422,3 +442,16 @@ def meeting_signal(request, meeting_code):
     data = getattr(meeting, 'signaling_data', {}) or {}
     filtered = {k: v for k, v in data.items() if v.get('from_user') != request.user.id}
     return JsonResponse({'signals': filtered})
+
+
+@login_required
+def check_incoming_call(request):
+    ringing = Call.objects.filter(callee=request.user, status='ringing').select_related('caller').first()
+    if ringing:
+        return JsonResponse({
+            'ringing': True,
+            'call_id': ringing.id,
+            'caller': ringing.caller.get_full_name() or ringing.caller.username,
+            'call_type': ringing.call_type,
+        })
+    return JsonResponse({'ringing': False})
