@@ -262,8 +262,8 @@
                     {% else %}
                     {% if user_access.assigned_shop %}
                     <li class="nav-item"><a class="nav-link py-1" href="{% url 'shop_dashboard' user_access.assigned_shop.name|slugify %}"><i class="bi bi-shop"></i> {{ user_access.assigned_shop.name }}</a></li>
-                    <li class="nav-item"><a class="nav-link py-1" href="{% url 'admin_manage' %}"><i class="bi bi-tools"></i> Manage</a></li>
                     {% endif %}
+                    <li class="nav-item"><a class="nav-link py-1" href="{% url 'admin_manage' %}"><i class="bi bi-tools"></i> Manage</a></li>
                     <li class="nav-item"><a class="nav-link py-1" href="{% url 'logout' %}"><i class="bi bi-box-arrow-left"></i> Logout</a></li>
                     {% endif %}
                     {% else %}
@@ -327,12 +327,10 @@
                     <a href="{% url 'shop_dashboard' user_access.assigned_shop.name|slugify %}" class="{% if shop_slug == user_access.assigned_shop.name|slugify %}active{% endif %}">
                         <i class="bi bi-shop"></i> {{ user_access.assigned_shop.name }}
                     </a>
+                    {% endif %}
                     <a href="{% url 'admin_manage' %}" class="{% if request.resolver_match.url_name == 'admin_manage' %}active{% endif %}">
                         <i class="bi bi-tools"></i> Manage Inventory
                     </a>
-                    {% else %}
-                    <small class="text-muted px-3">No shop assigned</small>
-                    {% endif %}
                     {% endif %}
                     </div>
                     {% if user_access.is_admin %}

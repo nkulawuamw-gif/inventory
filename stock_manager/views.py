@@ -200,9 +200,11 @@ def dashboard(request):
     profile = get_user_profile(request.user)
     user_is_admin = profile is None or profile.is_admin
 
-    if not user_is_admin and profile and profile.assigned_shop:
-        shop_slug = profile.assigned_shop.name.replace(' ', '-').lower()
-        return redirect('shop_dashboard', shop_slug=shop_slug)
+    if not user_is_admin:
+        if profile and profile.assigned_shop:
+            shop_slug = profile.assigned_shop.name.replace(' ', '-').lower()
+            return redirect('shop_dashboard', shop_slug=shop_slug)
+        return redirect('admin_manage')
 
     all_shops = Shop.objects.all()
     active_period = get_active_period()
@@ -1221,11 +1223,10 @@ def settings_view(request):
                     password=password,
                 )
                 assigned_shop = Shop.objects.filter(id=shop_id).first() if shop_id else None
-                UserProfile.objects.create(
-                    user=user,
-                    role=role,
-                    assigned_shop=assigned_shop,
-                )
+                profile, created = UserProfile.objects.get_or_create(user=user)
+                profile.role = role
+                profile.assigned_shop = assigned_shop
+                profile.save()
                 messages.success(request, f'User "{username}" created.')
 
         elif action == 'reset_password':
