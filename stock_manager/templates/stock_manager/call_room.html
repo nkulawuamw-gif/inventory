@@ -53,10 +53,12 @@
 
 <script>
 const callId = {{ call.id }};
+const isCaller = {{ call.caller.id }} === {{ request.user.id }};
 let localStream = null;
 let peerConnection = null;
 let isMuted = false;
 let isCameraOff = false;
+let processedSignals = new Set();
 
 const config = {
     iceServers: [
@@ -65,7 +67,11 @@ const config = {
     ]
 };
 
-async function startCall() {
+function getCSRFToken() {
+    return document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
+}
+
+async function startCaller() {
     try {
         localStream = await navigator.mediaDevices.getUserMedia({
             audio: true,
@@ -79,7 +85,7 @@ async function startCall() {
         peerConnection = new RTCPeerConnection(config);
 
         localStream.getTracks().forEach(track => {
-            peerConnection.addTrack(track);
+            peerConnection.addTrack(track, localStream);
         });
 
         peerConnection.ontrack = (event) => {
@@ -91,22 +97,76 @@ async function startCall() {
 
         peerConnection.onicecandidate = (event) => {
             if (event.candidate) {
-                signalPeer('ice-candidate', {
-                    candidate: event.candidate.toJSON(),
-                });
+                const key = 'ice-candidate-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+                signalPeer(key, { candidate: event.candidate.toJSON() });
+            }
+        };
+
+        peerConnection.onconnectionstatechange = () => {
+            if (peerConnection.connectionState === 'disconnected' || peerConnection.connectionState === 'failed') {
+                document.getElementById('call-status').innerHTML = '<span class="badge bg-danger fs-6">Disconnected</span>';
             }
         };
 
         const offer = await peerConnection.createOffer();
         await peerConnection.setLocalDescription(offer);
-
-        signalPeer('offer', { sdp: offer });
+        signalPeer('offer', { sdp: { type: offer.type, sdp: offer.sdp } });
 
         document.getElementById('call-status').innerHTML = '<span class="badge bg-warning fs-6">Ringing...</span>';
 
     } catch (err) {
         console.error('Error starting call:', err);
         document.getElementById('call-status').innerHTML = '<span class="badge bg-danger fs-6">Failed to start call</span>';
+    }
+}
+
+async function startCallee(offerData) {
+    try {
+        localStream = await navigator.mediaDevices.getUserMedia({
+            audio: true,
+            video: {% if call.call_type == 'video' %}true{% else %}false{% endif %}
+        });
+
+        if ({% if call.call_type == 'video' %}true{% else %}false{% endif %}) {
+            document.getElementById('local-video').srcObject = localStream;
+        }
+
+        peerConnection = new RTCPeerConnection(config);
+
+        localStream.getTracks().forEach(track => {
+            peerConnection.addTrack(track, localStream);
+        });
+
+        peerConnection.ontrack = (event) => {
+            const remoteVideo = document.getElementById('remote-video');
+            if (remoteVideo) {
+                remoteVideo.srcObject = event.streams[0];
+            }
+        };
+
+        peerConnection.onicecandidate = (event) => {
+            if (event.candidate) {
+                const key = 'ice-candidate-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+                signalPeer(key, { candidate: event.candidate.toJSON() });
+            }
+        };
+
+        peerConnection.onconnectionstatechange = () => {
+            if (peerConnection.connectionState === 'disconnected' || peerConnection.connectionState === 'failed') {
+                document.getElementById('call-status').innerHTML = '<span class="badge bg-danger fs-6">Disconnected</span>';
+            }
+        };
+
+        await peerConnection.setRemoteDescription(new RTCSessionDescription(offerData.sdp));
+        const answer = await peerConnection.createAnswer();
+        await peerConnection.setLocalDescription(answer);
+        signalPeer('answer', { sdp: { type: answer.type, sdp: answer.sdp } });
+
+        document.getElementById('call-status').innerHTML = '<span class="badge bg-success fs-6">Connected</span>';
+
+    } catch (err) {
+        console.error('Error answering call:', err);
+        document.getElementById('call-status').innerHTML = '<span class="badge bg-danger fs-6">Failed to answer call</span>';
     }
 }
 
@@ -124,46 +184,49 @@ function signalPeer(type, data) {
 async function handleRemoteSignal() {
     const response = await fetch(`/calls/${callId}/signal/`);
     const data = await response.json();
-
     const signaling = data.signaling;
 
-    if (signaling.offer && !peerConnection) {
-        await startCall();
-        if (signaling.offer.sdp) {
-            await peerConnection.setRemoteDescription(new RTCSessionDescription(signaling.offer.sdp));
-            const answer = await peerConnection.createAnswer();
-            await peerConnection.setLocalDescription(answer);
-            signalPeer('answer', { sdp: answer });
-        }
-    }
+    for (const key of Object.keys(signaling)) {
+        if (processedSignals.has(key)) continue;
+        processedSignals.add(key);
 
-    if (signaling.answer && peerConnection.localDescription) {
-        if (signaling.answer.sdp) {
-            await peerConnection.setRemoteDescription(new RTCSessionDescription(signaling.answer.sdp));
-            document.getElementById('call-status').innerHTML = '<span class="badge bg-success fs-6">Connected</span>';
-        }
-    }
+        const value = signaling[key];
 
-    if (signaling['ice-candidate'] && peerConnection) {
-        const candidateKey = Object.keys(signaling).find(k => k.startsWith('ice-candidate'));
-        if (candidateKey) {
-            const candidate = signaling[candidateKey];
-            if (candidate && candidate.candidate) {
+        if (key === 'offer' && !isCaller && !peerConnection) {
+            await startCallee(value);
+            continue;
+        }
+
+        if (key === 'answer' && isCaller && peerConnection && peerConnection.localDescription && peerConnection.localDescription.type === 'offer') {
+            if (value.sdp) {
                 try {
-                    await peerConnection.addIceCandidate(new RTCIceCandidate(candidate.candidate));
+                    await peerConnection.setRemoteDescription(new RTCSessionDescription(value.sdp));
+                    document.getElementById('call-status').innerHTML = '<span class="badge bg-success fs-6">Connected</span>';
                 } catch (e) {
-                    console.log('ICE candidate error:', e);
+                    console.error('Error setting remote description:', e);
                 }
             }
+            continue;
+        }
+
+        if (key.startsWith('ice-candidate-') && peerConnection && value && value.candidate) {
+            try {
+                await peerConnection.addIceCandidate(new RTCIceCandidate(value.candidate));
+            } catch (e) {
+                console.log('ICE candidate error:', e);
+            }
+            continue;
         }
     }
 }
 
 function toggleMute() {
     isMuted = !isMuted;
-    localStream.getAudioTracks().forEach(track => {
-        track.enabled = !isMuted;
-    });
+    if (localStream) {
+        localStream.getAudioTracks().forEach(track => {
+            track.enabled = !isMuted;
+        });
+    }
     const btn = document.getElementById('mute-btn');
     btn.innerHTML = isMuted ? '<i class="bi bi-mic-mute"></i> Unmute' : '<i class="bi bi-mic"></i> Mute';
     btn.classList.toggle('btn-danger', isMuted);
@@ -171,9 +234,11 @@ function toggleMute() {
 
 function toggleCamera() {
     isCameraOff = !isCameraOff;
-    localStream.getVideoTracks().forEach(track => {
-        track.enabled = !isCameraOff;
-    });
+    if (localStream) {
+        localStream.getVideoTracks().forEach(track => {
+            track.enabled = !isCameraOff;
+        });
+    }
     const btn = document.getElementById('camera-btn');
     btn.innerHTML = isCameraOff ? '<i class="bi bi-camera-video-off"></i> Camera On' : '<i class="bi bi-camera-video"></i> Camera';
     btn.classList.toggle('btn-danger', isCameraOff);
@@ -190,7 +255,9 @@ function endCall() {
     window.location.href = '/calls/';
 }
 
-startCall();
+if (isCaller) {
+    startCaller();
+}
 setInterval(handleRemoteSignal, 1000);
 </script>
 {% endblock %}

@@ -305,6 +305,9 @@ def end_call(request, call_id):
 def call_signal(request, call_id):
     call = get_object_or_404(Call, id=call_id)
 
+    if call.caller != request.user and call.callee != request.user:
+        return JsonResponse({'error': 'Not a participant'}, status=403)
+
     if request.method == 'POST':
         data = json.loads(request.body)
         signal_data = call.signaling_data
