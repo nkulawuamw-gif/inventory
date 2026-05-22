@@ -162,7 +162,7 @@
             <a href="#" class="btn-print" id="printReceiptBtn" data-print-url="{% url 'print_receipt' 0 %}"><i class="bi bi-printer"></i> Print</a>
             <a href="#" class="btn-share" id="shareReceiptBtn"><i class="bi bi-share"></i> Share</a>
             <button class="btn-new" onclick="newSale()"><i class="bi bi-plus-lg"></i> New Sale</button>
-            <a href="{% url 'sales_history' %}" class="btn-save"><i class="bi bi-check-lg"></i> Save</a>
+            <button class="btn-save" onclick="dismissReceipt()"><i class="bi bi-check-lg"></i> Save</button>
         </div>
     </div>
 </div>
@@ -339,6 +339,10 @@ function newSale() {
     document.getElementById('amountReceived').value = 0;
     document.getElementById('customerName').value = '';
     renderCart();
+}
+
+function dismissReceipt() {
+    document.getElementById('receiptOverlay').classList.remove('active');
 }
 
 function onSearchInput(val) {
