@@ -81,15 +81,24 @@
         hideModal();
     }
 
-    window.endCall = function () {
+    function stopCallUI() {
         console.log("Call ended");
-        if (window.currentCallSocket) {
-            window.currentCallSocket.close();
-            window.currentCallSocket = null;
+        if (window.callSocket) {
+            window.callSocket.close();
+            window.callSocket = null;
         }
         var el = document.getElementById('callModal');
         if (el) el.style.display = 'none';
         hideModal();
+    }
+
+    window.endCall = function () {
+        if (window.callSocket && window.callSocket.readyState === 1) {
+            window.callSocket.send(JSON.stringify({
+                type: "end_call"
+            }));
+        }
+        stopCallUI();
     };
 
     function wsConnect() {
@@ -97,6 +106,7 @@
         try {
             ws = new WebSocket("wss://" + window.location.host + "/ws/calls/");
         } catch (e) { schedule(); return; }
+        window.callSocket = ws;
         window.currentCallSocket = ws;
         ws.onopen = function () { if (reconnect) { clearTimeout(reconnect); reconnect = null; } };
         ws.onmessage = function (e) {
