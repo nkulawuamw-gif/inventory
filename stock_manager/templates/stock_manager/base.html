@@ -281,7 +281,6 @@
                     <li class="nav-item"><a class="nav-link py-1" href="{% url 'financial_report' %}"><i class="bi bi-graph-up-arrow"></i> Financial Report</a></li>
                     {% endif %}
                     <li class="nav-item"><a class="nav-link py-1" href="{% url 'sales_history' %}"><i class="bi bi-receipt"></i> Receipts</a></li>
-                    <li class="nav-item"><a class="nav-link py-1 position-relative" href="{% url 'chat' %}"><i class="bi bi-chat-dots"></i> Chat <span class="badge bg-danger" id="unreadBadgeMobile" style="display:none;">0</span></a></li>
                     <li class="nav-item"><a class="nav-link py-1" href="{% url 'calls' %}"><i class="bi bi-telephone"></i> Calls</a></li>
                     {% if user_access.is_admin or 'meetings' in user_access.permissions %}
                     <li class="nav-item"><a class="nav-link py-1" href="{% url 'meetings' %}"><i class="bi bi-camera-video"></i> Meetings</a></li>
@@ -342,10 +341,6 @@
                     {% endif %}
                     <a href="{% url 'sales_history' %}" class="{% if request.resolver_match.url_name == 'sales_history' %}active{% endif %}">
                         <i class="bi bi-receipt"></i> Receipts
-                    </a>
-                    <a href="{% url 'chat' %}" class="{% if request.resolver_match.url_name == 'chat' %}active{% endif %}">
-                        <i class="bi bi-chat-dots"></i> Chat
-                        <span class="badge bg-danger ms-auto" id="unreadBadge" style="display:none;">0</span>
                     </a>
                     <a href="{% url 'calls' %}" class="{% if request.resolver_match.url_name == 'calls' %}active{% endif %}">
                         <i class="bi bi-telephone"></i> Calls
@@ -866,7 +861,6 @@ document.addEventListener('click', function(e) {
 </script>
 
 <script src="{% static 'js/global-calls.js' %}"></script>
-<script src="{% static 'js/global-chat.js' %}"></script>
 
 </body>
 </html>
