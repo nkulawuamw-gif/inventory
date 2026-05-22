@@ -561,8 +561,14 @@
         }
     });
 
+    function sendHeartbeat() {
+        navigator.sendBeacon('{% url "heartbeat" %}');
+    }
+
     fetchOnlineUsers();
     setInterval(fetchOnlineUsers, 15000);
+    sendHeartbeat();
+    setInterval(sendHeartbeat, 30000);
 
     window.addEventListener('beforeunload', function() {
         navigator.sendBeacon('{% url "mark_offline" %}');
