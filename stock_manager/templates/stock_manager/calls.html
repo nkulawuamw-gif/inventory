@@ -1,6 +1,7 @@
 {% extends 'stock_manager/base.html' %}
 
 {% block content %}
+<style>@media(max-width:575px){.call-user-btn{padding:4px 8px!important;font-size:0.7rem!important;min-height:36px;}}</style>
 <h2 class="mb-4">{{ page_title }}</h2>
 
 {% if incoming_ringing %}
@@ -98,11 +99,11 @@ function loadUsers() {
                             <strong>${user.username}</strong>
                             <small class="text-muted ms-2">${user.shop}</small>
                         </div>
-                        <div>
-                            <button class="btn btn-sm btn-outline-primary me-1" onclick="startCallByUsername('${user.username}', 'voice')">
+                        <div class="d-flex gap-1">
+                            <button class="btn btn-sm btn-outline-primary call-user-btn" onclick="startCallByUsername('${user.username}', 'voice')">
                                 <i class="bi bi-telephone"></i> Voice
                             </button>
-                            <button class="btn btn-sm btn-outline-success" onclick="startCallByUsername('${user.username}', 'video')">
+                            <button class="btn btn-sm btn-outline-success call-user-btn" onclick="startCallByUsername('${user.username}', 'video')">
                                 <i class="bi bi-camera-video"></i> Video
                             </button>
                         </div>

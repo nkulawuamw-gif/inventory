@@ -12,7 +12,7 @@
     <button type="button" class="btn btn-outline-primary rounded-pill px-3" id="tabLanding" onclick="showSection('landing')"><i class="bi bi-house-door"></i> Landing Page</button>
 </div>
 
-<div id="settingsPage">
+<div id="settingsPage" class="settings-pb">
 
 <div class="settings-section" id="section-company">
 <div class="row">
@@ -874,12 +874,16 @@ function showLandingSection(name) {
 @media (max-width: 768px) {
     .settings-save-bar { margin-left: 0; padding: 8px 12px; }
     .settings-save-bar .btn-lg { font-size: 0.9rem; padding: 10px 24px; }
+    .settings-save-bar .d-flex { flex-direction: column; gap: 6px; }
+    .settings-save-bar .d-flex small { text-align: center; }
     .settings-container { padding: 10px; }
     .settings-form { width: 100%; }
     .settings-tabs { flex-direction: column; }
     .settings-tabs button { width: 100%; }
-    .d-flex.gap-2.mb-4.flex-wrap button { font-size: 0.75rem; padding: 6px 12px; white-space: nowrap; }
+    .d-flex.gap-2.mb-4.flex-wrap { flex-direction: column; gap: 4px !important; }
+    .d-flex.gap-2.mb-4.flex-wrap button { font-size: 0.75rem; padding: 6px 12px; white-space: nowrap; width: 100%; }
     #settingsPage .row .col-6 { width: 100%; }
+    #settingsPage { padding-bottom: 100px !important; }
     #settingsPage .card-body { padding: 0.8rem; }
     #settingsPage h2 { font-size: 1.1rem; }
 }

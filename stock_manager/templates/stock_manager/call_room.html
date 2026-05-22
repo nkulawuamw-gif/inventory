@@ -1,6 +1,7 @@
 {% extends 'stock_manager/base.html' %}
 
 {% block content %}
+<style>@media(max-width:575px){#local-video{width:100px !important;height:auto!important;}#callControls .btn-lg{font-size:0.85rem;padding:8px 12px;min-width:44px;min-height:44px;}.card-body.p-4{padding:12px!important;}}</style>
 <div class="container-fluid">
     <div class="row justify-content-center">
         <div class="col-md-8">
@@ -20,7 +21,7 @@
                         </div>
                     </div>
                     <div class="position-absolute" style="bottom: 100px; right: 20px;">
-                        <video id="local-video" autoplay playsinline muted class="rounded" style="width: 200px; background: #111;"></video>
+                        <video id="local-video" autoplay playsinline muted class="rounded" style="width:200px;max-width:30vw;background:#111;"></video>
                     </div>
                     {% else %}
                     <div class="mb-4">
@@ -33,7 +34,7 @@
                         <span class="badge bg-warning fs-6">Ringing...</span>
                     </div>
 
-                    <div class="d-flex justify-content-center gap-3">
+                    <div id="callControls" class="d-flex justify-content-center gap-3">
                         <button id="mute-btn" class="btn btn-outline-light btn-lg" onclick="toggleMute()">
                             <i class="bi bi-mic"></i> Mute
                         </button>

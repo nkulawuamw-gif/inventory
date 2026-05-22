@@ -9,6 +9,7 @@
   .d-flex.justify-content-between.align-items-center.mb-3, .d-flex.justify-content-between.align-items-center.mb-4 { flex-direction: column; align-items: flex-start !important; gap: 8px; }
   .d-flex.justify-content-between.align-items-center.mb-3 h5, .d-flex.justify-content-between.align-items-center.mb-4 h2 { width: 100%; }
   .d-flex.justify-content-between.align-items-center.mb-3 h5 .badge, .d-flex.justify-content-between.align-items-center.mb-4 h2 .badge { font-size: 0.6rem; }
+  .wh-actions .btn { font-size: 0.65rem !important; padding: 3px 5px !important; flex:1 1 auto; min-width:0; }
 }
 </style>
 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
@@ -230,7 +231,7 @@
 @keyframes popIn { 0% { transform: scale(0.7); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
 .pos-shop-items { display: flex; gap: 16px; }
 .pos-shop-grid { flex: 1; }
-.pos-shop-cart { width: 440px; flex-shrink: 0; background: white; border-radius: 16px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); display: flex; flex-direction: column; }
+.pos-shop-cart { width: 380px; max-width:100%; flex-shrink: 0; background: white; border-radius: 16px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); display: flex; flex-direction: column; }
 @media (max-width: 1100px) {
   .dashboard-wrapper { flex-direction: column; }
   .pos-shop-items { flex-direction: column; }
@@ -507,21 +508,15 @@ function shopNewSale() {
         {% if active_period %}<span class="badge bg-info ms-2">{{ active_period.name }}</span>{% endif %}
         <span class="badge bg-light text-dark ms-2">{{ total_items }} items / MWK {{ total_value|floatformat:0 }}</span>
         </h5>
-        <div class="d-flex gap-2">
+        <div class="d-flex gap-2 wh-actions">
             <button class="btn btn-sm btn-outline-primary" id="whInvViewAll" onclick="toggleWHInv()">View All</button>
-            <button type="button" class="btn btn-sm btn-warning d-none" id="whBulkTransferBtn" data-bs-toggle="modal" data-bs-target="#whBulkTransferModal"><i class="bi bi-truck"></i> Transfer Selected (<span id="whTransferCount">0</span>)</button>
-            <button type="button" class="btn btn-sm btn-danger d-none" id="whBulkDeleteBtn" data-bs-toggle="modal" data-bs-target="#whBulkDeleteModal"><i class="bi bi-trash"></i> Delete Selected (<span id="whSelectedCount">0</span>)</button>
-            <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addWarehouseItemModal">
-                <i class="bi bi-plus-circle"></i> Add Items
-            </button>
-            <button type="button" class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#bulkTransferModal">
-                <i class="bi bi-truck"></i> CSV Transfer
-            </button>
-            <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#bulkImportModal">
-                <i class="bi bi-file-earmark-arrow-up"></i> Bulk Import
-            </button>
-            <a href="{% url 'export_csv' %}" class="btn btn-sm btn-outline-success"><i class="bi bi-download"></i> Export CSV</a>
-            <a href="{% url 'download_template' %}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-file-earmark"></i> Download Template</a>
+            <button type="button" class="btn btn-sm btn-warning d-none" id="whBulkTransferBtn" data-bs-toggle="modal" data-bs-target="#whBulkTransferModal"><i class="bi bi-truck"></i> Transfer (<span id="whTransferCount">0</span>)</button>
+            <button type="button" class="btn btn-sm btn-danger d-none" id="whBulkDeleteBtn" data-bs-toggle="modal" data-bs-target="#whBulkDeleteModal"><i class="bi bi-trash"></i> Delete (<span id="whSelectedCount">0</span>)</button>
+            <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addWarehouseItemModal"><i class="bi bi-plus-circle"></i> Add</button>
+            <button type="button" class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#bulkTransferModal"><i class="bi bi-truck"></i> CSV Transfer</button>
+            <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#bulkImportModal"><i class="bi bi-file-earmark-arrow-up"></i> Bulk Import</button>
+            <a href="{% url 'export_csv' %}" class="btn btn-sm btn-outline-success"><i class="bi bi-download"></i> Export</a>
+            <a href="{% url 'download_template' %}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-file-earmark"></i> Template</a>
         </div>
     </div>
     <div class="table-responsive">
