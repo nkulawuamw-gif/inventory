@@ -145,19 +145,19 @@ class CallConsumer(AsyncWebsocketConsumer):
 
     async def connect(self):
         print("WebSocket CONNECTED - CallConsumer")
-        self.user = self.scope["user"]
-        if self.user.is_anonymous:
-            await self.close()
-            return
-
-        self.group_name = f"user_{self.user.id}"
-        await self.channel_layer.group_add(self.group_name, self.channel_name)
+        self.room_group_name = "calls"
+        await self.channel_layer.group_add(
+            self.room_group_name,
+            self.channel_name
+        )
         await self.accept()
 
     async def disconnect(self, close_code):
         print(f"WebSocket DISCONNECTED - CallConsumer code={close_code}")
-        if hasattr(self, "group_name"):
-            await self.channel_layer.group_discard(self.group_name, self.channel_name)
+        await self.channel_layer.group_discard(
+            self.room_group_name,
+            self.channel_name
+        )
 
     async def receive(self, text_data):
         print(f"WebSocket RECEIVE - CallConsumer: {text_data}")
@@ -166,53 +166,28 @@ class CallConsumer(AsyncWebsocketConsumer):
         except json.JSONDecodeError as e:
             print(f"CallConsumer JSON decode error: {e}")
             return
-        action = data.get("action")
 
-        if action == "call_user":
-            receiver_id = data["receiver_id"]
-            call_type = data["call_type"]
+        call_type = data.get("type")
 
-            call = await self.create_call(receiver_id, call_type)
-
+        if call_type == "end_call":
             await self.channel_layer.group_send(
-                f"user_{receiver_id}",
+                self.room_group_name,
                 {
-                    "type": "incoming_call",
-                    "caller": self.user.username,
-                    "caller_id": self.user.id,
-                    "room_name": call.room_name,
-                    "call_type": call_type,
+                    "type": "call_event",
+                    "event": "end_call",
+                }
+            )
+        else:
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    "type": "call_event",
+                    "data": data
                 }
             )
 
-        if action == "accept_call":
-            room_name = data["room_name"]
-            caller_id = data["caller_id"]
-            await self.channel_layer.group_send(
-                f"user_{caller_id}",
-                {"type": "call_accepted", "room_name": room_name}
-            )
-
-    async def incoming_call(self, event):
+    async def call_event(self, event):
         await self.send(text_data=json.dumps(event))
-
-    async def call_accepted(self, event):
-        await self.send(text_data=json.dumps(event))
-
-    async def call_ended(self, event):
-        await self.send(text_data=json.dumps({
-            'type': 'call_ended',
-            'call_id': event.get('call_id'),
-            'user_id': event.get('user_id'),
-        }))
-
-    @database_sync_to_async
-    def create_call(self, receiver_id, call_type):
-        return Call.objects.create(
-            caller=self.user,
-            receiver_id=receiver_id,
-            call_type=call_type,
-        )
 
 
 # ---------------- CALL SIGNALING (WebRTC relay) ----------------

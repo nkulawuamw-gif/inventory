@@ -193,16 +193,15 @@ def end_call(request, call_id):
         try:
             channel_layer = get_channel_layer()
 
-            # Notify both participants in real-time
-            for uid in (caller_id, other_id):
-                async_to_sync(channel_layer.group_send)(
-                    f'user_{uid}',
-                    {
-                        'type': 'call_ended',
-                        'call_id': call.id,
-                        'user_id': uid,
-                    }
-                )
+            # Notify the shared calls group (CallConsumer)
+            async_to_sync(channel_layer.group_send)(
+                'calls',
+                {
+                    'type': 'call_event',
+                    'event': 'end_call',
+                    'call_id': call.id,
+                }
+            )
 
             # Notify the call-signaling group so the other peer in the room gets the end signal
             async_to_sync(channel_layer.group_send)(
