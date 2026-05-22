@@ -206,7 +206,7 @@ class Call(models.Model):
     def save(self, *args, **kwargs):
         if not self.room_name:
             import uuid
-            self.room_name = f"call_{uuid.uuid4().hex[:10]}"
+            self.room_name = f"call_{uuid.uuid4().hex[:12]}"
         super().save(*args, **kwargs)
 
 
