@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"></head>
+<body style="font-family:Arial,sans-serif;padding:20px;max-width:600px;margin:0 auto;">
+<div style="border:1px solid #ddd;border-radius:12px;overflow:hidden;">
+  <div style="background:#2c3e50;color:white;padding:20px;text-align:center;">
+    <h2 style="margin:0;">{{ company.company_name|default:"STOCK MANAGER" }}</h2>
+    <small>{{ company.address|default:"Inventory Management System" }}</small>
+  </div>
+  <div style="padding:20px;">
+    <p><strong>Receipt #:</strong> {{ receipt.receipt_number }}</p>
+    <p><strong>Date:</strong> {{ receipt.created_at|date:"d/m/Y H:i" }}</p>
+    <p><strong>Shop:</strong> {{ receipt.shop.name }}</p>
+    {% if receipt.customer_name %}<p><strong>Customer:</strong> {{ receipt.customer_name }}</p>{% endif %}
+    <table style="width:100%;border-collapse:collapse;margin:16px 0;">
+      <thead><tr style="background:#f8f9fa;">
+        <th style="padding:8px;text-align:left;border-bottom:2px solid #333;">Item</th>
+        <th style="padding:8px;text-align:center;border-bottom:2px solid #333;">Qty</th>
+        <th style="padding:8px;text-align:right;border-bottom:2px solid #333;">Price</th>
+        <th style="padding:8px;text-align:right;border-bottom:2px solid #333;">Total</th>
+      </tr></thead>
+      <tbody>
+        {% for li in receipt.items.all %}
+        <tr><td style="padding:6px 8px;border-bottom:1px solid #eee;">{{ li.item_name }}</td>
+          <td style="padding:6px 8px;text-align:center;border-bottom:1px solid #eee;">{{ li.quantity }}</td>
+          <td style="padding:6px 8px;text-align:right;border-bottom:1px solid #eee;">MWK {{ li.unit_price|floatformat:2 }}</td>
+          <td style="padding:6px 8px;text-align:right;border-bottom:1px solid #eee;">MWK {{ li.total|floatformat:2 }}</td>
+        </tr>{% endfor %}
+      </tbody>
+    </table>
+    <div style="border-top:2px solid #333;padding-top:8px;">
+      <p style="display:flex;justify-content:space-between;font-weight:bold;"><span>Total</span><span>MWK {{ receipt.total|floatformat:2 }}</span></p>
+      <p style="display:flex;justify-content:space-between;"><span>Amount Received</span><span>MWK {{ receipt.amount_received|floatformat:2 }}</span></p>
+      <p style="display:flex;justify-content:space-between;color:#27ae60;"><span>Change</span><span>MWK {{ receipt.change|floatformat:2 }}</span></p>
+    </div>
+    <p style="text-align:center;color:#888;font-style:italic;margin-top:20px;">{{ company.receipt_footer|default:"Thank you for your business!" }}</p>
+  </div>
+</div>
+<p style="text-align:center;color:#aaa;font-size:11px;">Receipt PDF is attached. This is an automated email from {{ company.company_name|default:"Stock Manager" }}.</p>
+</body>
+</html>

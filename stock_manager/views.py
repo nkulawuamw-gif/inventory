@@ -606,6 +606,233 @@ def receipt_detail(request, receipt_id):
 
 
 # =========================
+# RECEIPT PDF DOWNLOAD
+# =========================
+
+@shop_access_required
+def download_receipt_pdf(request, receipt_id):
+    receipt = get_object_or_404(
+        Receipt.objects.select_related('shop', 'created_by').prefetch_related('items'),
+        id=receipt_id
+    )
+    profile = get_user_profile(request.user)
+    user_is_admin = profile is None or profile.is_admin
+    if not user_is_admin and profile and profile.assigned_shop and receipt.shop != profile.assigned_shop:
+        messages.error(request, 'Access denied.')
+        return redirect('sales_history')
+
+    company = CompanyProfile.objects.first()
+
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.units import mm
+    from reportlab.lib import colors
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
+    from io import BytesIO
+
+    buf = BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=A4, topMargin=20*mm, bottomMargin=15*mm, leftMargin=15*mm, rightMargin=15*mm)
+
+    styles = getSampleStyleSheet()
+    styles.add(ParagraphStyle(name='CenterTitle', parent=styles['Heading2'], alignment=TA_CENTER, spaceAfter=4))
+    styles.add(ParagraphStyle(name='CenterSmall', parent=styles['Normal'], alignment=TA_CENTER, textColor=colors.grey, fontSize=8, spaceAfter=12))
+    styles.add(ParagraphStyle(name='InfoLine', parent=styles['Normal'], fontSize=9, spaceAfter=2))
+    styles.add(ParagraphStyle(name='RightAlign', parent=styles['Normal'], fontSize=9, alignment=TA_RIGHT))
+    styles.add(ParagraphStyle(name='Thanks', parent=styles['Normal'], alignment=TA_CENTER, textColor=colors.grey, fontSize=9, italic=True, spaceBefore=12))
+
+    elements = []
+
+    name = company.company_name if company and company.company_name else 'STOCK MANAGER'
+    tagline = company.address if company and company.address else 'Inventory Management System'
+    elements.append(Paragraph(name, styles['CenterTitle']))
+    elements.append(Paragraph(tagline, styles['CenterSmall']))
+
+    if company and (company.phone or company.email or company.tax_id):
+        if company.phone: elements.append(Paragraph(f"<b>Phone:</b> {company.phone}", styles['InfoLine']))
+        if company.email: elements.append(Paragraph(f"<b>Email:</b> {company.email}", styles['InfoLine']))
+        if company.tax_id: elements.append(Paragraph(f"<b>Tax ID:</b> {company.tax_id}", styles['InfoLine']))
+        elements.append(Spacer(1, 4))
+
+    elements.append(Paragraph(f"<b>Receipt #:</b> {receipt.receipt_number}", styles['InfoLine']))
+    elements.append(Paragraph(f"<b>Date:</b> {receipt.created_at.strftime('%d/%m/%Y %H:%M')}", styles['InfoLine']))
+    elements.append(Paragraph(f"<b>Shop:</b> {receipt.shop.name}", styles['InfoLine']))
+    if receipt.customer_name:
+        elements.append(Paragraph(f"<b>Customer:</b> {receipt.customer_name}", styles['InfoLine']))
+    if receipt.created_by:
+        elements.append(Paragraph(f"<b>Cashier:</b> {receipt.created_by.get_full_name().strip() or receipt.created_by.username}", styles['InfoLine']))
+    elements.append(Spacer(1, 8))
+
+    data = [['Item', 'Qty', 'Price', 'Total']]
+    for li in receipt.items.all():
+        data.append([
+            li.item_name,
+            str(li.quantity),
+            f"MWK {li.unit_price:,.2f}",
+            f"MWK {li.total:,.2f}",
+        ])
+
+    col_widths = [180, 40, 80, 80]
+    table = Table(data, colWidths=col_widths)
+    table.setStyle(TableStyle([
+        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0,0), (-1,-1), 9),
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#2c3e50')),
+        ('TEXTCOLOR', (0,0), (-1,0), colors.white),
+        ('ALIGN', (1,0), (-1,-1), 'CENTER'),
+        ('ALIGN', (-1,0), (-1,-1), 'RIGHT'),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#dee2e6')),
+        ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.white, colors.HexColor('#f8f9fa')]),
+        ('TOPPADDING', (0,0), (-1,-1), 4),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 4),
+    ]))
+    elements.append(table)
+    elements.append(Spacer(1, 8))
+
+    elements.append(Paragraph(f"<b>Total:</b> MWK {receipt.total:,.2f}", styles['RightAlign']))
+    elements.append(Paragraph(f"<b>Amount Received:</b> MWK {receipt.amount_received:,.2f}", styles['RightAlign']))
+    elements.append(Paragraph(f"<b>Change:</b> MWK {receipt.change:,.2f}", styles['RightAlign']))
+
+    footer = company.receipt_footer if company and company.receipt_footer else 'Thank you for your business!'
+    elements.append(Paragraph(footer, styles['Thanks']))
+
+    doc.build(elements)
+    pdf = buf.getvalue()
+    buf.close()
+
+    response = HttpResponse(pdf, content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="receipt_{receipt.receipt_number}.pdf"'
+    return response
+
+
+# =========================
+# EMAIL RECEIPT PDF
+# =========================
+
+@shop_access_required
+def email_receipt(request, receipt_id):
+    receipt = get_object_or_404(
+        Receipt.objects.select_related('shop', 'created_by').prefetch_related('items'),
+        id=receipt_id
+    )
+    profile = get_user_profile(request.user)
+    user_is_admin = profile is None or profile.is_admin
+    if not user_is_admin and profile and profile.assigned_shop and receipt.shop != profile.assigned_shop:
+        messages.error(request, 'Access denied.')
+        return redirect('sales_history')
+
+    if request.method != 'POST':
+        return redirect('receipt_detail', receipt_id=receipt_id)
+
+    to_email = request.POST.get('email', '').strip()
+    if not to_email:
+        messages.error(request, 'Please enter an email address.')
+        return redirect('receipt_detail', receipt_id=receipt_id)
+
+    company = CompanyProfile.objects.first()
+
+    from django.core.mail import EmailMultiAlternatives
+    from django.template.loader import render_to_string
+    from io import BytesIO
+
+    try:
+        pdf_data = _generate_pdf_bytes(receipt, company)
+    except Exception as e:
+        messages.error(request, f'Failed to generate PDF: {e}')
+        return redirect('receipt_detail', receipt_id=receipt_id)
+
+    subject = f'Receipt {receipt.receipt_number} from {company.company_name if company else "Stock Manager"}'
+    text_body = f'Dear Customer,\n\nPlease find attached your receipt {receipt.receipt_number}.\n\nTotal: MWK {receipt.total:,.2f}\nDate: {receipt.created_at.strftime("%d/%m/%Y %H:%M")}\n\nThank you for your business!'
+    html_body = render_to_string('stock_manager/receipt_email.html', {
+        'receipt': receipt,
+        'company': company,
+    })
+
+    msg = EmailMultiAlternatives(subject, text_body, None, [to_email])
+    msg.attach_alternative(html_body, 'text/html')
+    msg.attach(f'receipt_{receipt.receipt_number}.pdf', pdf_data, 'application/pdf')
+
+    try:
+        msg.send()
+        messages.success(request, f'Receipt sent to {to_email}')
+    except Exception as e:
+        messages.error(request, f'Failed to send email: {e}')
+
+    return redirect('receipt_detail', receipt_id=receipt_id)
+
+
+def _generate_pdf_bytes(receipt, company):
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.units import mm
+    from reportlab.lib import colors
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
+    from io import BytesIO
+
+    buf = BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=A4, topMargin=20*mm, bottomMargin=15*mm, leftMargin=15*mm, rightMargin=15*mm)
+
+    styles = getSampleStyleSheet()
+    styles.add(ParagraphStyle(name='CenterTitle', parent=styles['Heading2'], alignment=TA_CENTER, spaceAfter=4))
+    styles.add(ParagraphStyle(name='CenterSmall', parent=styles['Normal'], alignment=TA_CENTER, textColor=colors.grey, fontSize=8, spaceAfter=12))
+    styles.add(ParagraphStyle(name='InfoLine', parent=styles['Normal'], fontSize=9, spaceAfter=2))
+    styles.add(ParagraphStyle(name='RightAlign', parent=styles['Normal'], fontSize=9, alignment=TA_RIGHT))
+    styles.add(ParagraphStyle(name='Thanks', parent=styles['Normal'], alignment=TA_CENTER, textColor=colors.grey, fontSize=9, italic=True, spaceBefore=12))
+
+    elements = []
+    name = company.company_name if company and company.company_name else 'STOCK MANAGER'
+    tagline = company.address if company and company.address else 'Inventory Management System'
+    elements.append(Paragraph(name, styles['CenterTitle']))
+    elements.append(Paragraph(tagline, styles['CenterSmall']))
+
+    if company and (company.phone or company.email or company.tax_id):
+        if company.phone: elements.append(Paragraph(f"<b>Phone:</b> {company.phone}", styles['InfoLine']))
+        if company.email: elements.append(Paragraph(f"<b>Email:</b> {company.email}", styles['InfoLine']))
+        if company.tax_id: elements.append(Paragraph(f"<b>Tax ID:</b> {company.tax_id}", styles['InfoLine']))
+        elements.append(Spacer(1, 4))
+
+    elements.append(Paragraph(f"<b>Receipt #:</b> {receipt.receipt_number}", styles['InfoLine']))
+    elements.append(Paragraph(f"<b>Date:</b> {receipt.created_at.strftime('%d/%m/%Y %H:%M')}", styles['InfoLine']))
+    elements.append(Paragraph(f"<b>Shop:</b> {receipt.shop.name}", styles['InfoLine']))
+    if receipt.customer_name:
+        elements.append(Paragraph(f"<b>Customer:</b> {receipt.customer_name}", styles['InfoLine']))
+    elements.append(Spacer(1, 8))
+
+    data = [['Item', 'Qty', 'Price', 'Total']]
+    for li in receipt.items.all():
+        data.append([li.item_name, str(li.quantity), f"MWK {li.unit_price:,.2f}", f"MWK {li.total:,.2f}"])
+    col_widths = [180, 40, 80, 80]
+    table = Table(data, colWidths=col_widths)
+    table.setStyle(TableStyle([
+        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0,0), (-1,-1), 9),
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#2c3e50')),
+        ('TEXTCOLOR', (0,0), (-1,0), colors.white),
+        ('ALIGN', (1,0), (-1,-1), 'CENTER'),
+        ('ALIGN', (-1,0), (-1,-1), 'RIGHT'),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#dee2e6')),
+        ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.white, colors.HexColor('#f8f9fa')]),
+        ('TOPPADDING', (0,0), (-1,-1), 4),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 4),
+    ]))
+    elements.append(table)
+    elements.append(Spacer(1, 8))
+
+    elements.append(Paragraph(f"<b>Total:</b> MWK {receipt.total:,.2f}", styles['RightAlign']))
+    elements.append(Paragraph(f"<b>Amount Received:</b> MWK {receipt.amount_received:,.2f}", styles['RightAlign']))
+    elements.append(Paragraph(f"<b>Change:</b> MWK {receipt.change:,.2f}", styles['RightAlign']))
+
+    footer = company.receipt_footer if company and company.receipt_footer else 'Thank you for your business!'
+    elements.append(Paragraph(footer, styles['Thanks']))
+
+    doc.build(elements)
+    pdf = buf.getvalue()
+    buf.close()
+    return pdf
+
+
+# =========================
 # SALES EXPORT CSV
 # =========================
 

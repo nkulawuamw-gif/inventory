@@ -76,7 +76,10 @@
                             <a href="{% url 'receipt_detail' r.id %}" class="btn btn-sm btn-outline-primary" title="View Receipt">
                                 <i class="bi bi-eye"></i>
                             </a>
-                            <a href="{% url 'print_receipt' r.id %}" class="btn btn-sm btn-outline-secondary" target="_blank" title="Print / Download PDF">
+                            <a href="{% url 'receipt_pdf' r.id %}" class="btn btn-sm btn-outline-danger" title="Download PDF">
+                                <i class="bi bi-filetype-pdf"></i>
+                            </a>
+                            <a href="{% url 'print_receipt' r.id %}" class="btn btn-sm btn-outline-secondary" target="_blank" title="Print">
                                 <i class="bi bi-printer"></i>
                             </a>
                             <button class="btn btn-sm btn-outline-success" onclick="shareReceipt({{ r.id }}, '{{ r.receipt_number|escapejs }}', {{ r.total }})" title="Share via WhatsApp">
@@ -107,8 +110,8 @@
 
 <script>
 function shareReceipt(id, number, total) {
-    var url = window.location.origin + '/receipt/' + id + '/';
-    var text = 'Receipt ' + number + '\nTotal: MWK ' + total.toFixed(2) + '\nView online: ' + url;
+    var pdfUrl = window.location.origin + '/receipt/' + id + '/pdf/';
+    var text = 'Receipt ' + number + '\nTotal: MWK ' + total.toFixed(2) + '\nDownload PDF: ' + pdfUrl;
     var waUrl = 'https://wa.me/?text=' + encodeURIComponent(text);
     window.open(waUrl, '_blank');
 }
