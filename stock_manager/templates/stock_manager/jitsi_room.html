@@ -86,15 +86,16 @@
     <div id="jitsi-container"></div>
     <div class="jitsi-loading" id="jitsiLoading">
         <div class="spinner-border text-light" role="status"></div>
-        <span>Connecting...</span>
+        <span id="jitsiLoadingMsg">Connecting to Jitsi Meet...</span>
     </div>
     <div class="jitsi-error" id="jitsiError">
         <i class="bi bi-exclamation-triangle" style="font-size:3rem;"></i>
         <h5>Connection failed</h5>
-        <p class="text-muted">Could not connect. Try opening in a new tab.</p>
+        <p class="text-muted" id="jitsiErrorMsg">Could not connect to the meeting server.</p>
         <div class="d-flex gap-2 flex-wrap justify-content-center">
-            <a class="btn btn-primary" id="openJitsiTab" target="_blank">Open in tab</a>
-            <a href="{% url 'calls' %}" class="btn btn-outline-light">Back</a>
+            <button class="btn btn-primary" onclick="retryJitsi()"><i class="bi bi-arrow-clockwise"></i> Retry</button>
+            <a class="btn btn-outline-light" id="openJitsiTab" target="_blank">Open in new tab</a>
+            <a href="{% url 'calls' %}" class="btn btn-outline-light">Back to calls</a>
         </div>
     </div>
 </div>
@@ -103,11 +104,16 @@
 <script>
 (function() {
     'use strict';
+
     var jitsiApi = null;
     var callEnded = false;
     var timerInterval = null;
     var timerSeconds = 0;
     var connectTimeout = null;
+    var scriptRetries = 0;
+    var maxScriptRetries = 2;
+
+    console.log('[Jitsi] Room page loaded, room={{ room_name }}');
 
     function updateTimer() {
         timerSeconds++;
@@ -119,33 +125,81 @@
 
     function disposePrevious() {
         if (window.activeJitsiApi) {
-            try { window.activeJitsiApi.dispose(); } catch(e) {}
+            console.log('[Jitsi] Disposing previous instance');
+            try { window.activeJitsiApi.dispose(); } catch(e) { console.warn('[Jitsi] dispose error:', e); }
             window.activeJitsiApi = null;
+        }
+    }
+
+    function getCSRF() {
+        var el = document.querySelector('[name=csrfmiddlewaretoken]');
+        return el ? el.value : '';
+    }
+
+    function showError(msg) {
+        var el = document.getElementById('jitsiErrorMsg');
+        if (el) el.textContent = msg || 'Could not connect to the meeting server.';
+        document.getElementById('jitsiLoading').classList.add('hidden');
+        document.getElementById('jitsiError').classList.add('show');
+        var tab = document.getElementById('openJitsiTab');
+        if (tab) {
+            tab.href = 'https://meet.jit.si/{{ room_name }}#config.startWithAudioMuted=false&config.startWithVideoMuted=false&userInfo.displayName={{ request.user.get_full_name|default:request.user.username|urlencode }}';
         }
     }
 
     function loadJitsiScript(callback) {
         if (typeof JitsiMeetExternalAPI !== 'undefined') {
+            console.log('[Jitsi] API already loaded');
             callback();
             return;
         }
+
+        var loadingMsg = document.getElementById('jitsiLoadingMsg');
+        if (loadingMsg) loadingMsg.textContent = 'Loading Jitsi Meet...';
+
+        console.log('[Jitsi] Loading external_api.js (attempt ' + (scriptRetries + 1) + ')');
         var script = document.createElement('script');
         script.src = 'https://meet.jit.si/external_api.js';
         script.async = true;
-        script.onload = callback;
+        script.onload = function() {
+            console.log('[Jitsi] external_api.js loaded successfully');
+            scriptRetries = 0;
+            callback();
+        };
         script.onerror = function() {
-            document.getElementById('jitsiLoading').classList.add('hidden');
-            document.getElementById('jitsiError').classList.add('show');
+            console.warn('[Jitsi] Failed to load external_api.js');
+            scriptRetries++;
+            if (scriptRetries <= maxScriptRetries) {
+                console.log('[Jitsi] Retrying script load in 2s...');
+                if (loadingMsg) loadingMsg.textContent = 'Retrying connection (' + scriptRetries + '/' + maxScriptRetries + ')...';
+                setTimeout(function() {
+                    document.head.removeChild(script);
+                    loadJitsiScript(callback);
+                }, 2000);
+            } else {
+                showError('Failed to load Jitsi Meet. Check your internet connection and try again.');
+            }
         };
         document.head.appendChild(script);
     }
 
     function startJitsi() {
+        console.log('[Jitsi] startJitsi() called');
+
         disposePrevious();
+
         var container = document.getElementById('jitsi-container');
+        if (!container) {
+            console.error('[Jitsi] Container #jitsi-container not found in DOM');
+            showError('Internal error: meeting container not found.');
+            return;
+        }
+
         container.innerHTML = '';
         var room = '{{ room_name }}';
         var domain = 'meet.jit.si';
+
+        console.log('[Jitsi] Creating room:', room);
 
         var options = {
             roomName: room,
@@ -162,15 +216,14 @@
                 enableClosePage: false,
                 hideConferenceTimer: true,
                 channelLastN: 4,
-                startBitrate: '200',
-                startVideoMuted: 0,
+                startBitrate: 200,
                 disableSimulcast: false,
                 disableLevelControl: true,
                 enableTalkWhileMuted: false,
-                enableUserRolesBasedOnToken: false,
                 disableRemoteControl: true,
                 enableNoAudioDetection: true,
                 enableNoVideoDetection: true,
+                p2p: { enabled: true, preferH264: true },
             },
             interfaceConfigOverrides: {
                 SHOW_JITSI_WATERMARK: false,
@@ -193,69 +246,103 @@
         try {
             jitsiApi = new JitsiMeetExternalAPI(domain, options);
             window.activeJitsiApi = jitsiApi;
+            console.log('[Jitsi] API instance created successfully');
         } catch (e) {
-            console.error('Jitsi init error:', e);
-            document.getElementById('jitsiLoading').classList.add('hidden');
-            document.getElementById('jitsiError').classList.add('show');
+            console.error('[Jitsi] Init error:', e);
+            showError('Failed to initialize Jitsi Meet: ' + (e.message || 'Unknown error'));
             return;
         }
 
         connectTimeout = setTimeout(function() {
-            document.getElementById('jitsiLoading').classList.add('hidden');
-            document.getElementById('jitsiError').classList.add('show');
-            var tab = document.getElementById('openJitsiTab');
-            if (tab) {
-                tab.href = 'https://meet.jit.si/{{ room_name }}#config.startWithAudioMuted=false&config.startWithVideoMuted=false&userInfo.displayName={{ request.user.get_full_name|default:request.user.username|urlencode }}';
-            }
+            console.warn('[Jitsi] Connection timeout (20s)');
+            showError('Connection timed out. The meeting server may be unavailable.');
         }, 20000);
 
-        jitsiApi.addListener('videoConferenceJoined', function() {
+        jitsiApi.addListener('videoConferenceJoined', function(ev) {
+            console.log('[Jitsi] videoConferenceJoined:', ev && ev.roomName);
             if (connectTimeout) { clearTimeout(connectTimeout); connectTimeout = null; }
             document.getElementById('jitsiLoading').classList.add('hidden');
             timerInterval = setInterval(updateTimer, 1000);
         });
 
         jitsiApi.addListener('readyToClose', function() {
+            console.log('[Jitsi] readyToClose');
             endJitsiCall();
         });
 
         jitsiApi.addListener('videoConferenceLeft', function() {
+            console.log('[Jitsi] videoConferenceLeft');
             endJitsiCall();
         });
 
         jitsiApi.addListener('errorOccurred', function(e) {
-            console.error('Jitsi error:', e);
+            console.error('[Jitsi] errorOccurred:', e);
         });
 
         jitsiApi.addListener('peerConnectionStateChanged', function(state) {
-            if (state === 'failed' || state === 'disconnected') {
-                console.warn('Jitsi connection state:', state);
+            console.log('[Jitsi] connection state:', state);
+            if (state === 'failed') {
+                showError('Connection lost. Please try rejoining.');
             }
+        });
+
+        jitsiApi.addListener('audioAvailabilityChanged', function(available) {
+            console.log('[Jitsi] audio available:', available);
+        });
+
+        jitsiApi.addListener('videoAvailabilityChanged', function(available) {
+            console.log('[Jitsi] video available:', available);
         });
     }
 
     function endJitsiCall() {
-        if (callEnded) return;
+        if (callEnded) {
+            console.log('[Jitsi] endJitsiCall already called, skipping');
+            return;
+        }
         callEnded = true;
+        console.log('[Jitsi] Ending call');
+
         if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
         if (connectTimeout) { clearTimeout(connectTimeout); connectTimeout = null; }
+
         if (jitsiApi) {
-            try { jitsiApi.dispose(); } catch(e) {}
+            try { jitsiApi.dispose(); console.log('[Jitsi] API disposed'); } catch(e) { console.warn('[Jitsi] dispose error:', e); }
             jitsiApi = null;
         }
-        if (window.activeJitsiApi === jitsiApi) window.activeJitsiApi = null;
+
+        if (window.activeJitsiApi) {
+            window.activeJitsiApi = null;
+        }
+
+        var csrf = getCSRF();
         fetch('{% url "end_call" call.id %}', {
             method: 'POST',
-            headers: { 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || '' },
-        }).catch(function() {});
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': csrf },
+            body: 'csrfmiddlewaretoken=' + encodeURIComponent(csrf),
+        }).then(function(r) { console.log('[Jitsi] end_call response:', r.status); })
+          .catch(function(err) { console.warn('[Jitsi] end_call error:', err); });
+
         window.location.href = '{% url "calls" %}';
     }
+
+    window.retryJitsi = function() {
+        console.log('[Jitsi] Retry clicked');
+        callEnded = false;
+        document.getElementById('jitsiError').classList.remove('show');
+        document.getElementById('jitsiLoading').classList.remove('hidden');
+        document.getElementById('jitsiLoadingMsg').textContent = 'Connecting...';
+        scriptRetries = 0;
+        loadJitsiScript(startJitsi);
+    };
 
     window.addEventListener('beforeunload', function() {
         if (!callEnded) {
             callEnded = true;
             if (jitsiApi) { try { jitsiApi.dispose(); } catch(e) {} jitsiApi = null; }
-            navigator.sendBeacon('{% url "end_call" call.id %}', new URLSearchParams({csrfmiddlewaretoken: document.querySelector('[name=csrfmiddlewaretoken]')?.value || ''}));
+            var csrf = getCSRF();
+            navigator.sendBeacon('{% url "end_call" call.id %}',
+                'csrfmiddlewaretoken=' + encodeURIComponent(csrf));
         }
     });
 

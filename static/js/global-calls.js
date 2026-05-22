@@ -59,7 +59,10 @@
     }
 
     function showIncomingCallModal(data) {
-        if (modalShown) return;
+        if (modalShown) {
+            console.log('[Calls] Modal already shown, ignoring duplicate');
+            return;
+        }
         modalShown = true;
         currentCallId = data.call_id;
         var nameEl = document.getElementById('incomingCallerName');
@@ -70,13 +73,21 @@
         if (answerBtn) {
             disposeJitsiInstance();
             answerBtn.href = '/calls/' + data.call_id + '/';
+            console.log('[Calls] Answer button set to:', answerBtn.href);
         }
 
         var modalEl = document.getElementById('incomingCallModal');
         if (modalEl) {
+            try {
+                var existing = bootstrap.Modal.getInstance(modalEl);
+                if (existing) existing.hide();
+            } catch(e) {}
             var modal = new bootstrap.Modal(modalEl, { backdrop: 'static', keyboard: false });
             modal.show();
             startRingingTone();
+            console.log('[Calls] Incoming call modal shown');
+        } else {
+            console.warn('[Calls] Modal element not found');
         }
     }
 
@@ -99,6 +110,7 @@
         .then(function(r) { return r.json(); })
         .then(function(data) {
             if (data.ringing && !modalShown) {
+                console.log('[Calls] HTTP poll found ringing call:', data.call_id);
                 showIncomingCallModal({
                     call_id: data.call_id,
                     caller: data.caller,
@@ -108,18 +120,27 @@
                 hideIncomingCallModal();
             }
         })
-        .catch(function() {});
+        .catch(function(err) { console.warn('[Calls] HTTP poll error:', err); });
     }
 
     function connectWebSocket() {
-        if (ws && ws.readyState === WebSocket.OPEN) return;
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            return;
+        }
 
         var protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         var wsUrl = protocol + '//' + window.location.host + '/ws/calls/';
 
-        ws = new WebSocket(wsUrl);
+        try {
+            ws = new WebSocket(wsUrl);
+        } catch(e) {
+            console.warn('[Calls] WS creation failed:', e);
+            scheduleReconnect();
+            return;
+        }
 
         ws.onopen = function() {
+            console.log('[Calls] WebSocket connected');
             if (wsReconnectTimer) {
                 clearTimeout(wsReconnectTimer);
                 wsReconnectTimer = null;
@@ -129,24 +150,36 @@
         ws.onmessage = function(e) {
             try {
                 var data = JSON.parse(e.data);
+                console.log('[Calls] WS message:', data.type, data.caller ? (data.caller.substring(0,20)) : '');
                 if (data.type === 'incoming_call' && data.caller !== 'CALL_ENDED') {
                     showIncomingCallModal(data);
-                } else if (data.type === 'incoming_call' && data.caller === 'CALL_ENDED') {
+                } else if (data.caller === 'CALL_ENDED') {
                     hideIncomingCallModal();
                 }
-            } catch(err) {}
-        };
-
-        ws.onclose = function() {
-            ws = null;
-            if (!wsReconnectTimer) {
-                wsReconnectTimer = setTimeout(connectWebSocket, 2000);
+            } catch(err) {
+                console.warn('[Calls] WS parse error:', err);
             }
         };
 
-        ws.onerror = function() {
-            ws.close();
+        ws.onclose = function(e) {
+            console.log('[Calls] WebSocket closed (code:', e.code, ')');
+            ws = null;
+            scheduleReconnect();
         };
+
+        ws.onerror = function(e) {
+            console.warn('[Calls] WebSocket error');
+            try { ws.close(); } catch(err) {}
+        };
+    }
+
+    function scheduleReconnect() {
+        if (!wsReconnectTimer) {
+            wsReconnectTimer = setTimeout(function() {
+                wsReconnectTimer = null;
+                connectWebSocket();
+            }, 2000);
+        }
     }
 
     function disconnectWebSocket() {
@@ -176,6 +209,13 @@
         var declineBtn = document.getElementById('declineCallBtn');
         if (declineBtn) {
             declineBtn.addEventListener('click', handleDecline);
+        }
+
+        var answerBtn = document.getElementById('answerCallBtn');
+        if (answerBtn) {
+            answerBtn.addEventListener('click', function() {
+                disposeJitsiInstance();
+            });
         }
 
         if (document.querySelector('[name=csrfmiddlewaretoken]')) {

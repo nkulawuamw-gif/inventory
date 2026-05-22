@@ -441,10 +441,14 @@ def initiate_call(request):
 @login_required
 @xframe_options_exempt
 def call_room(request, call_id):
-    """Jitsi Meet call room — replaces old WebRTC implementation."""
+    """Jitsi Meet call room."""
     call = get_object_or_404(Call, id=call_id)
 
     if call.caller != request.user and call.callee != request.user:
+        return redirect('calls')
+
+    if call.status == 'ended':
+        messages.info(request, 'This call has already ended.')
         return redirect('calls')
 
     if call.status == 'ringing' and call.callee == request.user:
@@ -463,6 +467,7 @@ def call_room(request, call_id):
 
 
 @login_required
+@csrf_exempt
 def end_call(request, call_id):
     call = get_object_or_404(Call, id=call_id)
     if call.caller == request.user or call.callee == request.user:
@@ -486,7 +491,10 @@ def end_call(request, call_id):
         except Exception:
             pass
 
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.content_type == 'application/json':
+    if (request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+            or request.content_type == 'application/json'
+            or request.content_type == 'application/x-www-form-urlencoded'
+            or request.method == 'POST'):
         return JsonResponse({'status': 'ended'})
     return redirect('calls')
 

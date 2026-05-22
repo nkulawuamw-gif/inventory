@@ -38,6 +38,7 @@ class CallConsumer(AsyncWebsocketConsumer):
             'caller': event['caller'],
             'caller_id': event['caller_id'],
             'call_type': event['call_type'],
+            'room_name': event.get('room_name', f'call_{event["call_id"]}'),
         }))
 
 
