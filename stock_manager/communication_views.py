@@ -613,3 +613,34 @@ def check_incoming_call(request):
             'call_type': ringing.call_type,
         })
     return JsonResponse({'ringing': False})
+
+
+@login_required
+def delete_call(request, call_id):
+    call = get_object_or_404(Call, id=call_id)
+    if request.method != 'POST':
+        return redirect('calls')
+    profile = get_user_profile(request.user)
+    user_is_admin = profile is None or profile.is_admin
+    if call.caller != request.user and call.callee != request.user and not user_is_admin:
+        messages.error(request, 'Not authorised to delete this call.')
+        return redirect('calls')
+    call.delete()
+    messages.success(request, 'Call deleted.')
+    return redirect('calls')
+
+
+@login_required
+def clear_calls(request):
+    if request.method != 'POST':
+        return redirect('calls')
+    profile = get_user_profile(request.user)
+    user_is_admin = profile is None or profile.is_admin
+    if user_is_admin:
+        Call.objects.all().delete()
+        messages.success(request, 'All call logs cleared.')
+    else:
+        Call.objects.filter(Q(caller=request.user) | Q(callee=request.user)).delete()
+        messages.success(request, 'Your call logs cleared.')
+    return redirect('calls')
+
