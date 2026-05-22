@@ -416,8 +416,18 @@ def check_incoming_call(request):
 @login_required
 def incoming_calls(request):
     try:
-        calls = list(Call.objects.filter(receiver=request.user).values())
-        return JsonResponse({"calls": calls})
+        calls = Call.objects.filter(
+            receiver=request.user,
+            status="ringing"
+        )
+
+        data = list(calls.values(
+            "id",
+            "room_name",
+            "call_type"
+        ))
+
+        return JsonResponse({"calls": data})
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
 
