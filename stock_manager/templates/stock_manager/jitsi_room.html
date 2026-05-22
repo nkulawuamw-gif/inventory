@@ -1,14 +1,18 @@
 {% extends 'stock_manager/base.html' %}
 {% block content %}
 <style>
-#jitsi-container {
+#jitsi-wrapper {
+    position: relative;
     width: 100%;
     height: calc(100vh - 120px);
     border-radius: 12px;
     overflow: hidden;
     box-shadow: 0 2px 20px rgba(0,0,0,0.1);
-    position: relative;
     background: #1a1a2e;
+}
+#jitsi-container {
+    width: 100%;
+    height: 100%;
 }
 #jitsi-container iframe {
     width: 100%;
@@ -40,8 +44,41 @@
     background: #c0392b;
     transform: scale(1.05);
 }
+.jitsi-loading {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 16px;
+    color: white;
+    background: #1a1a2e;
+    z-index: 2;
+    transition: opacity 0.5s;
+}
+.jitsi-loading.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+.jitsi-error {
+    position: absolute;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 16px;
+    color: white;
+    background: #1a1a2e;
+    z-index: 3;
+    padding: 20px;
+    text-align: center;
+}
+.jitsi-error.show { display: flex; }
+.jitsi-error .btn { padding: 10px 24px; border-radius: 12px; font-weight: 600; text-decoration: none; }
 @media (max-width: 767px) {
-    #jitsi-container { height: calc(100vh - 160px); }
+    #jitsi-wrapper { height: calc(100vh - 160px); }
     .call-info-bar { font-size: 0.75rem; padding: 6px 10px; }
     .call-info-bar .end-call-btn { padding: 4px 14px; font-size: 0.75rem; }
 }
@@ -63,10 +100,20 @@
     </div>
 </div>
 
-<div id="jitsi-container">
-    <div class="d-flex align-items-center justify-content-center text-white" style="height:100%;flex-direction:column;gap:16px;">
+<div id="jitsi-wrapper">
+    <div id="jitsi-container"></div>
+    <div class="jitsi-loading" id="jitsiLoading">
         <div class="spinner-border text-light" role="status"></div>
         <span>Connecting to Jitsi Meet...</span>
+    </div>
+    <div class="jitsi-error" id="jitsiError">
+        <i class="bi bi-exclamation-triangle" style="font-size:3rem;"></i>
+        <h5>Failed to connect</h5>
+        <p class="text-muted">Could not connect to Jitsi Meet. You can try opening the meeting in a new tab.</p>
+        <div class="d-flex gap-2">
+            <a class="btn btn-primary" id="openJitsiTab" target="_blank">Open in new tab</a>
+            <a href="{% url 'calls' %}" class="btn btn-outline-light">Back to calls</a>
+        </div>
     </div>
 </div>
 
@@ -86,40 +133,79 @@ function updateTimer() {
     if (el) el.textContent = m + ':' + s;
 }
 
-var domain = 'meet.jit.si';
-var options = {
-    roomName: '{{ room_name }}',
-    width: '100%',
-    height: '100%',
-    parentNode: document.getElementById('jitsi-container'),
-    configOverrides: {
-        startWithAudioMuted: false,
-        startWithVideoMuted: false,
-        disableDeepLinking: true,
-        disableInviteFunctions: true,
-        disableJoinLeaveNotifications: true,
-    },
-    interfaceConfigOverrides: {
-        SHOW_JITSI_WATERMARK: false,
-        SHOW_WATERMARK_FOR_GUESTS: false,
-        TOOLBAR_ALWAYS_VISIBLE: true,
-        DISABLE_JOIN_LEAVE_NOTIFICATIONS: true,
-        FILM_STRIP_MAX_HEIGHT: 120,
-    },
-    userInfo: {
-        displayName: '{{ request.user.get_full_name|default:request.user.username }}',
-    },
-};
+function startJitsi() {
+    var container = document.getElementById('jitsi-container');
+    container.innerHTML = '';
+    var room = '{{ room_name }}';
+    var domain = 'meet.jit.si';
 
-jitsiApi = new JitsiMeetExternalAPI(domain, options);
+    var options = {
+        roomName: room,
+        width: '100%',
+        height: '100%',
+        parentNode: container,
+        configOverrides: {
+            startWithAudioMuted: false,
+            startWithVideoMuted: false,
+            disableDeepLinking: true,
+            disableInviteFunctions: true,
+            disableJoinLeaveNotifications: true,
+            enableClosePage: false,
+            hideConferenceTimer: true,
+        },
+        interfaceConfigOverrides: {
+            SHOW_JITSI_WATERMARK: false,
+            SHOW_WATERMARK_FOR_GUESTS: false,
+            TOOLBAR_ALWAYS_VISIBLE: true,
+            DISABLE_JOIN_LEAVE_NOTIFICATIONS: true,
+            FILM_STRIP_MAX_HEIGHT: 120,
+            MOBILE_DYNAMIC_LINK: false,
+        },
+        userInfo: {
+            displayName: '{{ request.user.get_full_name|default:request.user.username }}',
+        },
+    };
 
-jitsiApi.addListener('videoConferenceJoined', function() {
-    timerInterval = setInterval(updateTimer, 1000);
-});
+    try {
+        jitsiApi = new JitsiMeetExternalAPI(domain, options);
+    } catch (e) {
+        console.error('Jitsi init error:', e);
+        showJitsiError();
+        return;
+    }
 
-jitsiApi.addListener('readyToClose', function() {
-    endJitsiCall();
-});
+    var timeout = setTimeout(function() {
+        console.warn('Jitsi join timeout — showing error');
+        showJitsiError();
+    }, 15000);
+
+    jitsiApi.addListener('videoConferenceJoined', function() {
+        clearTimeout(timeout);
+        document.getElementById('jitsiLoading').classList.add('hidden');
+        timerInterval = setInterval(updateTimer, 1000);
+    });
+
+    jitsiApi.addListener('readyToClose', function() {
+        endJitsiCall();
+    });
+
+    jitsiApi.addListener('videoConferenceLeft', function() {
+        endJitsiCall();
+    });
+
+    jitsiApi.addListener('errorOccurred', function(e) {
+        console.error('Jitsi error:', e);
+    });
+}
+
+function showJitsiError() {
+    document.getElementById('jitsiLoading').classList.add('hidden');
+    document.getElementById('jitsiError').classList.add('show');
+    var openTab = document.getElementById('openJitsiTab');
+    if (openTab) {
+        openTab.href = 'https://meet.jit.si/{{ room_name }}#config.startWithAudioMuted=false&config.startWithVideoMuted=false&userInfo.displayName={{ request.user.get_full_name|default:request.user.username|urlencode }}';
+    }
+}
 
 function endJitsiCall() {
     if (callEnded) return;
@@ -131,7 +217,7 @@ function endJitsiCall() {
     }
 
     if (jitsiApi) {
-        try { jitsiApi.dispose(); } catch(e) {}
+        try { jitsiApi.dispose(); } catch(e) { console.warn('Jitsi dispose error:', e); }
         jitsiApi = null;
     }
 
@@ -148,5 +234,7 @@ function endJitsiCall() {
 window.addEventListener('beforeunload', function() {
     if (!callEnded) endJitsiCall();
 });
+
+startJitsi();
 </script>
 {% endblock %}

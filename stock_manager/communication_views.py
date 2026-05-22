@@ -7,6 +7,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.http import JsonResponse
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.clickjacking import xframe_options_exempt
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from datetime import timedelta, timezone as dt_timezone
@@ -438,6 +439,7 @@ def initiate_call(request):
 
 
 @login_required
+@xframe_options_exempt
 def call_room(request, call_id):
     """Jitsi Meet call room — replaces old WebRTC implementation."""
     call = get_object_or_404(Call, id=call_id)
