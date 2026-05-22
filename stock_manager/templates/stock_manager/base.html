@@ -491,6 +491,7 @@
     function heartbeat() {
         fetch('{% url "heartbeat" %}', {
             method: 'POST',
+            credentials: 'include',
             headers: { 'X-CSRFToken': getCSRFToken() },
         }).catch(() => {});
     }
@@ -502,8 +503,7 @@
 
     function fetchOnlineUsers() {
         fetch('{% url "online_users" %}', {
-            method: 'GET',
-            headers: { 'X-CSRFToken': getCSRFToken() },
+            credentials: 'include',
         })
         .then(function(r) { return r.json(); })
         .then(function(data) {
@@ -575,6 +575,7 @@
     function sendHeartbeat() {
         fetch('{% url "heartbeat" %}', {
             method: 'POST',
+            credentials: 'include',
             headers: { 'X-CSRFToken': getCSRFToken() },
             keepalive: true,
         }).catch(function() {});
@@ -588,7 +589,7 @@
     window.addEventListener('beforeunload', function() {
         try { navigator.sendBeacon('{% url "mark_offline" %}'); } catch(e) {}
         fetch('{% url "mark_offline" %}', {
-            method: 'POST', headers: { 'X-CSRFToken': getCSRFToken() }, keepalive: true
+            method: 'POST', credentials: 'include', headers: { 'X-CSRFToken': getCSRFToken() }, keepalive: true
         }).catch(function() {});
     });
     </script>

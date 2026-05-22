@@ -140,7 +140,7 @@
     }
 
     function poll() {
-        fetch('/calls/incoming/', { headers: { 'X-CSRFToken': csrf() } })
+        fetch('/calls/incoming/', { credentials: 'include' })
             .then(function (r) { return r.json(); })
             .then(function (d) {
                 if (d.ringing && !shown) showModal(d);
