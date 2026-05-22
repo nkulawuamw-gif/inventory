@@ -142,7 +142,7 @@
             <div id="paymentSection" style="display:none;">
                 <div class="mb-2 mt-2">
                     <label class="form-label small text-muted" for="amountReceived">Amount Received (MWK)</label>
-                    <input type="number" id="amountReceived" min="0" step="100" value="0" oninput="calcChange()">
+                    <input type="number" id="amountReceived" min="0" step="100" placeholder="Enter amount" oninput="calcChange()">
                 </div>
                 <div class="row-line"><span>Change</span><span id="changeDisplay" class="text-success">MWK 0.00</span></div>
             </div>
@@ -336,7 +336,7 @@ function newSale() {
     cart = [];
     lastReceiptId = null;
     document.getElementById('receiptOverlay').classList.remove('active');
-    document.getElementById('amountReceived').value = 0;
+    document.getElementById('amountReceived').value = '';
     document.getElementById('customerName').value = '';
     renderCart();
 }
