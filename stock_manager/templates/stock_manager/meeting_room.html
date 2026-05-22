@@ -194,7 +194,16 @@ function signalToUser(userId, type, data) {
 async function handleSignals() {
     try {
     const response = await fetch(`/meetings/${meetingCode}/signal/`);
-    const data = await response.json();
+    const contentType = response.headers.get("content-type");
+    let data;
+    if (contentType && contentType.includes("application/json")) {
+        data = await response.json();
+        console.log(data);
+    } else {
+        const text = await response.text();
+        console.error("Expected JSON but got:", text);
+        return;
+    }
     const signals = data.signals || {};
 
     for (const [key, signal] of Object.entries(signals)) {
