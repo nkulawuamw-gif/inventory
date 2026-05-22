@@ -59,7 +59,7 @@
         <div class="info-row"><span>Receipt #</span><strong>{{ receipt.receipt_number }}</strong></div>
         <div class="info-row"><span>Date</span><strong>{{ receipt.created_at|date:"d/m/Y H:i" }}</strong></div>
         <div class="info-row"><span>Shop</span><strong>{{ receipt.shop.name }}</strong></div>
-        <div class="info-row"><span>Cashier</span><strong>{{ receipt.created_by.get_full_name|default:receipt.created_by.username|default:"—" }}</strong></div>
+        <div class="info-row"><span>Cashier</span><strong>{% firstof receipt.created_by.get_full_name receipt.created_by.username "—" %}</strong></div>
         {% if receipt.customer_name %}
         <div class="info-row"><span>Customer</span><strong>{{ receipt.customer_name }}</strong></div>
         {% endif %}
@@ -118,22 +118,40 @@
 <div class="share-toast" id="shareToast"></div>
 
 <script>
-function shareWhatsApp() {
+async function shareWhatsApp() {
+    var pdfUrl = window.location.origin + '{% url "receipt_pdf" receipt.id %}';
+    try {
+        var resp = await fetch(pdfUrl);
+        var blob = await resp.blob();
+        var file = new File([blob], 'receipt_{{ receipt.receipt_number }}.pdf', { type: 'application/pdf' });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            await navigator.share({ files: [file] });
+            return;
+        }
+    } catch(e) {}
     var text = 'Receipt {{ receipt.receipt_number|escapejs }} - {{ company.company_name|default:"Stock Manager"|escapejs }}\n';
     text += 'Total: MWK {{ receipt.total|floatformat:2 }}\n';
     text += 'Date: {{ receipt.created_at|date:"d/m/Y H:i" }}\n';
     text += 'Shop: {{ receipt.shop.name|escapejs }}\n';
-    text += '\nDownload PDF: ' + window.location.origin + '{% url "receipt_pdf" receipt.id %}';
+    text += '\nDownload PDF: ' + pdfUrl;
     {% for li in receipt.items.all %}
     text += '\n{{ li.item_name|escapejs }} x{{ li.quantity }} - MWK {{ li.total|floatformat:2 }}';
     {% endfor %}
     text += '\n\n{{ company.receipt_footer|default:"Thank you!"|escapejs }}';
-    var url = 'https://wa.me/?text=' + encodeURIComponent(text);
-    window.open(url, '_blank');
+    window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
 }
 
-function shareNative() {
+async function shareNative() {
     var pdfUrl = window.location.origin + '{% url "receipt_pdf" receipt.id %}';
+    try {
+        var resp = await fetch(pdfUrl);
+        var blob = await resp.blob();
+        var file = new File([blob], 'receipt_{{ receipt.receipt_number }}.pdf', { type: 'application/pdf' });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            await navigator.share({ files: [file], title: 'Receipt {{ receipt.receipt_number|escapejs }}' });
+            return;
+        }
+    } catch(e) {}
     if (navigator.share) {
         navigator.share({
             title: 'Receipt {{ receipt.receipt_number|escapejs }}',

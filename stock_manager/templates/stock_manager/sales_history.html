@@ -109,11 +109,19 @@
 <div class="share-toast" id="shareToast" style="position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#333;color:white;padding:8px 20px;border-radius:20px;font-size:0.85rem;z-index:9999;opacity:0;transition:opacity 0.3s;pointer-events:none;"></div>
 
 <script>
-function shareReceipt(id, number, total) {
+async function shareReceipt(id, number, total) {
     var pdfUrl = window.location.origin + '/receipt/' + id + '/pdf/';
+    try {
+        var resp = await fetch(pdfUrl);
+        var blob = await resp.blob();
+        var file = new File([blob], 'receipt_' + number + '.pdf', { type: 'application/pdf' });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            await navigator.share({ files: [file] });
+            return;
+        }
+    } catch(e) {}
     var text = 'Receipt ' + number + '\nTotal: MWK ' + total.toFixed(2) + '\nDownload PDF: ' + pdfUrl;
-    var waUrl = 'https://wa.me/?text=' + encodeURIComponent(text);
-    window.open(waUrl, '_blank');
+    window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
 }
 
 function showToastMsg(msg) {

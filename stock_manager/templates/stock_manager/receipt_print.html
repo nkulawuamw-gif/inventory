@@ -32,8 +32,17 @@
 </div>
 
 <script>
-function shareWA() {
+async function shareWA() {
     var pdfUrl = window.location.origin + '{% url "receipt_pdf" receipt.id %}';
+    try {
+        var resp = await fetch(pdfUrl);
+        var blob = await resp.blob();
+        var file = new File([blob], 'receipt_{{ receipt.receipt_number }}.pdf', { type: 'application/pdf' });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            await navigator.share({ files: [file] });
+            return;
+        }
+    } catch(e) {}
     var text = 'Receipt {{ receipt.receipt_number|escapejs }}\nTotal: MWK {{ receipt.total|floatformat:2 }}\nDate: {{ receipt.created_at|date:"d/m/Y H:i" }}\nDownload: ' + pdfUrl;
     window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
 }
