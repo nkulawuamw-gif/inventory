@@ -118,7 +118,8 @@ function connectChat() {
     chatSocket = new WebSocket("wss://" + window.location.host + "/ws/chat/");
 
     chatSocket.onmessage = function(e) {
-        var data = JSON.parse(e.data);
+        var data;
+        try { data = JSON.parse(e.data); } catch (err) { return; }
 
         if (data.type === 'chat_message') {
             if (data.sender_id && data.sender_id !== currentChatUserId) {
@@ -154,7 +155,8 @@ function connectCalls() {
     callSocket = new WebSocket("wss://" + window.location.host + "/ws/calls/");
 
     callSocket.onmessage = function(e) {
-        var data = JSON.parse(e.data);
+        var data;
+        try { data = JSON.parse(e.data); } catch (err) { return; }
 
         if (data.incoming_call) {
             showBrowserNotification(

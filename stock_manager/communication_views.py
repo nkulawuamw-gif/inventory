@@ -95,9 +95,14 @@ def calls_view(request):
 
 
 @login_required
+@csrf_exempt
 def initiate_call(request):
     if request.method == 'POST':
-        data = json.loads(request.body)
+        try:
+            data = json.loads(request.body)
+        except Exception:
+            return JsonResponse({'status': 'error', 'error': 'Invalid JSON body'}, status=400)
+
         receiver_username = data.get('callee_username', '').strip()
         call_type = data.get('call_type', 'audio')
 
@@ -107,11 +112,14 @@ def initiate_call(request):
             except User.DoesNotExist:
                 return JsonResponse({'status': 'error', 'error': 'User not found'}, status=404)
 
-            call = Call.objects.create(
-                caller=request.user,
-                receiver=receiver,
-                call_type=call_type,
-            )
+            try:
+                call = Call.objects.create(
+                    caller=request.user,
+                    receiver=receiver,
+                    call_type=call_type,
+                )
+            except Exception:
+                return JsonResponse({'status': 'error', 'error': 'Failed to create call'}, status=500)
 
             try:
                 channel_layer = get_channel_layer()
