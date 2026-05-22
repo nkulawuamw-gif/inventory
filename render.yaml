@@ -2,7 +2,7 @@ services:
   - type: web
     name: inventory-app
     runtime: python
-    buildCommand: pip install -r requirements.txt && python -c "import django,os; os.environ.setdefault('DJANGO_SETTINGS_MODULE','best_inventory_system.settings'); django.setup(); from stock_manager.models import Call; import uuid; [setattr(c,'room_name',f'call_{uuid.uuid4().hex[:12]}') or c.save() for c in Call.objects.filter(room_name='placeholder')]" && python manage.py migrate --noinput && python manage.py create_admin && python manage.py collectstatic --noinput
+    buildCommand: pip install -r requirements.txt && python -c "import django,os; os.environ.setdefault('DJANGO_SETTINGS_MODULE','best_inventory_system.settings'); django.setup(); from stock_manager.models import Call; n,_=Call.objects.filter(room_name='placeholder').delete(); print(f'Deleted {n} bad Call records')" && python manage.py migrate --noinput && python manage.py create_admin && python manage.py collectstatic --noinput
     startCommand: daphne best_inventory_system.asgi:application --bind 0.0.0.0 --port $PORT --proxy-headers
     healthCheckPath: /health/
     envVars:
