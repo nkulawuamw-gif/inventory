@@ -100,20 +100,20 @@ class UserPresenceAdmin(admin.ModelAdmin):
 
 @admin.register(Message)
 class MessageAdmin(admin.ModelAdmin):
-    list_display = ['sender', 'receiver', 'body_short', 'is_read', 'created_at']
-    list_filter = ['is_read', 'created_at']
-    search_fields = ['sender__username', 'receiver__username', 'body']
+    list_display = ['sender', 'receiver', 'content_short', 'is_read', 'timestamp']
+    list_filter = ['is_read', 'timestamp']
+    search_fields = ['sender__username', 'receiver__username', 'content']
 
-    def body_short(self, obj):
-        return obj.body[:50]
-    body_short.short_description = 'Message'
+    def content_short(self, obj):
+        return obj.content[:50]
+    content_short.short_description = 'Message'
 
 
 @admin.register(Call)
 class CallAdmin(admin.ModelAdmin):
-    list_display = ['caller', 'callee', 'call_type', 'status', 'started_at', 'ended_at']
+    list_display = ['caller', 'receiver', 'call_type', 'status', 'timestamp']
     list_filter = ['call_type', 'status']
-    search_fields = ['caller__username', 'callee__username']
+    search_fields = ['caller__username', 'receiver__username']
 
 
 @admin.register(Meeting)

@@ -13,7 +13,7 @@ from django.views.decorators.csrf import csrf_exempt
 from datetime import timedelta
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
-from .models import UserPresence, Call, Meeting, MeetingParticipant, UserProfile
+from .models import UserPresence, Message, Call, Meeting, MeetingParticipant, UserProfile
 from .middleware import get_user_profile, shop_access_required
 
 
@@ -81,10 +81,10 @@ def get_online_users(request):
 @login_required
 def calls_view(request):
     calls = Call.objects.filter(
-        Q(caller=request.user) | Q(callee=request.user)
-    ).select_related('caller', 'callee').order_by('-started_at')[:50]
+        Q(caller=request.user) | Q(receiver=request.user)
+    ).select_related('caller', 'receiver').order_by('-timestamp')[:50]
 
-    incoming_ringing = Call.objects.filter(callee=request.user, status='ringing')
+    incoming_ringing = Call.objects.filter(receiver=request.user, status='ringing')
 
     return render(request, 'stock_manager/calls.html', {
         'calls': calls,
@@ -97,41 +97,43 @@ def calls_view(request):
 def initiate_call(request):
     if request.method == 'POST':
         data = json.loads(request.body)
-        callee_username = data.get('callee_username', '').strip()
-        call_type = data.get('call_type', 'voice')
+        receiver_username = data.get('callee_username', '').strip()
+        call_type = data.get('call_type', 'audio')
 
-        if callee_username:
+        if receiver_username:
             try:
-                callee = User.objects.get(username=callee_username)
+                receiver = User.objects.get(username=receiver_username)
             except User.DoesNotExist:
                 return JsonResponse({'status': 'error', 'error': 'User not found'}, status=404)
 
             call = Call.objects.create(
                 caller=request.user,
-                callee=callee,
+                receiver=receiver,
+                room_name=f'inv_{Call.objects.count() + 1}',
                 call_type=call_type,
                 status='ringing',
             )
 
-            room_name = f'inv_{call.id}'
+            call.room_name = f'inv_{call.id}'
+            call.save(update_fields=['room_name'])
 
             channel_layer = get_channel_layer()
             async_to_sync(channel_layer.group_send)(
-                f'user_{callee.id}',
+                f'user_{receiver.id}',
                 {
                     'type': 'incoming_call',
                     'call_id': call.id,
                     'caller': request.user.get_full_name() or request.user.username,
                     'caller_id': request.user.id,
                     'call_type': call_type,
-                    'room_name': room_name,
+                    'room_name': call.room_name,
                 }
             )
 
             return JsonResponse({
                 'status': 'initiated',
                 'call_id': call.id,
-                'room_name': room_name,
+                'room_name': call.room_name,
             })
 
     return JsonResponse({'status': 'error', 'error': 'Invalid request'}, status=400)
@@ -140,22 +142,21 @@ def initiate_call(request):
 @login_required
 @xframe_options_exempt
 def call_room(request, call_id):
-    """Jitsi Meet call room."""
     call = get_object_or_404(Call, id=call_id)
 
-    if call.caller != request.user and call.callee != request.user:
+    if call.caller != request.user and call.receiver != request.user:
         return redirect('calls')
 
     if call.status == 'ended':
         messages.info(request, 'This call has already ended.')
         return redirect('calls')
 
-    if call.status == 'ringing' and call.callee == request.user:
+    if call.status == 'ringing' and call.receiver == request.user:
         call.status = 'accepted'
         call.save()
 
-    other_user = call.callee if call.caller == request.user else call.caller
-    room_name = f'inv_{call.id}'
+    other_user = call.receiver if call.caller == request.user else call.caller
+    room_name = call.room_name
 
     return render(request, 'stock_manager/jitsi_room.html', {
         'call': call,
@@ -170,12 +171,11 @@ def call_room(request, call_id):
 @csrf_exempt
 def end_call(request, call_id):
     call = get_object_or_404(Call, id=call_id)
-    if call.caller == request.user or call.callee == request.user:
+    if call.caller == request.user or call.receiver == request.user:
         call.status = 'ended'
-        call.ended_at = timezone.now()
         call.save()
 
-        other_id = call.callee.id if call.caller == request.user else call.caller.id
+        other_id = call.receiver.id if call.caller == request.user else call.caller.id
         try:
             channel_layer = get_channel_layer()
             async_to_sync(channel_layer.group_send)(
@@ -304,16 +304,85 @@ def meeting_signal(request, meeting_code):
     return JsonResponse({'signals': filtered})
 
 
+# ---------------- CHAT ----------------
+
+@login_required
+def chat_view(request):
+    conversations = {}
+    messages = Message.objects.filter(
+        Q(sender=request.user) | Q(receiver=request.user)
+    ).select_related('sender', 'receiver').order_by('-timestamp')
+
+    for msg in messages:
+        other = msg.receiver if msg.sender == request.user else msg.sender
+        if other.id not in conversations:
+            conversations[other.id] = {
+                'user': other,
+                'last_message': msg.content,
+                'timestamp': msg.timestamp,
+                'unread': 0,
+            }
+        if msg.receiver == request.user and not msg.is_read:
+            conversations[other.id]['unread'] += 1
+
+    total_unread = sum(c['unread'] for c in conversations.values())
+
+    return render(request, 'stock_manager/chat.html', {
+        'conversations': sorted(conversations.values(), key=lambda c: c['timestamp'], reverse=True),
+        'total_unread': total_unread,
+        'page_title': 'Chat',
+    })
+
+
+@login_required
+def unread_count(request):
+    count = Message.objects.filter(receiver=request.user, is_read=False).count()
+    return JsonResponse({'count': count})
+
+
+@login_required
+def mark_read(request):
+    if request.method == 'POST':
+        sender_id = request.POST.get('sender_id')
+        if sender_id:
+            Message.objects.filter(
+                sender_id=sender_id, receiver=request.user, is_read=False
+            ).update(is_read=True)
+    return JsonResponse({'status': 'ok'})
+
+
+@login_required
+def get_conversation(request, user_id):
+    other = get_object_or_404(User, id=user_id)
+    msgs = Message.objects.filter(
+        Q(sender=request.user, receiver=other) | Q(sender=other, receiver=request.user)
+    ).select_related('sender').order_by('timestamp')
+
+    Message.objects.filter(sender=other, receiver=request.user, is_read=False).update(is_read=True)
+
+    return JsonResponse({
+        'messages': [{
+            'id': m.id,
+            'content': m.content,
+            'sender': m.sender.username,
+            'timestamp': m.timestamp.isoformat(),
+            'is_mine': m.sender == request.user,
+        } for m in msgs]
+    })
+
+
+# ---------------- CALLS ----------------
+
 @login_required
 def check_incoming_call(request):
-    ringing = Call.objects.filter(callee=request.user, status='ringing').select_related('caller').first()
+    ringing = Call.objects.filter(receiver=request.user, status='ringing').select_related('caller').first()
     if ringing:
         return JsonResponse({
             'ringing': True,
             'call_id': ringing.id,
             'caller': ringing.caller.get_full_name() or ringing.caller.username,
             'call_type': ringing.call_type,
-            'room_name': f'inv_{ringing.id}',
+            'room_name': ringing.room_name,
         })
     return JsonResponse({'ringing': False})
 
@@ -325,7 +394,7 @@ def delete_call(request, call_id):
         return redirect('calls')
     profile = get_user_profile(request.user)
     user_is_admin = profile is None or profile.is_admin
-    if call.caller != request.user and call.callee != request.user and not user_is_admin:
+    if call.caller != request.user and call.receiver != request.user and not user_is_admin:
         messages.error(request, 'Not authorised to delete this call.')
         return redirect('calls')
     call.delete()
@@ -343,7 +412,7 @@ def clear_calls(request):
         Call.objects.all().delete()
         messages.success(request, 'All call logs cleared.')
     else:
-        Call.objects.filter(Q(caller=request.user) | Q(callee=request.user)).delete()
+        Call.objects.filter(Q(caller=request.user) | Q(receiver=request.user)).delete()
         messages.success(request, 'Your call logs cleared.')
     return redirect('calls')
 

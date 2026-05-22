@@ -180,46 +180,28 @@ class UserPresence(models.Model):
 
 
 class Message(models.Model):
-    sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sent_messages')
-    receiver = models.ForeignKey(User, on_delete=models.CASCADE, related_name='received_messages')
-    body = models.TextField(blank=True, default='')
+    sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name="sent_messages")
+    receiver = models.ForeignKey(User, on_delete=models.CASCADE, related_name="received_messages")
+    content = models.TextField()
+    timestamp = models.DateTimeField(auto_now_add=True)
     is_read = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
-    audio_file = models.FileField(upload_to='voice_notes/%Y/%m/%d/', null=True, blank=True)
-    duration = models.FloatField(null=True, blank=True, help_text='Duration in seconds')
-
-    class Meta:
-        ordering = ['created_at']
 
     def __str__(self):
-        return f"From {self.sender.username} to {self.receiver.username}: {self.body[:50]}"
+        return f"{self.sender} -> {self.receiver}"
 
 
 class Call(models.Model):
-    CALL_TYPES = [
-        ('voice', 'Voice Call'),
-        ('video', 'Video Call'),
-    ]
-    CALL_STATUSES = [
-        ('ringing', 'Ringing'),
-        ('accepted', 'Accepted'),
-        ('ended', 'Ended'),
-        ('missed', 'Missed'),
-    ]
+    CALL_TYPES = (
+        ("audio", "Audio"),
+        ("video", "Video"),
+    )
 
-    caller = models.ForeignKey(User, on_delete=models.CASCADE, related_name='initiated_calls')
-    callee = models.ForeignKey(User, on_delete=models.CASCADE, related_name='received_calls')
-    call_type = models.CharField(max_length=10, choices=CALL_TYPES, default='voice')
-    status = models.CharField(max_length=10, choices=CALL_STATUSES, default='ringing')
-    started_at = models.DateTimeField(auto_now_add=True)
-    ended_at = models.DateTimeField(null=True, blank=True)
-    signaling_data = models.JSONField(default=dict, blank=True)
-
-    class Meta:
-        ordering = ['-started_at']
-
-    def __str__(self):
-        return f"{self.caller.username} -> {self.callee.username} ({self.call_type})"
+    caller = models.ForeignKey(User, on_delete=models.CASCADE, related_name="made_calls")
+    receiver = models.ForeignKey(User, on_delete=models.CASCADE, related_name="received_calls")
+    room_name = models.CharField(max_length=255, unique=True)
+    call_type = models.CharField(max_length=10, choices=CALL_TYPES)
+    status = models.CharField(max_length=20, default="ringing")
+    timestamp = models.DateTimeField(auto_now_add=True)
 
 
 class Meeting(models.Model):

@@ -28,6 +28,12 @@ urlpatterns = [
     path('mark-offline/', comm.mark_offline, name='mark_offline'),
     path('api/all-users/', comm.get_all_users, name='all_users'),
     path('api/online-users/', comm.get_online_users, name='online_users'),
+
+    path('chat/', comm.chat_view, name='chat'),
+    path('chat/unread/', comm.unread_count, name='unread_count'),
+    path('chat/conversation/<int:user_id>/', comm.get_conversation, name='get_conversation'),
+    path('chat/mark-read/', comm.mark_read, name='mark_read'),
+
     path('calls/', comm.calls_view, name='calls'),
     path('calls/incoming/', comm.check_incoming_call, name='check_incoming_call'),
     path('calls/initiate/', comm.initiate_call, name='initiate_call'),
