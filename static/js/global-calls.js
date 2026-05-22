@@ -103,7 +103,7 @@
             try {
                 var d = JSON.parse(e.data);
                 if (d.type === 'incoming_call' && d.caller !== 'CALL_ENDED') showModal(d);
-                else if (d.caller === 'CALL_ENDED') hideModal();
+                else if (d.caller === 'CALL_ENDED' || d.type === 'call_ended') hideModal();
             } catch (err) {}
         };
         ws.onclose = function () { ws = null; schedule(); };

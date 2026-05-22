@@ -186,22 +186,25 @@ def end_call(request, call_id):
     call = get_object_or_404(Call, id=call_id)
     if call.caller == request.user or call.receiver == request.user:
         call.status = 'ended'
-        call.save()
+        call.save(update_fields=['status'])
 
         other_id = call.receiver.id if call.caller == request.user else call.caller.id
+        caller_id = call.caller.id
         try:
             channel_layer = get_channel_layer()
-            async_to_sync(channel_layer.group_send)(
-                f'user_{other_id}',
-                {
-                    'type': 'incoming_call',
-                    'call_id': call.id,
-                    'caller': 'CALL_ENDED',
-                    'caller_id': 0,
-                    'call_type': call.call_type,
-                }
-            )
-            # Also notify the call-signaling group so the other peer in the room gets the end signal
+
+            # Notify both participants in real-time
+            for uid in (caller_id, other_id):
+                async_to_sync(channel_layer.group_send)(
+                    f'user_{uid}',
+                    {
+                        'type': 'call_ended',
+                        'call_id': call.id,
+                        'user_id': uid,
+                    }
+                )
+
+            # Notify the call-signaling group so the other peer in the room gets the end signal
             async_to_sync(channel_layer.group_send)(
                 f'call_signal_{call.id}',
                 {

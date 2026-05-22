@@ -199,6 +199,13 @@ class CallConsumer(AsyncWebsocketConsumer):
     async def call_accepted(self, event):
         await self.send(text_data=json.dumps(event))
 
+    async def call_ended(self, event):
+        await self.send(text_data=json.dumps({
+            'type': 'call_ended',
+            'call_id': event.get('call_id'),
+            'user_id': event.get('user_id'),
+        }))
+
     @database_sync_to_async
     def create_call(self, receiver_id, call_type):
         return Call.objects.create(
@@ -232,6 +239,25 @@ class CallSignalConsumer(AsyncWebsocketConsumer):
                 self.call_group_name,
                 {'type': 'peer_left', 'user_id': self.user.id}
             )
+            await self.channel_layer.group_send(
+                self.call_group_name,
+                {'type': 'call_ended', 'user_id': self.user.id}
+            )
+
+        await self.end_call_in_db()
+
+    @database_sync_to_async
+    def end_call_in_db(self):
+        try:
+            from .models import Call
+            call = Call.objects.filter(room_name=self.room_id, status='ringing').first()
+            if not call:
+                call = Call.objects.filter(id=self.room_id, status__in=['ringing', 'ongoing']).first()
+            if call and call.status in ('ringing', 'ongoing'):
+                call.status = 'ended'
+                call.save(update_fields=['status'])
+        except Exception as e:
+            print(f"end_call_in_db error: {e}")
 
     async def receive(self, text_data):
         print(f"WebSocket RECEIVE - CallSignalConsumer: {text_data}")
