@@ -1,4 +1,17 @@
 {% extends 'stock_manager/base.html' %}
+
+{% block extra_head %}
+<meta http-equiv="Content-Security-Policy" content="
+  default-src 'self' https://cdn.jsdelivr.net https://meet.jit.si https://8x8.vc;
+  script-src 'self' https://cdn.jsdelivr.net https://meet.jit.si https://8x8.vc 'unsafe-inline' 'unsafe-eval';
+  style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline';
+  connect-src 'self' wss: https://meet.jit.si https://8x8.vc;
+  img-src 'self' data: https://cdn.jsdelivr.net https://meet.jit.si https://8x8.vc;
+  font-src 'self' data: https://cdn.jsdelivr.net;
+  frame-ancestors 'self';
+">
+{% endblock %}
+
 {% block content %}
 <style>
 #jitsi-wrapper {
@@ -67,9 +80,11 @@
         <p class="text-muted" id="errorMsg">All Jitsi servers are unreachable.</p>
         <div class="d-flex gap-2 flex-wrap justify-content-center">
             <button class="btn btn-primary" onclick="location.reload()">Retry</button>
+            <button class="btn btn-outline-warning d-none" id="diagnosticBtn" onclick="jitsiRunDiagnostics()"><i class="bi bi-search"></i> Test Connectivity</button>
             <a class="btn btn-outline-light" id="openTabBtn" href="https://meet.jit.si/inv_{{ call.id }}" target="_blank">Open in tab</a>
             <a href="{% url 'calls' %}" class="btn btn-outline-light">Back</a>
         </div>
+        <div id="diagOutput" class="d-none mt-3 text-start" style="max-width:400px;margin:0 auto;"></div>
     </div>
 </div>
 
@@ -78,18 +93,62 @@
 (function () {
     'use strict';
 
+    /* ── Logging ── */
+    var LOG = {
+        _t: function () { return new Date().toISOString().slice(11, 23); },
+        i: function (msg, obj) {
+            console.log('[Jitsi][' + this._t() + '] ' + msg, obj !== undefined ? obj : '');
+        },
+        w: function (msg, obj) {
+            console.warn('[Jitsi][' + this._t() + '] ' + msg, obj !== undefined ? obj : '');
+        },
+        e: function (msg, obj) {
+            console.error('[Jitsi][' + this._t() + '] ' + msg, obj !== undefined ? obj : '');
+        },
+    };
+
     var ended = false;
     var timer = null;
     var seconds = 0;
     var api = null;
     var initTimeout = null;
+    var scriptLoadTimeout = null;
+
+    /* CONFIG: add or reorder domains below.
+       'meet.jit.si'     — official public instance (may be blocked in some regions)
+       'jitsi.8x8.vc'    — 8x8 public instance (owns Jitsi, more globally available)
+       To use a self-hosted server, add its domain (e.g. 'jitsi.example.com') */
     var JITSI_DOMAINS = ['meet.jit.si', 'jitsi.8x8.vc'];
     var domainIndex = 0;
     var activeDomain = null;
+    var MAX_SCRIPT_LOAD_MS = 20000; // per-domain script load timeout
+    var CONNECTION_TIMEOUT_MS = 30000;
+    var retryDelayMs = 1000;
 
     function el(id) { return document.getElementById(id); }
 
+    /* ── Diagnostic: test reachability of a domain ── */
+    function testDomainReachability(domain, callback) {
+        var url = 'https://' + domain + '/external_api.js';
+        var ctrl = new AbortController();
+        var to = setTimeout(function () { ctrl.abort(); }, 5000);
+        LOG.i('Testing reachability for ' + domain + ' via fetch no-cors...');
+        fetch(url, { mode: 'no-cors', signal: ctrl.signal })
+            .then(function () {
+                clearTimeout(to);
+                LOG.i('  ' + domain + ' reachable (fetch resolved)');
+                callback(true);
+            })
+            .catch(function (err) {
+                clearTimeout(to);
+                LOG.w('  ' + domain + ' unreachable (fetch rejected: ' + err.message + ')');
+                callback(false);
+            });
+    }
+
+    /* ── UI helpers ── */
     function showError(msg) {
+        LOG.e('showError: ' + msg);
         if (msg) el('errorMsg').textContent = msg;
         var tab = el('openTabBtn');
         if (tab && activeDomain) {
@@ -103,28 +162,40 @@
         try { window.location.href = '{% url "calls" %}'; } catch (e) { window.location.replace('{% url "calls" %}'); }
     }
 
+    function cleanup() {
+        LOG.i('cleanup()');
+        if (timer) { clearInterval(timer); timer = null; }
+        if (initTimeout) { clearTimeout(initTimeout); initTimeout = null; }
+        if (scriptLoadTimeout) { clearTimeout(scriptLoadTimeout); scriptLoadTimeout = null; }
+        if (api) {
+            try { api.dispose(); LOG.i('Jitsi API disposed'); } catch (e) { LOG.w('dispose error: ' + e.message); }
+            api = null;
+        }
+    }
+
     function endCall() {
         if (ended) return;
         ended = true;
-        if (timer) { clearInterval(timer); timer = null; }
-        if (initTimeout) { clearTimeout(initTimeout); initTimeout = null; }
-        if (api) { try { api.dispose(); } catch (e) {} api = null; }
+        cleanup();
         var csrf = (document.querySelector('[name=csrfmiddlewaretoken]') || {}).value || '';
         fetch('{% url "end_call" call.id %}', {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: 'csrfmiddlewaretoken=' + encodeURIComponent(csrf),
             keepalive: true,
-        }).catch(function () {});
+        }).then(function () { LOG.i('end_call sent'); }).catch(function (err) { LOG.w('end_call failed: ' + err.message); });
         navCalls();
     }
 
+    /* ── Jitsi initialization ── */
     function initJitsi(domain) {
+        if (ended) { LOG.w('initJitsi called after end'); return; }
         activeDomain = domain;
         var container = el('jitsi-container');
         if (!container) { showError('Container not found'); return; }
         container.innerHTML = '';
 
+        LOG.i('Creating JitsiMeetExternalAPI on ' + domain);
         try {
             api = new JitsiMeetExternalAPI(domain, {
                 roomName: 'inv_{{ call.id }}',
@@ -138,6 +209,8 @@
                     enableWelcomePage: false,
                     disableInviteFunctions: true,
                     enableClosePage: false,
+                    p2p: { enabled: true, preferH264: true },
+                    analytics: { disabled: true },
                 },
                 interfaceConfigOverrides: {
                     MOBILE_APP_PROMO: false,
@@ -146,24 +219,27 @@
                     DISABLE_JOIN_LEAVE_NOTIFICATIONS: true,
                     HIDE_INVITE_MORE_HEADER: true,
                     TOOLBAR_ALWAYS_VISIBLE: true,
+                    FILM_STRIP_MAX_HEIGHT: 80,
                 },
                 userInfo: {
                     displayName: '{{ request.user.get_full_name|default:request.user.username }}',
                 },
             });
+            LOG.i('JitsiMeetExternalAPI created successfully');
         } catch (e) {
-            console.error('[Jitsi] init failed:', e);
-            showError('Failed to start: ' + (e.message || 'unknown error'));
+            LOG.e('JitsiMeetExternalAPI constructor threw', e);
+            showError('Failed to start Jitsi: ' + (e.message || 'unknown error'));
             return;
         }
 
         initTimeout = setTimeout(function () {
-            console.warn('[Jitsi] timeout');
-            showError('Connection timed out on ' + domain + '. Try again.');
-        }, 25000);
+            LOG.w('Connection timeout after ' + CONNECTION_TIMEOUT_MS + 'ms on ' + domain);
+            if (!ended) showError('Connection timed out on ' + domain + '. Retry or open in browser tab.');
+        }, CONNECTION_TIMEOUT_MS);
 
-        api.addListener('videoConferenceJoined', function () {
-            console.log('[Jitsi] joined on ' + domain);
+        api.addListener('videoConferenceJoined', function (e) {
+            LOG.i('videoConferenceJoined event', e);
+            if (ended) return;
             clearTimeout(initTimeout); initTimeout = null;
             el('jitsi-loading').classList.add('hidden');
             timer = setInterval(function () {
@@ -172,57 +248,159 @@
                 var s = String(seconds % 60).padStart(2, '0');
                 el('timer').textContent = m + ':' + s;
             }, 1000);
+            LOG.i('Call connected, timer started');
         });
 
-        api.addListener('readyToClose', endCall);
-        api.addListener('videoConferenceLeft', endCall);
+        api.addListener('readyToClose', function () {
+            LOG.i('readyToClose event');
+            endCall();
+        });
+        api.addListener('videoConferenceLeft', function (e) {
+            LOG.i('videoConferenceLeft event', e);
+            endCall();
+        });
 
         api.addListener('errorOccurred', function (e) {
-            console.error('[Jitsi] error:', JSON.stringify(e));
+            LOG.e('Jitsi errorOccurred:', e);
         });
 
         api.addListener('peerConnectionStateChanged', function (state) {
-            if (state === 'failed') showError('Connection lost.');
+            LOG.i('peerConnectionStateChanged: ' + state);
+            if (state === 'failed') showError('Connection lost. Reload to retry.');
+        });
+
+        api.addListener('displayNameChange', function (e) {
+            LOG.i('displayNameChange', e);
         });
     }
 
+    /* ── Dynamic script loading with retry ── */
     function tryDomain() {
+        if (ended) return;
         if (domainIndex >= JITSI_DOMAINS.length) {
-            showError('All Jitsi servers are unreachable. Try again later.');
+            LOG.e('All ' + JITSI_DOMAINS.length + ' domains exhausted');
+            el('loadingMsg').textContent = 'All servers failed. Run diagnostic check below.';
+            showError('All Jitsi servers are unreachable in your region. Try "Open in tab" or use a VPN.');
+            // Show diagnostic button
+            var diag = el('diagnosticBtn');
+            if (diag) diag.classList.remove('d-none');
             return;
         }
         var d = JITSI_DOMAINS[domainIndex];
         domainIndex++;
         el('loadingMsg').textContent = 'Connecting to ' + d + '...';
-        console.log('[Jitsi] trying domain:', d);
+        LOG.i('tryDomain: attempting ' + d + ' (attempt ' + domainIndex + '/' + JITSI_DOMAINS.length + ')');
 
         var s = document.createElement('script');
         s.src = 'https://' + d + '/external_api.js';
+        s.async = true;
+        s.setAttribute('data-jitsi-domain', d);
+
+        var loadFailed = false;
+
+        /* Script load timeout */
+        scriptLoadTimeout = setTimeout(function () {
+            if (!loadFailed) {
+                loadFailed = true;
+                LOG.w('Script load timeout (' + MAX_SCRIPT_LOAD_MS + 'ms) for ' + d);
+                if (s.parentNode) s.parentNode.removeChild(s);
+                retryDelayMs = Math.min(retryDelayMs * 1.5, 10000);
+                setTimeout(tryDomain, retryDelayMs);
+            }
+        }, MAX_SCRIPT_LOAD_MS);
+
         s.onload = function () {
-            console.log('[Jitsi] script loaded from', d);
+            if (loadFailed) return;
+            clearTimeout(scriptLoadTimeout);
+            scriptLoadTimeout = null;
+            if (typeof JitsiMeetExternalAPI === 'undefined') {
+                LOG.w('Script loaded from ' + d + ' but JitsiMeetExternalAPI not defined');
+                setTimeout(tryDomain, 500);
+                return;
+            }
+            LOG.i('Script loaded successfully from ' + d + ', JitsiMeetExternalAPI=' + typeof JitsiMeetExternalAPI);
+            retryDelayMs = 1000;
             initJitsi(d);
         };
-        s.onerror = function () {
-            console.warn('[Jitsi] script failed from', d);
-            document.head.removeChild(s);
-            tryDomain();
+
+        s.onerror = function (ev) {
+            if (loadFailed) return;
+            loadFailed = true;
+            clearTimeout(scriptLoadTimeout);
+            scriptLoadTimeout = null;
+            LOG.w('Script load error from ' + d + ' (event=' + (ev.type || 'unknown') + ')');
+            if (s.parentNode) s.parentNode.removeChild(s);
+            retryDelayMs = Math.min(retryDelayMs * 1.5, 10000);
+            setTimeout(tryDomain, retryDelayMs);
         };
+
         document.head.appendChild(s);
     }
 
+    /* ── Diagnostics ── */
+    function runDiagnostics() {
+        LOG.i('========================================');
+        LOG.i('Running connectivity diagnostics...');
+        LOG.i('Browser: ' + navigator.userAgent);
+        LOG.i('Online: ' + navigator.onLine);
+        LOG.i('Platform: ' + navigator.platform);
+        LOG.i('========================================');
+        var results = [];
+        var n = JITSI_DOMAINS.length;
+        var completed = 0;
+        var out = el('diagOutput');
+        if (out) {
+            out.classList.remove('d-none');
+            out.innerHTML = '<div class="alert alert-info">Running tests...</div>';
+        }
+        JITSI_DOMAINS.forEach(function (d) {
+            testDomainReachability(d, function (ok) {
+                completed++;
+                results.push({ domain: d, reachable: ok });
+                var html = '<div class="alert ' + (ok ? 'alert-success' : 'alert-danger') + ' mb-1 small">';
+                html += '<strong>' + d + '</strong>: ' + (ok ? 'Reachable ✓' : 'UNREACHABLE ✗');
+                html += '</div>';
+                if (out) {
+                    if (completed === 1) out.innerHTML = html;
+                    else out.innerHTML += html;
+                    if (completed === n) {
+                        out.innerHTML += '<div class="mt-2 text-muted small">If all domains show UNREACHABLE, your ISP/country is blocking Jitsi. Use a VPN or self-host.</div>';
+                    }
+                }
+                LOG.i('Diagnostics result: ' + d + ' reachable=' + ok);
+            });
+        });
+    }
+
+    /* Expose diagnostics globally */
+    window.jitsiRunDiagnostics = runDiagnostics;
+
+    /* ── beforeunload ── */
     window.addEventListener('beforeunload', function () {
         if (!ended) {
             ended = true;
-            if (timer) clearInterval(timer);
-            if (initTimeout) clearTimeout(initTimeout);
-            if (api) { try { api.dispose(); } catch (e) {} }
+            cleanup();
             var csrf = (document.querySelector('[name=csrfmiddlewaretoken]') || {}).value || '';
             var blob = new Blob(['csrfmiddlewaretoken=' + encodeURIComponent(csrf)], { type: 'application/x-www-form-urlencoded' });
             navigator.sendBeacon('{% url "end_call" call.id %}', blob);
         }
     });
 
-    tryDomain();
+    /* ── Start ── */
+    LOG.i('========================================');
+    LOG.i('Jitsi room script starting');
+    LOG.i('Room: inv_{{ call.id }}');
+    LOG.i('Domains: ' + JSON.stringify(JITSI_DOMAINS));
+    LOG.i('Call type: {{ call.call_type }}');
+    LOG.i('========================================');
+
+    /* Prevent duplicate injection — check if already running */
+    if (window._jitsiStarted) {
+        LOG.w('Duplicate jitsi_room script detected — aborting');
+    } else {
+        window._jitsiStarted = true;
+        tryDomain();
+    }
 })();
 </script>
 {% endblock %}

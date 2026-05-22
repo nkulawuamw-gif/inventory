@@ -203,6 +203,7 @@
         .confirm-footer .btn-confirm.warning { background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%); }
         .confirm-footer .btn-confirm.success { background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%); }
     </style>
+{% block extra_head %}{% endblock %}
 </head>
 <body>
     {% if user.is_authenticated %}
