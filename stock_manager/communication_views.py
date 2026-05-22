@@ -462,7 +462,8 @@ def call_room(request, call_id):
         'call': call,
         'other_user': other_user,
         'room_name': room_name,
-        'page_title': 'Call - Jitsi Meet',
+        'is_initiator': request.user == call.caller,
+        'page_title': 'Call - Pure WebRTC',
     })
 
 
