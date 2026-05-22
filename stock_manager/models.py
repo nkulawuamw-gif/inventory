@@ -1,6 +1,8 @@
 from django.db import models
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from django.core.cache import cache
+
+User = get_user_model()
 from django.utils import timezone
 from django.utils.text import slugify
 
@@ -431,7 +433,6 @@ class WhatsAppMessage(models.Model):
 
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from django.contrib.auth.models import User
 
 
 @receiver(post_save, sender=User, dispatch_uid='create_user_profile')

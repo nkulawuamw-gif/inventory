@@ -1,5 +1,6 @@
 from django.contrib import admin
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
+User = get_user_model()
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from .models import Shop, Item, Sale, Receipt, ReceiptItem, StockTransaction, UserProfile, Profile, UserPresence, Message, Call, Meeting, MeetingParticipant, BusinessPeriod, CompanyProfile, WhatsAppSetting, WhatsAppMessage
 
