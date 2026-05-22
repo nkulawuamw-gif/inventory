@@ -283,6 +283,7 @@
                     {% endif %}
                     <li class="nav-item"><a class="nav-link py-1" href="{% url 'sales_history' %}"><i class="bi bi-receipt"></i> Receipts</a></li>
                     <li class="nav-item"><a class="nav-link py-1" href="{% url 'chat' %}"><i class="bi bi-chat-dots"></i> Chat <span class="badge bg-danger" id="navbarChatBadge" style="display:none;">0</span></a></li>
+<li class="nav-item"><a class="nav-link py-1" href="#" onclick="event.preventDefault();var m=new bootstrap.Modal(document.getElementById('chatUserModal'));m.show();"><i class="bi bi-person-plus"></i></a></li>
                     <li class="nav-item"><a class="nav-link py-1" href="{% url 'calls' %}"><i class="bi bi-telephone"></i> Calls</a></li>
                     {% if user_access.is_admin or 'meetings' in user_access.permissions %}
                     <li class="nav-item"><a class="nav-link py-1" href="{% url 'meetings' %}"><i class="bi bi-camera-video"></i> Meetings</a></li>
@@ -451,6 +452,26 @@
         </div>
     </div>
 
+    <div class="modal fade" id="chatUserModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content">
+                <div class="modal-header bg-dark text-white">
+                    <h6 class="modal-title"><i class="bi bi-chat-dots"></i> New Chat</h6>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <select id="chatUserSelect" class="form-select">
+                        <option value="">— Select user —</option>
+                    </select>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button class="btn btn-sm btn-primary" onclick="startChatFromModal()"><i class="bi bi-send"></i> Start Chat</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <style>
         @keyframes ringPulse {
             0% { transform: scale(1); opacity: 1; }
@@ -487,6 +508,41 @@
         const cookie = document.cookie.match('csrftoken=([^;]*)');
         return cookie ? cookie[1] : '';
     }
+
+    function loadChatUsers() {
+        fetch('/api/all-users/', { credentials: 'include' })
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+                var sel = document.getElementById('chatUserSelect');
+                if (!sel || !d.users) return;
+                sel.innerHTML = '<option value="">— Select user —</option>';
+                d.users.forEach(function (u) {
+                    if (u.id === {{ request.user.id }}) return;
+                    var opt = document.createElement('option');
+                    opt.value = u.id;
+                    opt.textContent = u.username;
+                    sel.appendChild(opt);
+                });
+            })
+            .catch(function () {});
+    }
+
+    function startChatFromModal() {
+        var sel = document.getElementById('chatUserSelect');
+        if (!sel || !sel.value) return;
+        var userId = sel.value;
+        var userName = sel.options[sel.selectedIndex].text;
+        var modal = bootstrap.Modal.getInstance(document.getElementById('chatUserModal'));
+        if (modal) modal.hide();
+        window.location.href = '/chat/#' + userId;
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        var chatModalEl = document.getElementById('chatUserModal');
+        if (chatModalEl) {
+            chatModalEl.addEventListener('show.bs.modal', loadChatUsers);
+        }
+    });
 
     function heartbeat() {
         fetch('{% url "heartbeat" %}', {
