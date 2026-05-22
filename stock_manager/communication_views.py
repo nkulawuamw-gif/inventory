@@ -487,27 +487,7 @@ def end_call(request, call_id):
             pass
 
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.content_type == 'application/json':
-        return JsonResponse({'status': 'ended'})
-    return redirect('calls')
-
-
-@login_required
-def call_signal(request, call_id):
-    call = get_object_or_404(Call, id=call_id)
-
-    if call.caller != request.user and call.callee != request.user:
-        return JsonResponse({'error': 'Not a participant'}, status=403)
-
-    if request.method == 'POST':
-        data = json.loads(request.body)
-        call.refresh_from_db()
-        signal_data = call.signaling_data
-        signal_data[data.get('type', 'unknown')] = data.get('data', {})
-        call.signaling_data = signal_data
-        call.save()
-        return JsonResponse({'status': 'ok'})
-
-    return JsonResponse({'signaling': call.signaling_data, 'call_status': call.status})
+    return JsonResponse({'status': 'ended'})
 
 
 @shop_access_required

@@ -10,15 +10,8 @@
     box-shadow: 0 2px 20px rgba(0,0,0,0.1);
     background: #1a1a2e;
 }
-#jitsi-container {
-    width: 100%;
-    height: 100%;
-}
-#jitsi-container iframe {
-    width: 100%;
-    height: 100%;
-    border: 0;
-}
+#jitsi-container { width: 100%; height: 100%; }
+#jitsi-container iframe { width: 100%; height: 100%; border: 0; }
 .call-info-bar {
     display: flex;
     justify-content: space-between;
@@ -40,10 +33,7 @@
     cursor: pointer;
     transition: all 0.2s;
 }
-.call-info-bar .end-call-btn:hover {
-    background: #c0392b;
-    transform: scale(1.05);
-}
+.call-info-bar .end-call-btn:hover { background: #c0392b; }
 .jitsi-loading {
     position: absolute;
     inset: 0;
@@ -57,10 +47,7 @@
     z-index: 2;
     transition: opacity 0.5s;
 }
-.jitsi-loading.hidden {
-    opacity: 0;
-    pointer-events: none;
-}
+.jitsi-loading.hidden { opacity: 0; pointer-events: none; }
 .jitsi-error {
     position: absolute;
     inset: 0;
@@ -76,7 +63,6 @@
     text-align: center;
 }
 .jitsi-error.show { display: flex; }
-.jitsi-error .btn { padding: 10px 24px; border-radius: 12px; font-weight: 600; text-decoration: none; }
 @media (max-width: 767px) {
     #jitsi-wrapper { height: calc(100vh - 160px); }
     .call-info-bar { font-size: 0.75rem; padding: 6px 10px; }
@@ -88,15 +74,11 @@
     <div>
         <i class="bi bi-telephone{% if call.call_type == 'video' %}-video{% endif %} me-2"></i>
         Calling <strong>{{ other_user.get_full_name|default:other_user.username }}</strong>
-        <span class="badge bg-{% if call.call_type == 'video' %}success{% else %}info{% endif %} ms-2">
-            {{ call.get_call_type_display }}
-        </span>
+        <span class="badge bg-{% if call.call_type == 'video' %}success{% else %}info{% endif %} ms-2">{{ call.get_call_type_display }}</span>
     </div>
     <div class="d-flex align-items-center gap-2">
         <span id="callTimer" class="text-light small">00:00</span>
-        <button class="end-call-btn" onclick="endJitsiCall()">
-            <i class="bi bi-telephone-x"></i> End Call
-        </button>
+        <button class="end-call-btn" onclick="endJitsiCall()"><i class="bi bi-telephone-x"></i> End Call</button>
     </div>
 </div>
 
@@ -104,137 +86,180 @@
     <div id="jitsi-container"></div>
     <div class="jitsi-loading" id="jitsiLoading">
         <div class="spinner-border text-light" role="status"></div>
-        <span>Connecting to Jitsi Meet...</span>
+        <span>Connecting...</span>
     </div>
     <div class="jitsi-error" id="jitsiError">
         <i class="bi bi-exclamation-triangle" style="font-size:3rem;"></i>
-        <h5>Failed to connect</h5>
-        <p class="text-muted">Could not connect to Jitsi Meet. You can try opening the meeting in a new tab.</p>
-        <div class="d-flex gap-2">
-            <a class="btn btn-primary" id="openJitsiTab" target="_blank">Open in new tab</a>
-            <a href="{% url 'calls' %}" class="btn btn-outline-light">Back to calls</a>
+        <h5>Connection failed</h5>
+        <p class="text-muted">Could not connect. Try opening in a new tab.</p>
+        <div class="d-flex gap-2 flex-wrap justify-content-center">
+            <a class="btn btn-primary" id="openJitsiTab" target="_blank">Open in tab</a>
+            <a href="{% url 'calls' %}" class="btn btn-outline-light">Back</a>
         </div>
     </div>
 </div>
 
 {% csrf_token %}
-<script src="https://meet.jit.si/external_api.js"></script>
 <script>
-var jitsiApi = null;
-var callEnded = false;
-var timerInterval = null;
-var timerSeconds = 0;
+(function() {
+    'use strict';
+    var jitsiApi = null;
+    var callEnded = false;
+    var timerInterval = null;
+    var timerSeconds = 0;
+    var connectTimeout = null;
 
-function updateTimer() {
-    timerSeconds++;
-    var m = String(Math.floor(timerSeconds / 60)).padStart(2, '0');
-    var s = String(timerSeconds % 60).padStart(2, '0');
-    var el = document.getElementById('callTimer');
-    if (el) el.textContent = m + ':' + s;
-}
-
-function startJitsi() {
-    var container = document.getElementById('jitsi-container');
-    container.innerHTML = '';
-    var room = '{{ room_name }}';
-    var domain = 'meet.jit.si';
-
-    var options = {
-        roomName: room,
-        width: '100%',
-        height: '100%',
-        parentNode: container,
-        configOverrides: {
-            startWithAudioMuted: false,
-            startWithVideoMuted: false,
-            disableDeepLinking: true,
-            disableInviteFunctions: true,
-            disableJoinLeaveNotifications: true,
-            enableClosePage: false,
-            hideConferenceTimer: true,
-        },
-        interfaceConfigOverrides: {
-            SHOW_JITSI_WATERMARK: false,
-            SHOW_WATERMARK_FOR_GUESTS: false,
-            TOOLBAR_ALWAYS_VISIBLE: true,
-            DISABLE_JOIN_LEAVE_NOTIFICATIONS: true,
-            FILM_STRIP_MAX_HEIGHT: 120,
-            MOBILE_DYNAMIC_LINK: false,
-        },
-        userInfo: {
-            displayName: '{{ request.user.get_full_name|default:request.user.username }}',
-        },
-    };
-
-    try {
-        jitsiApi = new JitsiMeetExternalAPI(domain, options);
-    } catch (e) {
-        console.error('Jitsi init error:', e);
-        showJitsiError();
-        return;
+    function updateTimer() {
+        timerSeconds++;
+        var m = String(Math.floor(timerSeconds / 60)).padStart(2, '0');
+        var s = String(timerSeconds % 60).padStart(2, '0');
+        var el = document.getElementById('callTimer');
+        if (el) el.textContent = m + ':' + s;
     }
 
-    var timeout = setTimeout(function() {
-        console.warn('Jitsi join timeout — showing error');
-        showJitsiError();
-    }, 15000);
-
-    jitsiApi.addListener('videoConferenceJoined', function() {
-        clearTimeout(timeout);
-        document.getElementById('jitsiLoading').classList.add('hidden');
-        timerInterval = setInterval(updateTimer, 1000);
-    });
-
-    jitsiApi.addListener('readyToClose', function() {
-        endJitsiCall();
-    });
-
-    jitsiApi.addListener('videoConferenceLeft', function() {
-        endJitsiCall();
-    });
-
-    jitsiApi.addListener('errorOccurred', function(e) {
-        console.error('Jitsi error:', e);
-    });
-}
-
-function showJitsiError() {
-    document.getElementById('jitsiLoading').classList.add('hidden');
-    document.getElementById('jitsiError').classList.add('show');
-    var openTab = document.getElementById('openJitsiTab');
-    if (openTab) {
-        openTab.href = 'https://meet.jit.si/{{ room_name }}#config.startWithAudioMuted=false&config.startWithVideoMuted=false&userInfo.displayName={{ request.user.get_full_name|default:request.user.username|urlencode }}';
-    }
-}
-
-function endJitsiCall() {
-    if (callEnded) return;
-    callEnded = true;
-
-    if (timerInterval) {
-        clearInterval(timerInterval);
-        timerInterval = null;
+    function disposePrevious() {
+        if (window.activeJitsiApi) {
+            try { window.activeJitsiApi.dispose(); } catch(e) {}
+            window.activeJitsiApi = null;
+        }
     }
 
-    if (jitsiApi) {
-        try { jitsiApi.dispose(); } catch(e) { console.warn('Jitsi dispose error:', e); }
-        jitsiApi = null;
+    function loadJitsiScript(callback) {
+        if (typeof JitsiMeetExternalAPI !== 'undefined') {
+            callback();
+            return;
+        }
+        var script = document.createElement('script');
+        script.src = 'https://meet.jit.si/external_api.js';
+        script.async = true;
+        script.onload = callback;
+        script.onerror = function() {
+            document.getElementById('jitsiLoading').classList.add('hidden');
+            document.getElementById('jitsiError').classList.add('show');
+        };
+        document.head.appendChild(script);
     }
 
-    fetch('{% url "end_call" call.id %}', {
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || '',
-        },
-    }).catch(function() {});
+    function startJitsi() {
+        disposePrevious();
+        var container = document.getElementById('jitsi-container');
+        container.innerHTML = '';
+        var room = '{{ room_name }}';
+        var domain = 'meet.jit.si';
 
-    window.location.href = '{% url "calls" %}';
-}
+        var options = {
+            roomName: room,
+            width: '100%',
+            height: '100%',
+            parentNode: container,
+            configOverrides: {
+                startWithAudioMuted: false,
+                startWithVideoMuted: false,
+                prejoinPageEnabled: false,
+                disableDeepLinking: true,
+                disableInviteFunctions: true,
+                disableJoinLeaveNotifications: true,
+                enableClosePage: false,
+                hideConferenceTimer: true,
+                channelLastN: 4,
+                startBitrate: '200',
+                startVideoMuted: 0,
+                disableSimulcast: false,
+                disableLevelControl: true,
+                enableTalkWhileMuted: false,
+                enableUserRolesBasedOnToken: false,
+                disableRemoteControl: true,
+                enableNoAudioDetection: true,
+                enableNoVideoDetection: true,
+            },
+            interfaceConfigOverrides: {
+                SHOW_JITSI_WATERMARK: false,
+                SHOW_WATERMARK_FOR_GUESTS: false,
+                TOOLBAR_ALWAYS_VISIBLE: true,
+                DISABLE_JOIN_LEAVE_NOTIFICATIONS: true,
+                FILM_STRIP_MAX_HEIGHT: 80,
+                MOBILE_APP_PROMO: false,
+                MOBILE_DYNAMIC_LINK: false,
+                DISABLE_FOCUS_INDICATOR: true,
+                HIDE_INVITE_MORE_HEADER: true,
+                SHOW_BRAND_WATERMARK: false,
+                SHOW_POWERED_BY: false,
+            },
+            userInfo: {
+                displayName: '{{ request.user.get_full_name|default:request.user.username }}',
+            },
+        };
 
-window.addEventListener('beforeunload', function() {
-    if (!callEnded) endJitsiCall();
-});
+        try {
+            jitsiApi = new JitsiMeetExternalAPI(domain, options);
+            window.activeJitsiApi = jitsiApi;
+        } catch (e) {
+            console.error('Jitsi init error:', e);
+            document.getElementById('jitsiLoading').classList.add('hidden');
+            document.getElementById('jitsiError').classList.add('show');
+            return;
+        }
 
-startJitsi();
+        connectTimeout = setTimeout(function() {
+            document.getElementById('jitsiLoading').classList.add('hidden');
+            document.getElementById('jitsiError').classList.add('show');
+            var tab = document.getElementById('openJitsiTab');
+            if (tab) {
+                tab.href = 'https://meet.jit.si/{{ room_name }}#config.startWithAudioMuted=false&config.startWithVideoMuted=false&userInfo.displayName={{ request.user.get_full_name|default:request.user.username|urlencode }}';
+            }
+        }, 20000);
+
+        jitsiApi.addListener('videoConferenceJoined', function() {
+            if (connectTimeout) { clearTimeout(connectTimeout); connectTimeout = null; }
+            document.getElementById('jitsiLoading').classList.add('hidden');
+            timerInterval = setInterval(updateTimer, 1000);
+        });
+
+        jitsiApi.addListener('readyToClose', function() {
+            endJitsiCall();
+        });
+
+        jitsiApi.addListener('videoConferenceLeft', function() {
+            endJitsiCall();
+        });
+
+        jitsiApi.addListener('errorOccurred', function(e) {
+            console.error('Jitsi error:', e);
+        });
+
+        jitsiApi.addListener('peerConnectionStateChanged', function(state) {
+            if (state === 'failed' || state === 'disconnected') {
+                console.warn('Jitsi connection state:', state);
+            }
+        });
+    }
+
+    function endJitsiCall() {
+        if (callEnded) return;
+        callEnded = true;
+        if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+        if (connectTimeout) { clearTimeout(connectTimeout); connectTimeout = null; }
+        if (jitsiApi) {
+            try { jitsiApi.dispose(); } catch(e) {}
+            jitsiApi = null;
+        }
+        if (window.activeJitsiApi === jitsiApi) window.activeJitsiApi = null;
+        fetch('{% url "end_call" call.id %}', {
+            method: 'POST',
+            headers: { 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || '' },
+        }).catch(function() {});
+        window.location.href = '{% url "calls" %}';
+    }
+
+    window.addEventListener('beforeunload', function() {
+        if (!callEnded) {
+            callEnded = true;
+            if (jitsiApi) { try { jitsiApi.dispose(); } catch(e) {} jitsiApi = null; }
+            navigator.sendBeacon('{% url "end_call" call.id %}', new URLSearchParams({csrfmiddlewaretoken: document.querySelector('[name=csrfmiddlewaretoken]')?.value || ''}));
+        }
+    });
+
+    loadJitsiScript(startJitsi);
+})();
 </script>
 {% endblock %}

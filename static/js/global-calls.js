@@ -11,6 +11,8 @@
     var pollTimer = null;
     var modalShown = false;
 
+    window.activeJitsiApi = null;
+
     function getCSRFToken() {
         var el = document.querySelector('[name=csrfmiddlewaretoken]');
         if (el) return el.value;
@@ -23,7 +25,7 @@
             stopRingingTone();
             ringingAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
             ringingGain = ringingAudioCtx.createGain();
-            ringingGain.gain.value = 0.15;
+            ringingGain.gain.value = 0.12;
             ringingGain.connect(ringingAudioCtx.destination);
 
             ringingOsc1 = ringingAudioCtx.createOscillator();
@@ -49,6 +51,13 @@
         } catch(e) {}
     }
 
+    function disposeJitsiInstance() {
+        if (window.activeJitsiApi) {
+            try { window.activeJitsiApi.dispose(); } catch(e) {}
+            window.activeJitsiApi = null;
+        }
+    }
+
     function showIncomingCallModal(data) {
         if (modalShown) return;
         modalShown = true;
@@ -58,7 +67,10 @@
         var answerBtn = document.getElementById('answerCallBtn');
         if (nameEl) nameEl.textContent = data.caller;
         if (typeEl) typeEl.textContent = data.call_type === 'video' ? 'Incoming video call' : 'Incoming voice call';
-        if (answerBtn) answerBtn.href = '/calls/' + data.call_id + '/';
+        if (answerBtn) {
+            disposeJitsiInstance();
+            answerBtn.href = '/calls/' + data.call_id + '/';
+        }
 
         var modalEl = document.getElementById('incomingCallModal');
         if (modalEl) {
@@ -119,6 +131,8 @@
                 var data = JSON.parse(e.data);
                 if (data.type === 'incoming_call' && data.caller !== 'CALL_ENDED') {
                     showIncomingCallModal(data);
+                } else if (data.type === 'incoming_call' && data.caller === 'CALL_ENDED') {
+                    hideIncomingCallModal();
                 }
             } catch(err) {}
         };
@@ -126,7 +140,7 @@
         ws.onclose = function() {
             ws = null;
             if (!wsReconnectTimer) {
-                wsReconnectTimer = setTimeout(connectWebSocket, 3000);
+                wsReconnectTimer = setTimeout(connectWebSocket, 2000);
             }
         };
 

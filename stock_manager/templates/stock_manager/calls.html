@@ -160,6 +160,10 @@ function startCallByUsername(username, type) {
     })
     .then(data => {
         if (data.status === 'initiated') {
+            if (window.activeJitsiApi) {
+                try { window.activeJitsiApi.dispose(); } catch(e) {}
+                window.activeJitsiApi = null;
+            }
             window.location.href = `/calls/${data.call_id}/`;
         } else {
             throw new Error(data.error || 'Call failed');

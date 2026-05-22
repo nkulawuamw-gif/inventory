@@ -41,7 +41,6 @@ urlpatterns = [
     path('calls/initiate/', comm.initiate_call, name='initiate_call'),
     path('calls/<int:call_id>/', comm.call_room, name='call_room'),
     path('calls/<int:call_id>/end/', comm.end_call, name='end_call'),
-    path('calls/<int:call_id>/signal/', comm.call_signal, name='call_signal'),
     path('calls/<int:call_id>/delete/', comm.delete_call, name='delete_call'),
     path('calls/clear/', comm.clear_calls, name='clear_calls'),
     path('meetings/', comm.meetings_view, name='meetings'),
