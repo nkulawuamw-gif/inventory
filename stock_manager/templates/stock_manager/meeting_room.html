@@ -264,6 +264,9 @@ async function handleSignals() {
             addChatMessage(signal.data.from_name, signal.data.body, signal.data.from === myUserId);
         }
     }
+} catch (error) {
+    console.error("Error:", error);
+}
 }
 
 function toggleMute() {
