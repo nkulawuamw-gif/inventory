@@ -261,6 +261,12 @@ class CallSignalConsumer(AsyncWebsocketConsumer):
                     'data': data.get('data'),
                 }
             )
+        elif msg_type == 'end_call':
+            await self.end_call_in_db()
+            await self.channel_layer.group_send(
+                self.call_group_name,
+                {'type': 'call_ended', 'user_id': self.user.id}
+            )
 
     async def peer_joined(self, event):
         if event['user_id'] != self.user.id:

@@ -281,10 +281,8 @@
         if (timer) clearInterval(timer);
         if (pc) { pc.close(); pc = null; }
         if (localStream) { localStream.getTracks().forEach(function (t) { t.stop(); }); }
-        if (ws) {
-            ws.send(JSON.stringify({ type: 'end_call' }));
-            ws.close();
-        }
+        sendJSON({ type: 'end_call' });
+        if (ws) { ws.close(); }
         var csrf = (document.querySelector('[name=csrfmiddlewaretoken]') || {}).value || '';
         fetch('{% url "end_call" call.id %}', {
             method: 'POST',
