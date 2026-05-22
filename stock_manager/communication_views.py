@@ -487,7 +487,8 @@ def end_call(request, call_id):
             pass
 
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.content_type == 'application/json':
-    return JsonResponse({'status': 'ended'})
+        return JsonResponse({'status': 'ended'})
+    return redirect('calls')
 
 
 @shop_access_required
