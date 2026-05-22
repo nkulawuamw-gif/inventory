@@ -24,7 +24,6 @@
 </style>
 
 <div class="action-bar no-print">
-    <a href="{% url 'sales_history' %}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Back</a>
     <a href="{% url 'receipt_pdf' receipt.id %}" class="btn btn-danger btn-sm"><i class="bi bi-filetype-pdf"></i> PDF</a>
     <button class="btn btn-primary btn-sm" onclick="window.open('{% url 'print_receipt' receipt.id %}', '_blank')">
         <i class="bi bi-printer"></i> Print
@@ -41,6 +40,16 @@
     <button class="btn btn-outline-dark btn-sm" onclick="copyLink()">
         <i class="bi bi-link-45deg"></i> Copy Link
     </button>
+    <div class="btn-group">
+        <a href="{% url 'sales_history' %}" class="btn btn-dark btn-sm"><i class="bi bi-check-lg"></i> Save</a>
+        <button type="button" class="btn btn-dark btn-sm dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown"></button>
+        <ul class="dropdown-menu dropdown-menu-end">
+            <li><a class="dropdown-item" href="{% url 'point_of_sale' receipt.shop.slug %}"><i class="bi bi-cart-plus"></i> New Sale (POS)</a></li>
+            <li><a class="dropdown-item" href="{% url 'print_receipt' receipt.id %}" target="_blank"><i class="bi bi-printer"></i> Print Receipt</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item" href="{% url 'sales_history' %}"><i class="bi bi-clock-history"></i> All Receipts</a></li>
+        </ul>
+    </div>
 </div>
 
 <div class="receipt-card">

@@ -68,8 +68,10 @@
 .receipt-card .actions a, .receipt-card .actions button { padding: 10px 24px; border-radius: 12px; font-weight: 600; text-decoration: none; border: none; cursor: pointer; transition: all 0.2s; }
 .receipt-card .actions .btn-print { background: linear-gradient(135deg, #667eea, #764ba2); color: white; }
 .receipt-card .actions .btn-share { background: linear-gradient(135deg, #25D366, #128C7E); color: white; }
+.receipt-card .actions .btn-save { background: linear-gradient(135deg, #2c3e50, #34495e); color: white; }
 .receipt-card .actions .btn-new { background: #f1f3f5; color: #555; }
 .receipt-card .actions .btn-share:hover { transform: translateY(-2px); box-shadow: 0 4px 15px rgba(37,211,102,0.4); }
+.receipt-card .actions .btn-save:hover { transform: translateY(-2px); box-shadow: 0 4px 15px rgba(44,62,80,0.4); }
 
 .search-items { margin-bottom: 16px; position: relative; }
 .search-items input { width: 100%; padding: 10px 16px; border: 2px solid #e9ecef; border-radius: 12px; font-size: 0.95rem; }
@@ -158,6 +160,7 @@
             <a href="#" class="btn-print" id="printReceiptBtn" data-print-url="{% url 'print_receipt' 0 %}"><i class="bi bi-printer"></i> Print</a>
             <a href="#" class="btn-share" id="shareReceiptBtn"><i class="bi bi-share"></i> Share</a>
             <button class="btn-new" onclick="newSale()"><i class="bi bi-plus-lg"></i> New Sale</button>
+            <a href="{% url 'sales_history' %}" class="btn-save"><i class="bi bi-check-lg"></i> Save</a>
         </div>
     </div>
 </div>
