@@ -22,9 +22,9 @@ services:
         value: /var/data/staticfiles
       - key: DATABASE_URL
         value: postgresql://inventory_ugek_user:0V8C4IoBtmIjFIkaRXGndlCRKIVbtYr3@dpg-d84abpj7uimc739h653g-a/inventory_ugek
-      # Add REDIS_URL after provisioning a Redis instance (Render Redis add-on or Redis Cloud free tier)
+      # REQUIRED: Provision a Redis instance (Render Redis add-on or free tier like Redis Cloud) and set REDIS_URL
       # - key: REDIS_URL
-      #   value: redis://...
+      #   value: rediss://...
       - key: PYTHONUNBUFFERED
         value: 1
     disk:

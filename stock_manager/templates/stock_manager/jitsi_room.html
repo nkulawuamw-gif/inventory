@@ -152,8 +152,7 @@
 
     /* ── WebSocket signaling ── */
     function connectWS() {
-        var proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        ws = new WebSocket(proto + '//' + window.location.host + '/ws/call-signal/' + callId + '/');
+        ws = new WebSocket("wss://" + window.location.host + "/ws/call-signal/" + callId + "/");
         ws.onopen = function () {
             sendJSON({ type: 'join' });
         };

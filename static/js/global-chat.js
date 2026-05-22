@@ -31,8 +31,7 @@ if ('serviceWorker' in navigator && 'Notification' in window) {
 
     function connectPresence() {
         try {
-            var proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-            presenceSocket = new WebSocket(proto + '//' + location.host + '/ws/presence/');
+            presenceSocket = new WebSocket("wss://" + window.location.host + "/ws/presence/");
         } catch (e) { setTimeout(connectPresence, 3000); return; }
 
         presenceSocket.onmessage = function(e) {
@@ -113,53 +112,68 @@ function updateUnreadBadge() {
 }
 
 // ---------------- CHAT ----------------
-var chatSocket = new WebSocket("wss://" + window.location.host + "/ws/chat/");
+var chatSocket = null;
 
-chatSocket.onmessage = function(e) {
-    var data = JSON.parse(e.data);
+function connectChat() {
+    chatSocket = new WebSocket("wss://" + window.location.host + "/ws/chat/");
 
-    if (data.type === 'chat_message') {
-        // Show browser notification for incoming message
-        if (data.sender_id && data.sender_id !== currentChatUserId) {
-            showBrowserNotification(data.sender, data.message, '/chat/');
-        }
-        updateUnreadBadge();
-    }
+    chatSocket.onmessage = function(e) {
+        var data = JSON.parse(e.data);
 
-    if (data.type === 'unread_update') {
-        var sidebarBadge = document.getElementById('sidebarChatBadge');
-        var navbarBadge = document.getElementById('navbarChatBadge');
-        var count = data.count || 0;
-        if (sidebarBadge) {
-            sidebarBadge.textContent = count;
-            sidebarBadge.style.display = count > 0 ? '' : 'none';
+        if (data.type === 'chat_message') {
+            if (data.sender_id && data.sender_id !== currentChatUserId) {
+                showBrowserNotification(data.sender, data.message, '/chat/');
+            }
+            updateUnreadBadge();
         }
-        if (navbarBadge) {
-            navbarBadge.textContent = count;
-            navbarBadge.style.display = count > 0 ? '' : 'none';
+
+        if (data.type === 'unread_update') {
+            var sidebarBadge = document.getElementById('sidebarChatBadge');
+            var navbarBadge = document.getElementById('navbarChatBadge');
+            var count = data.count || 0;
+            if (sidebarBadge) {
+                sidebarBadge.textContent = count;
+                sidebarBadge.style.display = count > 0 ? '' : 'none';
+            }
+            if (navbarBadge) {
+                navbarBadge.textContent = count;
+                navbarBadge.style.display = count > 0 ? '' : 'none';
+            }
         }
-    }
-};
+    };
+
+    chatSocket.onclose = function() { setTimeout(connectChat, 2000); };
+}
+
+connectChat();
 
 // ---------------- CALLS ----------------
-var callSocket = new WebSocket("wss://" + window.location.host + "/ws/calls/");
+var callSocket = null;
 
-callSocket.onmessage = function(e) {
-    var data = JSON.parse(e.data);
+function connectCalls() {
+    callSocket = new WebSocket("wss://" + window.location.host + "/ws/calls/");
 
-    if (data.incoming_call) {
-        showBrowserNotification(
-            data.caller || 'Incoming Call',
-            data.call_type === 'video' ? 'Video call' : 'Audio call',
-            '/calls/'
-        );
-        showCallPopup(data);
-    }
+    callSocket.onmessage = function(e) {
+        var data = JSON.parse(e.data);
 
-    if (data.room_name) {
-        openJitsi(data.room_name);
-    }
-};
+        if (data.incoming_call) {
+            showBrowserNotification(
+                data.caller || 'Incoming Call',
+                data.call_type === 'video' ? 'Video call' : 'Audio call',
+                '/calls/'
+            );
+            showCallPopup(data);
+        }
+
+        if (data.room_name) {
+            openJitsi(data.room_name);
+        }
+    };
+
+    callSocket.onclose = function() { setTimeout(connectCalls, 2000); };
+}
+
+connectCalls();
 
 // ---------------- JITSI ----------------
 function openJitsi(roomName) {

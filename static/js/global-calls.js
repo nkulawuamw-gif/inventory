@@ -84,8 +84,7 @@
     function wsConnect() {
         if (ws && ws.readyState === WebSocket.OPEN) return;
         try {
-            var proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-            ws = new WebSocket(proto + '//' + location.host + '/ws/calls/');
+            ws = new WebSocket("wss://" + window.location.host + "/ws/calls/");
         } catch (e) { schedule(); return; }
         ws.onopen = function () { if (reconnect) { clearTimeout(reconnect); reconnect = null; } };
         ws.onmessage = function (e) {

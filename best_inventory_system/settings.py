@@ -101,15 +101,11 @@ TEMPLATES = [
 ASGI_APPLICATION = 'best_inventory_system.asgi.application'
 
 CHANNEL_LAYERS = {
-    'default': {
-        'BACKEND': 'channels_redis.core.RedisChannelLayer',
-        'CONFIG': {
-            'hosts': [os.environ.get('REDIS_URL', 'redis://localhost:6379')],
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [os.environ.get("REDIS_URL")],
         },
-    },
-} if os.environ.get('REDIS_URL') else {
-    'default': {
-        'BACKEND': 'channels.layers.InMemoryChannelLayer',
     },
 }
 
