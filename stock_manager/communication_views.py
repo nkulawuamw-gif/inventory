@@ -187,6 +187,14 @@ def end_call(request, call_id):
                     'call_type': call.call_type,
                 }
             )
+            # Also notify the call-signaling group so the other peer in the room gets the end signal
+            async_to_sync(channel_layer.group_send)(
+                f'call_signal_{call.id}',
+                {
+                    'type': 'call_ended',
+                    'call_id': call.id,
+                }
+            )
         except Exception:
             pass
 

@@ -185,8 +185,8 @@
             } else if (data.type === 'ice-candidate') {
                 if (pc) pc.addIceCandidate(new RTCIceCandidate(data.candidate));
             }
-        } else if (msg.type === 'peer_left') {
-            showError('{{ other_user.get_full_name|default:other_user.username }} left the call.');
+        } else if (msg.type === 'peer_left' || msg.type === 'call_ended') {
+            endCallRemote();
         }
     }
 
@@ -290,6 +290,23 @@
             keepalive: true,
         });
         try { window.location.href = '{% url "calls" %}'; } catch (e) { window.location.replace('{% url "calls" %}'); }
+    }
+
+    function endCallRemote() {
+        if (ended) return;
+        ended = true;
+        if (timer) clearInterval(timer);
+        if (pc) { pc.close(); pc = null; }
+        if (localStream) { localStream.getTracks().forEach(function (t) { t.stop(); }); }
+        if (ws) { ws.close(); ws = null; }
+        var csrf = (document.querySelector('[name=csrfmiddlewaretoken]') || {}).value || '';
+        fetch('{% url "end_call" call.id %}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'csrfmiddlewaretoken=' + encodeURIComponent(csrf),
+            keepalive: true,
+        });
+        window.location.href = '{% url "calls" %}';
     }
 
     window.addEventListener('beforeunload', function () {

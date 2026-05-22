@@ -252,3 +252,6 @@ class CallSignalConsumer(AsyncWebsocketConsumer):
     async def peer_left(self, event):
         if event['user_id'] != self.user.id:
             await self.send(text_data=json.dumps({'type': 'peer_left'}))
+
+    async def call_ended(self, event):
+        await self.send(text_data=json.dumps({'type': 'call_ended'}))
