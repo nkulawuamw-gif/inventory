@@ -10,6 +10,8 @@ from django.contrib.auth.decorators import login_required
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from datetime import timedelta, timezone as dt_timezone
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
 from .models import UserPresence, Message, Call, Meeting, MeetingParticipant, UserProfile
 from .middleware import get_user_profile, shop_access_required
 
@@ -338,6 +340,19 @@ def initiate_call(request):
                 call_type=call_type,
                 status='ringing',
             )
+
+            channel_layer = get_channel_layer()
+            async_to_sync(channel_layer.group_send)(
+                f'user_{callee.id}',
+                {
+                    'type': 'incoming_call',
+                    'call_id': call.id,
+                    'caller': request.user.get_full_name() or request.user.username,
+                    'caller_id': request.user.id,
+                    'call_type': call_type,
+                }
+            )
+
             return JsonResponse({
                 'status': 'initiated',
                 'call_id': call.id,

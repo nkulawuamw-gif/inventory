@@ -38,12 +38,14 @@ CSRF_TRUSTED_ORIGINS = [
 # ========================
 
 INSTALLED_APPS = [
+    'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'channels',
 
     'stock_manager.apps.StockManagerConfig',
 ]
@@ -95,6 +97,14 @@ TEMPLATES = [
         },
     },
 ]
+
+ASGI_APPLICATION = 'best_inventory_system.asgi.application'
+
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels.layers.InMemoryChannelLayer',
+    },
+}
 
 WSGI_APPLICATION = 'best_inventory_system.wsgi.application'
 

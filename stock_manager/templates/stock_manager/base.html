@@ -1,3 +1,4 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -460,12 +461,16 @@
         fetch('{% url "unread_count" %}')
             .then(r => r.json())
             .then(data => {
-                const badge = document.getElementById('unread-badge');
-                if (data.unread > 0) {
-                    badge.textContent = data.unread > 9 ? '9+' : data.unread;
-                    badge.style.display = 'inline';
+                var count = data.unread || 0;
+                var badge = document.getElementById('unreadBadge');
+                var badgeMobile = document.getElementById('unreadBadgeMobile');
+                if (count > 0) {
+                    var display = count > 9 ? '9+' : count;
+                    if (badge) { badge.textContent = display; badge.style.display = 'inline'; }
+                    if (badgeMobile) { badgeMobile.textContent = display; badgeMobile.style.display = 'inline'; }
                 } else {
-                    badge.style.display = 'none';
+                    if (badge) badge.style.display = 'none';
+                    if (badgeMobile) badgeMobile.style.display = 'none';
                 }
             }).catch(() => {});
     }
@@ -753,107 +758,7 @@ document.addEventListener('click', function(e) {
 });
 </script>
 
-<script>
-(function() {
-    var ringingAudioCtx = null;
-    var ringingOsc1 = null;
-    var ringingOsc2 = null;
-    var ringingGain = null;
-    var ringingTimeout = null;
-    var currentCallId = null;
-
-    function startRingingTone() {
-        try {
-            ringingAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            ringingGain = ringingAudioCtx.createGain();
-            ringingGain.gain.value = 0.15;
-            ringingGain.connect(ringingAudioCtx.destination);
-
-            ringingOsc1 = ringingAudioCtx.createOscillator();
-            ringingOsc1.type = 'sine';
-            ringingOsc1.frequency.value = 440;
-            ringingOsc1.connect(ringingGain);
-
-            ringingOsc2 = ringingAudioCtx.createOscillator();
-            ringingOsc2.type = 'sine';
-            ringingOsc2.frequency.value = 480;
-            ringingOsc2.connect(ringingGain);
-
-            ringingOsc1.start();
-            ringingOsc2.start();
-        } catch(e) {
-            // audio not available
-        }
-    }
-
-    function stopRingingTone() {
-        try {
-            if (ringingOsc1) { ringingOsc1.stop(); ringingOsc1 = null; }
-            if (ringingOsc2) { ringingOsc2.stop(); ringingOsc2 = null; }
-            if (ringingAudioCtx) { ringingAudioCtx.close(); ringingAudioCtx = null; }
-        } catch(e) {}
-    }
-
-    function updateBadge(count) {
-        var badge = document.getElementById('unreadBadge');
-        var badgeMobile = document.getElementById('unreadBadgeMobile');
-        if (count > 0) {
-            if (badge) { badge.textContent = count; badge.style.display = 'inline'; }
-            if (badgeMobile) { badgeMobile.textContent = count; badgeMobile.style.display = 'inline'; }
-        } else {
-            if (badge) badge.style.display = 'none';
-            if (badgeMobile) badgeMobile.style.display = 'none';
-        }
-    }
-
-    function checkIncomingCall() {
-        fetch('{% url "check_incoming_call" %}')
-            .then(function(r) { return r.json(); })
-            .then(function(data) {
-                if (data.ringing && data.call_id !== currentCallId) {
-                    currentCallId = data.call_id;
-                    document.getElementById('incomingCallerName').textContent = data.caller;
-                    document.getElementById('incomingCallType').textContent = data.call_type === 'video' ? 'Incoming video call' : 'Incoming voice call';
-                    document.getElementById('answerCallBtn').href = '/calls/' + data.call_id + '/';
-                    var modal = new bootstrap.Modal(document.getElementById('incomingCallModal'));
-                    modal.show();
-                    startRingingTone();
-                } else if (!data.ringing && currentCallId !== null) {
-                    currentCallId = null;
-                    stopRingingTone();
-                    var modalEl = document.getElementById('incomingCallModal');
-                    var modal = bootstrap.Modal.getInstance(modalEl);
-                    if (modal) modal.hide();
-                }
-            })
-            .catch(function() {});
-    }
-
-    function checkUnread() {
-        fetch('{% url "unread_count" %}')
-            .then(function(r) { return r.json(); })
-            .then(function(data) {
-                updateBadge(data.unread || 0);
-            })
-            .catch(function() {});
-    }
-
-    document.getElementById('declineCallBtn').addEventListener('click', function() {
-        stopRingingTone();
-        currentCallId = null;
-        var modalEl = document.getElementById('incomingCallModal');
-        var modal = bootstrap.Modal.getInstance(modalEl);
-        if (modal) modal.hide();
-    });
-
-    if ({{ request.user.is_authenticated|lower }}) {
-        checkUnread();
-        checkIncomingCall();
-        setInterval(checkUnread, 10000);
-        setInterval(checkIncomingCall, 5000);
-    }
-})();
-</script>
+<script src="{% static 'js/global-calls.js' %}"></script>
 
 </body>
 </html>
