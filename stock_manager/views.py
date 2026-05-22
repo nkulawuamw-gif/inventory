@@ -784,6 +784,8 @@ def _generate_pdf_bytes(receipt, company):
 @shop_access_required
 def export_sales_csv(request):
     import csv
+    from django.db.models import Q
+
     profile = get_user_profile(request.user)
     user_is_admin = profile is None or profile.is_admin
 
@@ -792,8 +794,25 @@ def export_sales_csv(request):
     if not user_is_admin and profile and profile.assigned_shop:
         receipts = receipts.filter(shop=profile.assigned_shop)
 
+    q = request.GET.get('q', '').strip()
+    date_from = request.GET.get('date_from')
+    date_to = request.GET.get('date_to')
+    shop_filter = request.GET.get('shop')
+
+    if q:
+        receipts = receipts.filter(
+            Q(receipt_number__icontains=q) |
+            Q(customer_name__icontains=q)
+        )
+    if date_from:
+        receipts = receipts.filter(created_at__date__gte=date_from)
+    if date_to:
+        receipts = receipts.filter(created_at__date__lte=date_to)
+    if user_is_admin and shop_filter:
+        receipts = receipts.filter(shop_id=shop_filter)
+
     response = HttpResponse(content_type='text/csv')
-    response['Content-Disposition'] = 'attachment; filename="sales_export.csv"'
+    response['Content-Disposition'] = 'attachment; filename="receipts_export.csv"'
 
     writer = csv.writer(response)
     writer.writerow(['Receipt #', 'Date', 'Shop', 'Customer', 'Item', 'Quantity', 'Unit Price', 'Line Total', 'Receipt Total', 'Created By'])
