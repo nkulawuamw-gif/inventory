@@ -706,6 +706,24 @@ def email_receipt(request, receipt_id):
     return redirect('receipt_detail', receipt_id=receipt_id)
 
 
+@shop_access_required
+def delete_receipt(request, receipt_id):
+    if request.method != 'POST':
+        return redirect('sales_history')
+    
+    profile = get_user_profile(request.user)
+    user_is_admin = profile is None or profile.is_admin
+    if not user_is_admin:
+        messages.error(request, 'Only admins can delete receipts.')
+        return redirect('receipt_detail', receipt_id=receipt_id)
+    
+    receipt = get_object_or_404(Receipt, id=receipt_id)
+    receipt_num = receipt.receipt_number
+    receipt.delete()
+    messages.success(request, f'Receipt {receipt_num} deleted.')
+    return redirect('sales_history')
+
+
 def _generate_pdf_bytes(receipt, company):
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.units import mm

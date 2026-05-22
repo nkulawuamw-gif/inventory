@@ -13,6 +13,7 @@ urlpatterns = [
     path('receipt/<int:receipt_id>/', views.receipt_detail, name='receipt_detail'),
     path('receipt/<int:receipt_id>/pdf/', views.download_receipt_pdf, name='receipt_pdf'),
     path('receipt/<int:receipt_id>/email/', views.email_receipt, name='email_receipt'),
+    path('receipt/<int:receipt_id>/delete/', views.delete_receipt, name='delete_receipt'),
     path('sales-export-csv/', views.export_sales_csv, name='export_sales_csv'),
     path('manage/', views.admin_manage, name='admin_manage'),
     path('financial-report/', views.financial_report, name='financial_report'),

@@ -40,6 +40,12 @@
     <button class="btn btn-outline-dark btn-sm" onclick="copyLink()">
         <i class="bi bi-link-45deg"></i> Copy Link
     </button>
+    {% if user_access.is_admin %}
+    <form method="post" action="{% url 'delete_receipt' receipt.id %}" style="display:inline" onsubmit="return confirm('Delete receipt {{ receipt.receipt_number }}? This cannot be undone.')">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-outline-danger btn-sm"><i class="bi bi-trash"></i> Delete</button>
+    </form>
+    {% endif %}
     <div class="btn-group">
         <a href="{% url 'sales_history' %}" class="btn btn-dark btn-sm"><i class="bi bi-check-lg"></i> Save</a>
         <button type="button" class="btn btn-dark btn-sm dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown"></button>

@@ -90,6 +90,12 @@
                             <button class="btn btn-sm btn-outline-success" onclick="shareReceipt({{ r.id }}, '{{ r.receipt_number|escapejs }}', {{ r.total }})" title="Share via WhatsApp">
                                 <i class="bi bi-share"></i>
                             </button>
+                            {% if user_access.is_admin %}
+                            <form method="post" action="{% url 'delete_receipt' r.id %}" style="display:inline" onsubmit="return confirm('Delete receipt {{ r.receipt_number|escapejs }}? This cannot be undone.')">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete Receipt"><i class="bi bi-trash"></i></button>
+                            </form>
+                            {% endif %}
                         </div>
                     </td>
                 </tr>
