@@ -1,7 +1,26 @@
 # Generated manually — migrate Message and Call models to simplified schema
+# NEVER use 'placeholder' — always generate unique UUID room names.
 
+import uuid
 from django.db import migrations, models
 import django.db.models.deletion
+
+
+def generate_room():
+    return f"call_{uuid.uuid4().hex[:12]}"
+
+
+def populate_room_names(apps, schema_editor):
+    Call = apps.get_model('stock_manager', 'Call')
+    table = Call._meta.db_table
+    from django.db import connection
+    with connection.cursor() as c:
+        c.execute(f"SELECT id FROM {table} WHERE room_name IS NULL")
+        rows = c.fetchall()
+        for row in rows:
+            rid = row[0]
+            new_name = generate_room()
+            c.execute(f"UPDATE {table} SET room_name = %s WHERE id = %s", [new_name, rid])
 
 
 class Migration(migrations.Migration):
@@ -52,9 +71,9 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='call',
             name='room_name',
-            field=models.CharField(default='placeholder', max_length=255, unique=True),
-            preserve_default=False,
+            field=models.CharField(max_length=255, unique=True, null=True, blank=True),
         ),
+        migrations.RunPython(populate_room_names, reverse_code=migrations.RunPython.noop),
         migrations.AlterField(
             model_name='call',
             name='call_type',
