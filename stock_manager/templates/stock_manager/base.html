@@ -218,12 +218,11 @@
                     <i class="bi bi-house-door"></i> <span class="d-none d-sm-inline">Home</span>
                 </a>
                 {% if user.is_authenticated %}
-                <span class="badge bg-success bg-opacity-25 text-light d-none d-md-inline-flex align-items-center gap-1 px-2 py-1" style="font-size:0.7rem;border:1px solid rgba(255,255,255,0.15);">
-                    <i class="bi bi-hand-wave"></i>
-                    Welcome
-                    {% if user.is_superuser %}Admin
-                    {% elif user_access.assigned_shop %}{{ user_access.assigned_shop.name }}
-                    {% else %}{{ user.get_full_name.strip|default:user.username }}{% endif %}
+                <span class="badge bg-success text-white d-inline-flex align-items-center gap-1 px-2 py-1 ms-1" style="font-size:0.7rem;border:1px solid rgba(255,255,255,0.25);">
+                    <i class="bi bi-hand-wave" style="font-size:0.65rem;"></i>
+                    {% if user.is_superuser %}Welcome Admin
+                    {% elif user_access.assigned_shop %}Welcome {{ user_access.assigned_shop.name }}
+                    {% else %}Welcome {{ user.get_full_name.strip|default:user.username }}{% endif %}
                 </span>
                 {% endif %}
             </div>
