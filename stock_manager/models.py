@@ -198,10 +198,16 @@ class Call(models.Model):
 
     caller = models.ForeignKey(User, on_delete=models.CASCADE, related_name="made_calls")
     receiver = models.ForeignKey(User, on_delete=models.CASCADE, related_name="received_calls")
-    room_name = models.CharField(max_length=255, unique=True)
+    room_name = models.CharField(max_length=255, unique=True, null=True, blank=True)
     call_type = models.CharField(max_length=10, choices=CALL_TYPES)
     status = models.CharField(max_length=20, default="ringing")
     timestamp = models.DateTimeField(auto_now_add=True)
+
+    def save(self, *args, **kwargs):
+        if not self.room_name:
+            import uuid
+            self.room_name = f"call_{uuid.uuid4().hex[:10]}"
+        super().save(*args, **kwargs)
 
 
 class Meeting(models.Model):

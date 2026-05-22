@@ -1,7 +1,6 @@
 import json
 import string
 import random
-import uuid
 from django.db.models import Q
 from django.contrib.auth.models import User
 from django.shortcuts import render, get_object_or_404, redirect
@@ -107,13 +106,10 @@ def initiate_call(request):
             except User.DoesNotExist:
                 return JsonResponse({'status': 'error', 'error': 'User not found'}, status=404)
 
-            unique_room = f"call_{uuid.uuid4().hex[:10]}"
             call = Call.objects.create(
                 caller=request.user,
                 receiver=receiver,
-                room_name=unique_room,
                 call_type=call_type,
-                status='ringing',
             )
 
             channel_layer = get_channel_layer()

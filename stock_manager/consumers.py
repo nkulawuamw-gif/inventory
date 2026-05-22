@@ -1,5 +1,4 @@
 import json
-import uuid
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from django.contrib.auth.models import User
@@ -155,9 +154,8 @@ class CallConsumer(AsyncWebsocketConsumer):
         if action == "call_user":
             receiver_id = data["receiver_id"]
             call_type = data["call_type"]
-            room_name = f"call_{uuid.uuid4().hex[:10]}"
 
-            await self.create_call(receiver_id, room_name, call_type)
+            call = await self.create_call(receiver_id, call_type)
 
             await self.channel_layer.group_send(
                 f"user_{receiver_id}",
@@ -165,7 +163,7 @@ class CallConsumer(AsyncWebsocketConsumer):
                     "type": "incoming_call",
                     "caller": self.user.username,
                     "caller_id": self.user.id,
-                    "room_name": room_name,
+                    "room_name": call.room_name,
                     "call_type": call_type,
                 }
             )
@@ -185,11 +183,9 @@ class CallConsumer(AsyncWebsocketConsumer):
         await self.send(text_data=json.dumps(event))
 
     @database_sync_to_async
-    def create_call(self, receiver_id, room_name, call_type):
+    def create_call(self, receiver_id, call_type):
         return Call.objects.create(
             caller=self.user,
             receiver_id=receiver_id,
-            room_name=room_name,
             call_type=call_type,
-            status="ringing",
         )
