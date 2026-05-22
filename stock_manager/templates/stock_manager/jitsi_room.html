@@ -5,10 +5,9 @@
   default-src 'self' https://cdn.jsdelivr.net https://meet.jit.si https://8x8.vc;
   script-src 'self' https://cdn.jsdelivr.net https://meet.jit.si https://8x8.vc 'unsafe-inline' 'unsafe-eval';
   style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline';
-  connect-src 'self' wss: https://meet.jit.si https://8x8.vc;
+  connect-src 'self' wss: https://cdn.jsdelivr.net https://meet.jit.si https://8x8.vc;
   img-src 'self' data: https://cdn.jsdelivr.net https://meet.jit.si https://8x8.vc;
   font-src 'self' data: https://cdn.jsdelivr.net;
-  frame-ancestors 'self';
 ">
 {% endblock %}
 
@@ -122,7 +121,7 @@
     var domainIndex = 0;
     var activeDomain = null;
     var MAX_SCRIPT_LOAD_MS = 20000; // per-domain script load timeout
-    var CONNECTION_TIMEOUT_MS = 30000;
+    var CONNECTION_TIMEOUT_MS = 20000;
     var retryDelayMs = 1000;
 
     function el(id) { return document.getElementById(id); }
@@ -234,7 +233,13 @@
 
         initTimeout = setTimeout(function () {
             LOG.w('Connection timeout after ' + CONNECTION_TIMEOUT_MS + 'ms on ' + domain);
-            if (!ended) showError('Connection timed out on ' + domain + '. Retry or open in browser tab.');
+            if (ended) return;
+            /* Don't dispose API here — it could fire readyToClose and trigger
+               endCall() which navigates away. Just clear timers and let the
+               next tryDomain/create a fresh JitsiMeetExternalAPI. */
+            if (timer) { clearInterval(timer); timer = null; }
+            el('loadingMsg').textContent = domain + ' timed out, trying next server...';
+            setTimeout(tryDomain, 1000);
         }, CONNECTION_TIMEOUT_MS);
 
         api.addListener('videoConferenceJoined', function (e) {
