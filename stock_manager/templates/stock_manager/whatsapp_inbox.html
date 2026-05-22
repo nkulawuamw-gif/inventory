@@ -15,7 +15,8 @@
 </div>
 {% endif %}
 
-<div class="row" style="height: calc(100vh - 200px);">
+<style>@media(max-width:767px){#whatsappRow{height:auto !important;min-height:calc(100vh - 200px);}#whatsappRow>.col-md-4,#whatsappRow>.col-md-8{min-height:300px !important;height:auto !important;}}</style>
+<div class="row" id="whatsappRow" style="height: calc(100vh - 200px);">
   <div class="col-md-4 border-end p-0">
     <div class="p-3 bg-light border-bottom">
       <h6 class="mb-0">Conversations</h6>

@@ -1,6 +1,7 @@
 {% extends 'stock_manager/base.html' %}
 
 {% block content %}
+<style>@media(max-width:575px){.action-btn-group.flex-nowrap{flex-wrap:wrap !important;gap:2px !important;}.action-btn-group .btn{padding:2px 6px !important;font-size:0.65rem !important;}}</style>
 <h2 class="mb-4"><i class="bi bi-clock-history"></i> Sales History</h2>
 
 <div class="card mb-4">
@@ -71,7 +72,7 @@
                     <td>{{ r.items.count }}</td>
                     <td class="text-end"><strong>MWK {{ r.total|floatformat:2 }}</strong></td>
                     <td class="text-center">
-                        <div class="d-flex gap-1 justify-content-center flex-nowrap">
+                        <div class="d-flex gap-1 justify-content-center flex-nowrap action-btn-group">
                             <a href="{% url 'receipt_detail' r.id %}" class="btn btn-sm btn-outline-primary" title="View Receipt">
                                 <i class="bi bi-eye"></i>
                             </a>

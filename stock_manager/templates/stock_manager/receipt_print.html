@@ -65,6 +65,7 @@ function copyLink() {
     <div class="info-line"><span>Customer</span>{{ receipt.customer_name }}</div>
     {% endif %}
     <hr class="divider">
+    <div class="table-responsive" style="overflow-x:auto;">
     <table>
         <thead><tr><th>Item</th><th>Qty</th><th>Price</th><th>Total</th></tr></thead>
         <tbody>
@@ -78,6 +79,7 @@ function copyLink() {
             {% endfor %}
         </tbody>
     </table>
+    </div>
     <hr class="divider">
     <div class="total-row"><span>Total</span><span>MWK {{ receipt.total|floatformat:2 }}</span></div>
     <div class="payment-row"><span>Amount Received</span><span>MWK {{ receipt.amount_received|floatformat:2 }}</span></div>
