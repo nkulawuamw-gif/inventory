@@ -452,11 +452,20 @@ def point_of_sale(request, shop_slug):
                 )
 
                 # =========================
-                # SAVE SALES + UPDATE STOCK
+                # SAVE SALES + RECEIPT ITEMS + UPDATE STOCK
                 # =========================
                 for entry in line_items:
                     item = entry['item']
                     qty = entry['qty']
+
+                    ReceiptItem.objects.create(
+                        receipt=receipt,
+                        item=item,
+                        item_name=item.name,
+                        quantity=qty,
+                        unit_price=entry['unit_price'],
+                        total=entry['total'],
+                    )
 
                     Sale.objects.create(
                         item=item,
@@ -567,7 +576,75 @@ def print_receipt(request, receipt_id):
 
 
 # =========================
-# EXPORT CSV
+# RECEIPT DETAIL
+# =========================
+
+@shop_access_required
+def receipt_detail(request, receipt_id):
+    receipt = get_object_or_404(
+        Receipt.objects.select_related('shop', 'created_by').prefetch_related('items'),
+        id=receipt_id
+    )
+
+    profile = get_user_profile(request.user)
+    user_is_admin = profile is None or profile.is_admin
+
+    if (
+        not user_is_admin and
+        profile and profile.assigned_shop and
+        receipt.shop != profile.assigned_shop
+    ):
+        messages.error(request, 'Access denied.')
+        return redirect('sales_history')
+
+    return render(request, 'stock_manager/receipt_detail.html', {
+        'receipt': receipt,
+        'page_title': f'Receipt {receipt.receipt_number}',
+    })
+
+
+# =========================
+# SALES EXPORT CSV
+# =========================
+
+@shop_access_required
+def export_sales_csv(request):
+    import csv
+    profile = get_user_profile(request.user)
+    user_is_admin = profile is None or profile.is_admin
+
+    receipts = Receipt.objects.select_related('shop', 'created_by').prefetch_related('items').order_by('-created_at')
+
+    if not user_is_admin and profile and profile.assigned_shop:
+        receipts = receipts.filter(shop=profile.assigned_shop)
+
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="sales_export.csv"'
+
+    writer = csv.writer(response)
+    writer.writerow(['Receipt #', 'Date', 'Shop', 'Customer', 'Item', 'Quantity', 'Unit Price', 'Line Total', 'Receipt Total', 'Created By'])
+
+    for r in receipts:
+        for li in r.items.all():
+            writer.writerow([
+                r.receipt_number, r.created_at.strftime('%Y-%m-%d %H:%M'),
+                r.shop.name, r.customer_name or 'Walk-in',
+                li.item_name, li.quantity, li.unit_price, li.total,
+                r.total, r.created_by.get_full_name() or r.created_by.username if r.created_by else '',
+            ])
+        if not r.items.count():
+            writer.writerow([
+                r.receipt_number, r.created_at.strftime('%Y-%m-%d %H:%M'),
+                r.shop.name, r.customer_name or 'Walk-in',
+                '', '', '', '', r.total,
+                r.created_by.get_full_name() or r.created_by.username if r.created_by else '',
+            ])
+
+    return response
+
+
+# =========================
+# EXPORT CSV (INVENTORY)
 # =========================
 
 @shop_access_required

@@ -29,19 +29,21 @@
                 <label class="form-label small" for="dateTo">To</label>
                 <input type="date" name="date_to" id="dateTo" class="form-control" value="{{ date_to }}">
             </div>
-            <div class="col-6 col-md-3">
+            <div class="col-6 col-md-2">
                 <button type="submit" class="btn btn-primary w-100"><i class="bi bi-search"></i> Search</button>
+            </div>
+            <div class="col-6 col-md-2">
+                <a href="{% url 'export_sales_csv' %}" class="btn btn-outline-success w-100">
+                    <i class="bi bi-download"></i> CSV
+                </a>
             </div>
         </form>
     </div>
 </div>
 
 <div class="table-container">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <div class="d-flex gap-2 align-items-center">
-            <h5 class="mb-0"><i class="bi bi-receipt"></i> All Receipts</h5>
-            <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#salesModal">View All</button>
-        </div>
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+        <h5 class="mb-0"><i class="bi bi-receipt"></i> All Receipts</h5>
         <span class="badge bg-primary fs-6">Total: MWK {{ total_sales|floatformat:2 }}</span>
     </div>
     <div class="table-responsive">
@@ -52,89 +54,73 @@
                     <th>Date</th>
                     <th>Shop</th>
                     <th>Customer</th>
+                    <th>Cashier</th>
                     <th>Items</th>
                     <th class="text-end">Total</th>
-                    <th class="text-center">Action</th>
+                    <th class="text-center">Actions</th>
                 </tr>
             </thead>
             <tbody>
                 {% for r in receipts %}
-                <tr class="sale-row{% if forloop.counter > 10 %} d-none{% endif %}">
+                <tr>
                     <td><strong>{{ r.receipt_number }}</strong></td>
                     <td>{{ r.created_at|date:"d/m/y H:i" }}</td>
                     <td>{{ r.shop.name }}</td>
                     <td>{{ r.customer_name|default:"Walk-in" }}</td>
+                    <td>{{ r.created_by.get_full_name|default:r.created_by.username|default:"—" }}</td>
                     <td>{{ r.items.count }}</td>
                     <td class="text-end"><strong>MWK {{ r.total|floatformat:2 }}</strong></td>
                     <td class="text-center">
-                        <a href="{% url 'print_receipt' r.id %}" class="btn btn-sm btn-outline-primary" target="_blank">
-                            <i class="bi bi-printer"></i> Print
-                        </a>
+                        <div class="d-flex gap-1 justify-content-center flex-nowrap">
+                            <a href="{% url 'receipt_detail' r.id %}" class="btn btn-sm btn-outline-primary" title="View Receipt">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                            <a href="{% url 'print_receipt' r.id %}" class="btn btn-sm btn-outline-secondary" target="_blank" title="Print / Download PDF">
+                                <i class="bi bi-printer"></i>
+                            </a>
+                            <button class="btn btn-sm btn-outline-success" onclick="shareReceipt({{ r.id }}, '{{ r.receipt_number|escapejs }}', {{ r.total }})" title="Share via WhatsApp">
+                                <i class="bi bi-share"></i>
+                            </button>
+                        </div>
                     </td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="7" class="text-center text-muted py-4">No sales found</td>
+                    <td colspan="8" class="text-center text-muted py-4">No sales found</td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
-    <div class="text-muted small mt-2">Showing up to 100 most recent receipts</div>
-</div>
-<script>
-</script>
-
-<!-- All Receipts Modal -->
-<div class="modal fade" id="salesModal" tabindex="-1">
-    <div class="modal-dialog modal-lg modal-dialog-scrollable">
-        <div class="modal-content">
-            <div class="modal-header bg-dark text-white">
-                <h5 class="modal-title"><i class="bi bi-receipt"></i> All Receipts</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Receipt #</th>
-                                <th>Date</th>
-                                <th>Shop</th>
-                                <th>Customer</th>
-                                <th>Items</th>
-                                <th class="text-end">Total</th>
-                                <th class="text-center">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for r in receipts %}
-                            <tr>
-                                <td><strong>{{ r.receipt_number }}</strong></td>
-                                <td>{{ r.created_at|date:"d/m/y H:i" }}</td>
-                                <td>{{ r.shop.name }}</td>
-                                <td>{{ r.customer_name|default:"Walk-in" }}</td>
-                                <td>{{ r.items.count }}</td>
-                                <td class="text-end"><strong>MWK {{ r.total|floatformat:2 }}</strong></td>
-                                <td class="text-center">
-                                    <a href="{% url 'print_receipt' r.id %}" class="btn btn-sm btn-outline-primary" target="_blank">
-                                        <i class="bi bi-printer"></i> Print
-                                    </a>
-                                </td>
-                            </tr>
-                            {% empty %}
-                            <tr>
-                                <td colspan="7" class="text-center text-muted py-4">No sales found</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-            </div>
-        </div>
+    <div class="d-flex justify-content-between align-items-center mt-2">
+        <div class="text-muted small">Showing up to 100 most recent receipts</div>
+        {% if receipts %}
+        <a href="{% url 'export_sales_csv' %}" class="btn btn-sm btn-outline-success">
+            <i class="bi bi-download"></i> Export All to CSV
+        </a>
+        {% endif %}
     </div>
 </div>
+
+<div class="share-toast" id="shareToast" style="position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#333;color:white;padding:8px 20px;border-radius:20px;font-size:0.85rem;z-index:9999;opacity:0;transition:opacity 0.3s;pointer-events:none;"></div>
+
+<script>
+function shareReceipt(id, number, total) {
+    var url = window.location.origin + '/receipt/' + id + '/';
+    var text = 'Receipt ' + number + '\nTotal: MWK ' + total.toFixed(2) + '\nView online: ' + url;
+    var waUrl = 'https://wa.me/?text=' + encodeURIComponent(text);
+    window.open(waUrl, '_blank');
+}
+
+function showToastMsg(msg) {
+    var el = document.getElementById('shareToast');
+    if (!el) return;
+    el.textContent = msg;
+    el.classList.add('show');
+    el.style.opacity = '1';
+    setTimeout(function() {
+        el.style.opacity = '0';
+    }, 2500);
+}
+</script>
 {% endblock %}

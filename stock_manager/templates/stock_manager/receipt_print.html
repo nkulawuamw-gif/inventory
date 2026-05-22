@@ -22,10 +22,32 @@
 .receipt-print .thanks { text-align: center; font-size: 0.9rem; color: #888; margin-top: 16px; font-style: italic; }
 </style>
 
-<div class="no-print mb-3">
+<div class="no-print mb-3 d-flex gap-2 flex-wrap">
     <a href="{% url 'sales_history' %}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Back</a>
-    <button class="btn btn-primary" onclick="window.print()"><i class="bi bi-printer"></i> Print</button>
+    <a href="{% url 'receipt_detail' receipt.id %}" class="btn btn-outline-info"><i class="bi bi-eye"></i> View</a>
+    <button class="btn btn-primary" onclick="window.print()"><i class="bi bi-printer"></i> Print / PDF</button>
+    <button class="btn btn-success" onclick="shareWA()"><i class="bi bi-whatsapp"></i> Share</button>
+    <button class="btn btn-outline-dark" onclick="copyLink()"><i class="bi bi-link-45deg"></i> Copy Link</button>
 </div>
+
+<script>
+function shareWA() {
+    var text = 'Receipt {{ receipt.receipt_number|escapejs }}\nTotal: MWK {{ receipt.total|floatformat:2 }}\nDate: {{ receipt.created_at|date:"d/m/Y H:i" }}\n{{ company.receipt_footer|default:"Thank you!"|escapejs }}';
+    window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
+}
+function copyLink() {
+    var url = window.location.origin + '{% url "receipt_detail" receipt.id %}';
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(function() { alert('Link copied!'); });
+    } else {
+        var ta = document.createElement('textarea');
+        ta.value = url; ta.style.position = 'fixed'; ta.style.opacity = '0';
+        document.body.appendChild(ta); ta.select();
+        try { document.execCommand('copy'); alert('Link copied!'); } catch(e) {}
+        document.body.removeChild(ta);
+    }
+}
+</script>
 
 <div class="receipt-print">
     <div class="business-name">{{ company.company_name|default:"STOCK MANAGER" }}</div>

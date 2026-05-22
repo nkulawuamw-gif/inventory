@@ -1,0 +1,140 @@
+{% extends 'stock_manager/base.html' %}
+{% block content %}
+<style>
+.receipt-card { max-width: 500px; margin: 0 auto; background: white; border-radius: 20px; box-shadow: 0 8px 32px rgba(0,0,0,0.1); overflow: hidden; }
+.receipt-header { background: linear-gradient(135deg, #2c3e50, #34495e); color: white; padding: 24px; text-align: center; }
+.receipt-header h3 { margin: 0; font-weight: 700; font-size: 1.3rem; }
+.receipt-header .receipt-number { font-size: 0.85rem; opacity: 0.85; margin-top: 4px; }
+.receipt-body { padding: 20px 24px; }
+.receipt-body .info-row { display: flex; justify-content: space-between; font-size: 0.85rem; padding: 3px 0; color: #555; }
+.receipt-body .info-row strong { color: #333; }
+.receipt-divider { border: none; border-top: 1px dashed #ddd; margin: 12px 0; }
+.receipt-body table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.receipt-body table th { text-align: left; padding: 8px 4px; border-bottom: 2px solid #333; font-size: 0.75rem; text-transform: uppercase; color: #666; }
+.receipt-body table td { padding: 8px 4px; border-bottom: 1px solid #f0f0f0; }
+.receipt-body table td:last-child, .receipt-body table th:last-child { text-align: right; }
+.receipt-body table td:nth-child(2), .receipt-body table th:nth-child(2) { text-align: center; }
+.receipt-total { display: flex; justify-content: space-between; font-size: 1.2rem; font-weight: 700; padding: 10px 0; border-top: 2px solid #333; margin-top: 4px; }
+.receipt-payment { display: flex; justify-content: space-between; font-size: 0.9rem; padding: 3px 0; color: #555; }
+.receipt-change { display: flex; justify-content: space-between; font-size: 0.95rem; padding: 3px 0; color: #27ae60; font-weight: 600; }
+.receipt-footer { text-align: center; padding: 16px 24px; font-size: 0.85rem; color: #888; font-style: italic; border-top: 1px solid #f0f0f0; }
+.action-bar { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; padding: 16px 24px; background: #f8f9fa; }
+.share-toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: #333; color: white; padding: 8px 20px; border-radius: 20px; font-size: 0.85rem; z-index: 9999; opacity: 0; transition: opacity 0.3s; pointer-events: none; }
+.share-toast.show { opacity: 1; }
+</style>
+
+<div class="action-bar no-print">
+    <a href="{% url 'sales_history' %}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Back</a>
+    <button class="btn btn-primary" onclick="window.open('{% url 'print_receipt' receipt.id %}', '_blank')">
+        <i class="bi bi-printer"></i> Print
+    </button>
+    <button class="btn btn-success" onclick="shareWhatsApp()">
+        <i class="bi bi-whatsapp"></i> Share
+    </button>
+    <button class="btn btn-outline-dark" onclick="copyLink()">
+        <i class="bi bi-link-45deg"></i> Copy Link
+    </button>
+    <a href="{% url 'export_sales_csv' %}" class="btn btn-outline-info">
+        <i class="bi bi-download"></i> Export CSV
+    </a>
+</div>
+
+<div class="receipt-card">
+    <div class="receipt-header">
+        <i class="bi bi-receipt" style="font-size: 2rem; opacity: 0.8;"></i>
+        <h3>{{ company.company_name|default:"STOCK MANAGER" }}</h3>
+        <div class="receipt-number">{{ company.address|default:"Inventory Management System" }}</div>
+    </div>
+    <div class="receipt-body">
+        {% if company.phone or company.email %}
+        <div class="info-row"><span>Phone</span><strong>{{ company.phone }}</strong></div>
+        <div class="info-row"><span>Email</span><strong>{{ company.email }}</strong></div>
+        {% if company.tax_id %}<div class="info-row"><span>Tax ID</span><strong>{{ company.tax_id }}</strong></div>{% endif %}
+        <hr class="receipt-divider">
+        {% endif %}
+        <div class="info-row"><span>Receipt #</span><strong>{{ receipt.receipt_number }}</strong></div>
+        <div class="info-row"><span>Date</span><strong>{{ receipt.created_at|date:"d/m/Y H:i" }}</strong></div>
+        <div class="info-row"><span>Shop</span><strong>{{ receipt.shop.name }}</strong></div>
+        <div class="info-row"><span>Cashier</span><strong>{{ receipt.created_by.get_full_name|default:receipt.created_by.username|default:"—" }}</strong></div>
+        {% if receipt.customer_name %}
+        <div class="info-row"><span>Customer</span><strong>{{ receipt.customer_name }}</strong></div>
+        {% endif %}
+
+        <hr class="receipt-divider">
+
+        <table>
+            <thead><tr><th>Item</th><th>Qty</th><th>Price</th><th>Total</th></tr></thead>
+            <tbody>
+                {% for li in receipt.items.all %}
+                <tr>
+                    <td>{{ li.item_name }}</td>
+                    <td>{{ li.quantity }}</td>
+                    <td>MWK {{ li.unit_price|floatformat:2 }}</td>
+                    <td>MWK {{ li.total|floatformat:2 }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="4" class="text-center text-muted py-3">No items recorded</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <hr class="receipt-divider">
+
+        <div class="receipt-total"><span>Total</span><span>MWK {{ receipt.total|floatformat:2 }}</span></div>
+        <div class="receipt-payment"><span>Amount Received</span><span>MWK {{ receipt.amount_received|floatformat:2 }}</span></div>
+        <div class="receipt-change"><span>Change</span><span>MWK {{ receipt.change|floatformat:2 }}</span></div>
+    </div>
+    <div class="receipt-footer">
+        {{ company.receipt_footer|default:"Thank you for your business!" }}
+    </div>
+</div>
+
+<div class="share-toast" id="shareToast"></div>
+
+<script>
+function shareWhatsApp() {
+    var text = 'Receipt {{ receipt.receipt_number|escapejs }} - {{ company.company_name|default:"Stock Manager"|escapejs }}\n';
+    text += 'Total: MWK {{ receipt.total|floatformat:2 }}\n';
+    text += 'Date: {{ receipt.created_at|date:"d/m/Y H:i" }}\n';
+    text += 'Shop: {{ receipt.shop.name|escapejs }}\n';
+    {% for li in receipt.items.all %}
+    text += '{{ li.item_name|escapejs }} x{{ li.quantity }} - MWK {{ li.total|floatformat:2 }}\n';
+    {% endfor %}
+    text += '\n{{ company.receipt_footer|default:"Thank you!"|escapejs }}';
+    var url = 'https://wa.me/?text=' + encodeURIComponent(text);
+    window.open(url, '_blank');
+}
+
+function copyLink() {
+    var url = window.location.href;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(function() {
+            showToastMsg('Receipt link copied!');
+        }).catch(function() {
+            fallbackCopy(url);
+        });
+    } else {
+        fallbackCopy(url);
+    }
+}
+
+function fallbackCopy(text) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); showToastMsg('Receipt link copied!'); } catch(e) {}
+    document.body.removeChild(ta);
+}
+
+function showToastMsg(msg) {
+    var el = document.getElementById('shareToast');
+    if (!el) return;
+    el.textContent = msg;
+    el.classList.add('show');
+    setTimeout(function() { el.classList.remove('show'); }, 2500);
+}
+</script>
+{% endblock %}

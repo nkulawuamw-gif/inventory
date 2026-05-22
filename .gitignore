@@ -9,6 +9,7 @@ venv/
 .venv/
 node_modules/
 *.html
+!stock_manager/templates/**/*.html
 check_*.py
 find_error.py
 test_*.py
