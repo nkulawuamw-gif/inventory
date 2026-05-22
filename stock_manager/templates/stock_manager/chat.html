@@ -611,10 +611,6 @@ document.getElementById('sendBroadcastBtn')?.addEventListener('click', function(
 })();
 
 function chatCall(username, type) {
-    if (window.activeJitsiApi) {
-        try { window.activeJitsiApi.dispose(); } catch(e) {}
-        window.activeJitsiApi = null;
-    }
     fetch('{% url "initiate_call" %}', {
         method: 'POST',
         headers: {

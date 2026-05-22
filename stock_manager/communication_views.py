@@ -414,7 +414,7 @@ def initiate_call(request):
                 status='ringing',
             )
 
-            room_name = f'call_{call.id}'
+            room_name = f'inv_{call.id}'
 
             channel_layer = get_channel_layer()
             async_to_sync(channel_layer.group_send)(
@@ -456,7 +456,7 @@ def call_room(request, call_id):
         call.save()
 
     other_user = call.callee if call.caller == request.user else call.caller
-    room_name = f'call_{call.id}'
+    room_name = f'inv_{call.id}'
 
     return render(request, 'stock_manager/jitsi_room.html', {
         'call': call,
@@ -613,7 +613,7 @@ def check_incoming_call(request):
             'call_id': ringing.id,
             'caller': ringing.caller.get_full_name() or ringing.caller.username,
             'call_type': ringing.call_type,
-            'room_name': f'call_{ringing.id}',
+            'room_name': f'inv_{ringing.id}',
         })
     return JsonResponse({'ringing': False})
 

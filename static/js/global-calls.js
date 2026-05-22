@@ -1,239 +1,133 @@
-(function() {
+(function () {
     'use strict';
 
     var ws = null;
-    var wsReconnectTimer = null;
+    var reconnect = null;
     var currentCallId = null;
-    var ringingAudioCtx = null;
-    var ringingOsc1 = null;
-    var ringingOsc2 = null;
-    var ringingGain = null;
+    var audioCtx = null;
+    var osc1 = null;
+    var osc2 = null;
+    var gain = null;
     var pollTimer = null;
-    var modalShown = false;
+    var shown = false;
 
-    window.activeJitsiApi = null;
-
-    function getCSRFToken() {
+    function csrf() {
         var el = document.querySelector('[name=csrfmiddlewaretoken]');
-        if (el) return el.value;
-        var cookie = document.cookie.match('csrftoken=([^;]*)');
-        return cookie ? cookie[1] : '';
+        return el ? el.value : (document.cookie.match(/csrftoken=([^;]+)/) || [])[1] || '';
     }
 
-    function startRingingTone() {
+    function ringStart() {
         try {
-            stopRingingTone();
-            ringingAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            ringingGain = ringingAudioCtx.createGain();
-            ringingGain.gain.value = 0.12;
-            ringingGain.connect(ringingAudioCtx.destination);
-
-            ringingOsc1 = ringingAudioCtx.createOscillator();
-            ringingOsc1.type = 'sine';
-            ringingOsc1.frequency.value = 440;
-            ringingOsc1.connect(ringingGain);
-
-            ringingOsc2 = ringingAudioCtx.createOscillator();
-            ringingOsc2.type = 'sine';
-            ringingOsc2.frequency.value = 480;
-            ringingOsc2.connect(ringingGain);
-
-            ringingOsc1.start();
-            ringingOsc2.start();
-        } catch(e) {}
+            ringStop();
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            gain = audioCtx.createGain();
+            gain.gain.value = 0.12;
+            gain.connect(audioCtx.destination);
+            osc1 = audioCtx.createOscillator();
+            osc1.type = 'sine';
+            osc1.frequency.value = 440;
+            osc1.connect(gain);
+            osc2 = audioCtx.createOscillator();
+            osc2.type = 'sine';
+            osc2.frequency.value = 480;
+            osc2.connect(gain);
+            osc1.start();
+            osc2.start();
+        } catch (e) {}
     }
 
-    function stopRingingTone() {
-        try {
-            if (ringingOsc1) { ringingOsc1.stop(); ringingOsc1 = null; }
-            if (ringingOsc2) { ringingOsc2.stop(); ringingOsc2 = null; }
-            if (ringingAudioCtx) { ringingAudioCtx.close(); ringingAudioCtx = null; }
-        } catch(e) {}
+    function ringStop() {
+        try { if (osc1) { osc1.stop(); osc1 = null; } if (osc2) { osc2.stop(); osc2 = null; } if (audioCtx) { audioCtx.close(); audioCtx = null; } } catch (e) {}
     }
 
-    function disposeJitsiInstance() {
-        if (window.activeJitsiApi) {
-            try { window.activeJitsiApi.dispose(); } catch(e) {}
-            window.activeJitsiApi = null;
-        }
-    }
-
-    function showIncomingCallModal(data) {
-        if (modalShown) {
-            console.log('[Calls] Modal already shown, ignoring duplicate');
-            return;
-        }
-        modalShown = true;
+    function showModal(data) {
+        if (shown) return;
+        shown = true;
         currentCallId = data.call_id;
         var nameEl = document.getElementById('incomingCallerName');
         var typeEl = document.getElementById('incomingCallType');
-        var answerBtn = document.getElementById('answerCallBtn');
+        var ansBtn = document.getElementById('answerCallBtn');
         if (nameEl) nameEl.textContent = data.caller;
         if (typeEl) typeEl.textContent = data.call_type === 'video' ? 'Incoming video call' : 'Incoming voice call';
-        if (answerBtn) {
-            disposeJitsiInstance();
-            answerBtn.href = '/calls/' + data.call_id + '/';
-            console.log('[Calls] Answer button set to:', answerBtn.href);
-        }
-
+        if (ansBtn) ansBtn.href = '/calls/' + data.call_id + '/';
         var modalEl = document.getElementById('incomingCallModal');
         if (modalEl) {
-            try {
-                var existing = bootstrap.Modal.getInstance(modalEl);
-                if (existing) existing.hide();
-            } catch(e) {}
+            try { var m = bootstrap.Modal.getInstance(modalEl); if (m) m.hide(); } catch (e) {}
             var modal = new bootstrap.Modal(modalEl, { backdrop: 'static', keyboard: false });
             modal.show();
-            startRingingTone();
-            console.log('[Calls] Incoming call modal shown');
-        } else {
-            console.warn('[Calls] Modal element not found');
+            ringStart();
         }
     }
 
-    function hideIncomingCallModal() {
-        modalShown = false;
-        stopRingingTone();
+    function hideModal() {
+        shown = false;
+        ringStop();
         currentCallId = null;
         var modalEl = document.getElementById('incomingCallModal');
         if (modalEl) {
-            var modal = bootstrap.Modal.getInstance(modalEl);
-            if (modal) modal.hide();
+            var m = bootstrap.Modal.getInstance(modalEl);
+            if (m) m.hide();
         }
     }
 
-    function checkIncomingCallHTTP() {
-        fetch('/calls/incoming/', {
-            method: 'GET',
-            headers: { 'X-CSRFToken': getCSRFToken() },
-        })
-        .then(function(r) { return r.json(); })
-        .then(function(data) {
-            if (data.ringing && !modalShown) {
-                console.log('[Calls] HTTP poll found ringing call:', data.call_id);
-                showIncomingCallModal({
-                    call_id: data.call_id,
-                    caller: data.caller,
-                    call_type: data.call_type,
-                });
-            } else if (!data.ringing && modalShown) {
-                hideIncomingCallModal();
-            }
-        })
-        .catch(function(err) { console.warn('[Calls] HTTP poll error:', err); });
-    }
-
-    function connectWebSocket() {
-        if (ws && ws.readyState === WebSocket.OPEN) {
-            return;
-        }
-
-        var protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        var wsUrl = protocol + '//' + window.location.host + '/ws/calls/';
-
-        try {
-            ws = new WebSocket(wsUrl);
-        } catch(e) {
-            console.warn('[Calls] WS creation failed:', e);
-            scheduleReconnect();
-            return;
-        }
-
-        ws.onopen = function() {
-            console.log('[Calls] WebSocket connected');
-            if (wsReconnectTimer) {
-                clearTimeout(wsReconnectTimer);
-                wsReconnectTimer = null;
-            }
-        };
-
-        ws.onmessage = function(e) {
-            try {
-                var data = JSON.parse(e.data);
-                console.log('[Calls] WS message:', data.type, data.caller ? (data.caller.substring(0,20)) : '');
-                if (data.type === 'incoming_call' && data.caller !== 'CALL_ENDED') {
-                    showIncomingCallModal(data);
-                } else if (data.caller === 'CALL_ENDED') {
-                    hideIncomingCallModal();
-                }
-            } catch(err) {
-                console.warn('[Calls] WS parse error:', err);
-            }
-        };
-
-        ws.onclose = function(e) {
-            console.log('[Calls] WebSocket closed (code:', e.code, ')');
-            ws = null;
-            scheduleReconnect();
-        };
-
-        ws.onerror = function(e) {
-            console.warn('[Calls] WebSocket error');
-            try { ws.close(); } catch(err) {}
-        };
-    }
-
-    function scheduleReconnect() {
-        if (!wsReconnectTimer) {
-            wsReconnectTimer = setTimeout(function() {
-                wsReconnectTimer = null;
-                connectWebSocket();
-            }, 2000);
-        }
-    }
-
-    function disconnectWebSocket() {
-        if (wsReconnectTimer) {
-            clearTimeout(wsReconnectTimer);
-            wsReconnectTimer = null;
-        }
-        if (ws) {
-            ws.onclose = null;
-            ws.close();
-            ws = null;
-        }
-    }
-
-    function handleDecline() {
-        stopRingingTone();
+    function decline() {
+        ringStop();
         if (currentCallId) {
-            fetch('/calls/' + currentCallId + '/end/', {
-                method: 'POST',
-                headers: { 'X-CSRFToken': getCSRFToken() },
-            }).catch(function() {});
+            var x = new XMLHttpRequest();
+            x.open('POST', '/calls/' + currentCallId + '/end/', true);
+            x.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+            x.send('csrfmiddlewaretoken=' + encodeURIComponent(csrf()));
         }
-        hideIncomingCallModal();
+        hideModal();
     }
 
-    document.addEventListener('DOMContentLoaded', function() {
-        var declineBtn = document.getElementById('declineCallBtn');
-        if (declineBtn) {
-            declineBtn.addEventListener('click', handleDecline);
-        }
+    function wsConnect() {
+        if (ws && ws.readyState === WebSocket.OPEN) return;
+        try {
+            var proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            ws = new WebSocket(proto + '//' + location.host + '/ws/calls/');
+        } catch (e) { schedule(); return; }
+        ws.onopen = function () { if (reconnect) { clearTimeout(reconnect); reconnect = null; } };
+        ws.onmessage = function (e) {
+            try {
+                var d = JSON.parse(e.data);
+                if (d.type === 'incoming_call' && d.caller !== 'CALL_ENDED') showModal(d);
+                else if (d.caller === 'CALL_ENDED') hideModal();
+            } catch (err) {}
+        };
+        ws.onclose = function () { ws = null; schedule(); };
+        ws.onerror = function () { try { ws.close(); } catch (e) {} };
+    }
 
-        var answerBtn = document.getElementById('answerCallBtn');
-        if (answerBtn) {
-            answerBtn.addEventListener('click', function() {
-                disposeJitsiInstance();
-            });
-        }
+    function schedule() {
+        if (!reconnect) reconnect = setTimeout(function () { reconnect = null; wsConnect(); }, 3000);
+    }
 
+    function poll() {
+        fetch('/calls/incoming/', { headers: { 'X-CSRFToken': csrf() } })
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+                if (d.ringing && !shown) showModal(d);
+                else if (!d.ringing && shown) hideModal();
+            })
+            .catch(function () {});
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        var db = document.getElementById('declineCallBtn');
+        if (db) db.addEventListener('click', decline);
         if (document.querySelector('[name=csrfmiddlewaretoken]')) {
-            connectWebSocket();
-            checkIncomingCallHTTP();
-            pollTimer = setInterval(checkIncomingCallHTTP, 4000);
+            wsConnect();
+            poll();
+            pollTimer = setInterval(poll, 5000);
         }
     });
 
-    document.addEventListener('visibilitychange', function() {
+    document.addEventListener('visibilitychange', function () {
         if (!document.hidden) {
-            if (!ws || ws.readyState === WebSocket.CLOSED) {
-                connectWebSocket();
-            }
-            checkIncomingCallHTTP();
-            if (!pollTimer) {
-                pollTimer = setInterval(checkIncomingCallHTTP, 4000);
-            }
+            if (!ws || ws.readyState === WebSocket.CLOSED) wsConnect();
+            poll();
+            if (!pollTimer) pollTimer = setInterval(poll, 5000);
         }
     });
 })();

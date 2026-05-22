@@ -1,22 +1,19 @@
 {% extends 'stock_manager/base.html' %}
-
 {% block content %}
-<style>@media(max-width:575px){.call-user-btn{padding:4px 8px!important;font-size:0.7rem!important;min-height:36px;}}</style>
-<h2 class="mb-4">{{ page_title }}</h2>
+<h2 class="mb-4">Calls</h2>
 
 {% if incoming_ringing %}
 <div class="alert alert-info d-flex justify-content-between align-items-center flex-wrap gap-2">
     <div>
-        <i class="bi bi-telephone-ringing"></i> Incoming call from <strong>{{ incoming_ringing.0.caller.get_full_name|default:incoming_ringing.0.caller.username }}</strong>
+        <i class="bi bi-telephone-ringing"></i>
+        Incoming from <strong>{{ incoming_ringing.0.caller.get_full_name|default:incoming_ringing.0.caller.username }}</strong>
     </div>
     <div class="d-flex gap-2">
         <form method="post" action="{% url 'end_call' incoming_ringing.0.id %}" style="display:inline">
             {% csrf_token %}
             <button type="submit" class="btn btn-outline-danger"><i class="bi bi-telephone-x"></i> Decline</button>
         </form>
-        <a href="{% url 'call_room' incoming_ringing.0.id %}" class="btn btn-success">
-            <i class="bi bi-telephone"></i> Answer
-        </a>
+        <a href="{% url 'call_room' incoming_ringing.0.id %}" class="btn btn-success"><i class="bi bi-telephone"></i> Answer</a>
     </div>
 </div>
 {% endif %}
@@ -25,26 +22,25 @@
     <div class="col-md-6">
         <div class="table-container">
             <h5 class="mb-3"><i class="bi bi-telephone-outbound text-primary"></i> Start a Call</h5>
-<div class="mb-2">
-    <select id="callUserSelect" class="form-select mb-2">
-        <option value="">-- Select a user --</option>
-    </select>
-    <div class="d-flex gap-2">
-        <button class="btn btn-outline-primary flex-fill" onclick="startCall('voice')"><i class="bi bi-telephone"></i> Voice</button>
-        <button class="btn btn-outline-success flex-fill" onclick="startCall('video')"><i class="bi bi-camera-video"></i> Video</button>
-    </div>
-</div>
-<div id="callStatus" class="small text-muted"></div>
-<div id="user-list" class="list-group">
-</div>
+            <div class="mb-2">
+                <select id="userSelect" class="form-select mb-2">
+                    <option value="">-- Select user --</option>
+                </select>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-primary flex-fill" onclick="start('voice')"><i class="bi bi-telephone"></i> Voice</button>
+                    <button class="btn btn-outline-success flex-fill" onclick="start('video')"><i class="bi bi-camera-video"></i> Video</button>
+                </div>
+            </div>
+            <div id="callStatus" class="small text-muted"></div>
+            <div id="userList" class="list-group"></div>
         </div>
     </div>
     <div class="col-md-6">
         <div class="table-container">
             <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-                <h5 class="mb-0"><i class="bi bi-clock-history text-secondary"></i> Recent Calls</h5>
+                <h5 class="mb-0"><i class="bi bi-clock-history text-secondary"></i> Recent</h5>
                 {% if calls %}
-                <form method="post" action="{% url 'clear_calls' %}" style="display:inline" onsubmit="return confirm('Clear all call logs?')">
+                <form method="post" action="{% url 'clear_calls' %}" onsubmit="return confirm('Clear all logs?')">
                     {% csrf_token %}
                     <button type="submit" class="btn btn-outline-danger btn-sm"><i class="bi bi-trash"></i> Clear All</button>
                 </form>
@@ -54,22 +50,18 @@
             <div class="d-flex justify-content-between align-items-center p-2 border-bottom">
                 <div>
                     {% if call.caller.id == request.user.id %}
-                    <i class="bi bi-telephone-outbound text-primary"></i>
-                    You called <strong>{{ call.callee.get_full_name|default:call.callee.username }}</strong>
+                    <i class="bi bi-telephone-outbound text-primary"></i> You called <strong>{{ call.callee.get_full_name|default:call.callee.username }}</strong>
                     {% else %}
-                    <i class="bi bi-telephone-inbound text-success"></i>
-                    <strong>{{ call.caller.get_full_name|default:call.caller.username }}</strong> called you
+                    <i class="bi bi-telephone-inbound text-success"></i> <strong>{{ call.caller.get_full_name|default:call.caller.username }}</strong> called you
                     {% endif %}
                 </div>
                 <div class="d-flex align-items-center gap-2">
-                    <span class="badge bg-{% if call.status == 'ended' %}secondary{% elif call.status == 'missed' %}danger{% elif call.status == 'accepted' %}success{% else %}warning{% endif %}">
-                        {{ call.get_status_display }}
-                    </span>
+                    <span class="badge bg-{% if call.status == 'ended' %}secondary{% elif call.status == 'missed' %}danger{% elif call.status == 'accepted' %}success{% else %}warning{% endif %}">{{ call.get_status_display }}</span>
                     <span class="badge bg-info">{{ call.get_call_type_display }}</span>
                     <small class="text-muted">{{ call.started_at|timesince }} ago</small>
-                    <form method="post" action="{% url 'delete_call' call.id %}" style="display:inline" onsubmit="return confirm('Delete this call log?')">
+                    <form method="post" action="{% url 'delete_call' call.id %}" onsubmit="return confirm('Delete this log?')">
                         {% csrf_token %}
-                        <button type="submit" class="btn btn-sm btn-outline-danger border-0" title="Delete"><i class="bi bi-x"></i></button>
+                        <button type="submit" class="btn btn-sm btn-outline-danger border-0"><i class="bi bi-x"></i></button>
                     </form>
                 </div>
             </div>
@@ -80,114 +72,69 @@
     </div>
 </div>
 
+{% csrf_token %}
 <script>
-function getCSRFToken() {
-    return document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
-}
-
-function populateUserSelect() {
-    fetch('{% url "all_users" %}')
-        .then(r => r.json())
-        .then(data => {
-            const select = document.getElementById('callUserSelect');
-            (data.users || []).forEach(user => {
-                if (user.id === {{ request.user.id }}) return;
-                const opt = document.createElement('option');
-                opt.value = user.username;
-                opt.textContent = user.username;
-                select.appendChild(opt);
-            });
-        })
-        .catch(err => console.error('populateUserSelect error:', err));
-}
+function csrf() { return document.querySelector('[name=csrfmiddlewaretoken]')?.value || ''; }
 
 function loadUsers() {
-    fetch('{% url "online_users" %}')
-        .then(r => r.json())
-        .then(data => {
-            const list = document.getElementById('user-list');
-            list.innerHTML = '<h6 class="list-group-item bg-light"><i class="bi bi-people"></i> Online Users</h6>';
-            (data.users || []).forEach(user => {
-                if (user.id !== {{ request.user.id }}) {
-                    var displayName = user.display_name || user.username;
-                    var item = document.createElement('div');
-                    item.className = 'list-group-item d-flex justify-content-between align-items-center';
-                    item.innerHTML = `
-                        <div>
-                            <span class="badge bg-success me-2">●</span>
-                            <strong>${displayName}</strong>
-                            <small class="text-muted ms-2">${user.shop}</small>
-                        </div>
-                        <div class="d-flex gap-1">
-                            <button class="btn btn-sm btn-outline-primary call-user-btn" onclick="startCallByUsername('${user.username}', 'voice')">
-                                <i class="bi bi-telephone"></i> Voice
-                            </button>
-                            <button class="btn btn-sm btn-outline-success call-user-btn" onclick="startCallByUsername('${user.username}', 'video')">
-                                <i class="bi bi-camera-video"></i> Video
-                            </button>
-                        </div>
-                    `;
-                    list.appendChild(item);
-                }
-            });
-        })
-        .catch(err => {
-            console.error('loadUsers error:', err);
-            document.getElementById('user-list').innerHTML = '<div class="text-muted text-center py-2">Failed to load users</div>';
+    fetch('{% url "online_users" %}').then(function(r) { return r.json(); }).then(function(data) {
+        var list = document.getElementById('userList');
+        list.innerHTML = '<h6 class="list-group-item bg-light"><i class="bi bi-people"></i> Online</h6>';
+        (data.users || []).forEach(function(u) {
+            if (u.id === {{ request.user.id }}) return;
+            var d = u.display_name || u.username;
+            var item = document.createElement('div');
+            item.className = 'list-group-item d-flex justify-content-between align-items-center';
+            item.innerHTML = '<div><span class="badge bg-success me-2">●</span><strong>' + d + '</strong><small class="text-muted ms-2">' + (u.shop || '') + '</small></div>' +
+                '<div class="d-flex gap-1">' +
+                '<button class="btn btn-sm btn-outline-primary" onclick="startByUsername(\'' + u.username + '\',\'voice\')"><i class="bi bi-telephone"></i></button>' +
+                '<button class="btn btn-sm btn-outline-success" onclick="startByUsername(\'' + u.username + '\',\'video\')"><i class="bi bi-camera-video"></i></button></div>';
+            list.appendChild(item);
         });
+    }).catch(function() {});
 }
 
-function startCallByUsername(username, type) {
-    console.log('startCallByUsername called:', username, type);
-    const status = document.getElementById('callStatus');
-    if (!status) { console.error('callStatus element not found'); return; }
-    status.textContent = 'Initiating call...';
+function populateSelect() {
+    fetch('{% url "all_users" %}').then(function(r) { return r.json(); }).then(function(data) {
+        var sel = document.getElementById('userSelect');
+        (data.users || []).forEach(function(u) {
+            if (u.id === {{ request.user.id }}) return;
+            var opt = document.createElement('option');
+            opt.value = u.username;
+            opt.textContent = u.username;
+            sel.appendChild(opt);
+        });
+    }).catch(function() {});
+}
+
+function startByUsername(username, type) {
+    var status = document.getElementById('callStatus');
+    status.textContent = 'Calling...';
     status.className = 'small text-info';
     fetch('{% url "initiate_call" %}', {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': getCSRFToken(),
-        },
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf() },
         body: JSON.stringify({ callee_username: username, call_type: type }),
-    })
-    .then(async r => {
-        const data = await r.json();
-        if (!r.ok) {
-            throw new Error(data.error || `HTTP ${r.status}`);
-        }
-        return data;
-    })
-    .then(data => {
+    }).then(function(r) { return r.json(); }).then(function(data) {
         if (data.status === 'initiated') {
-            if (window.activeJitsiApi) {
-                try { window.activeJitsiApi.dispose(); } catch(e) {}
-                window.activeJitsiApi = null;
-            }
-            window.location.href = `/calls/${data.call_id}/`;
+            window.location.href = '/calls/' + data.call_id + '/';
         } else {
-            throw new Error(data.error || 'Call failed');
+            status.textContent = 'Failed: ' + (data.error || 'unknown error');
+            status.className = 'small text-danger';
         }
-    })
-    .catch(err => {
-        console.error('startCall error:', err);
-        status.textContent = 'Call failed: ' + err.message;
+    }).catch(function(err) {
+        status.textContent = 'Error: ' + err.message;
         status.className = 'small text-danger';
     });
 }
 
-function startCall(type) {
-    console.log('startCall called:', type);
-    const username = document.getElementById('callUserSelect').value;
-    if (!username) {
-        document.getElementById('callStatus').textContent = 'Please select a user';
-        document.getElementById('callStatus').className = 'small text-danger';
-        return;
-    }
-    startCallByUsername(username, type);
+function start(type) {
+    var sel = document.getElementById('userSelect');
+    if (!sel.value) { document.getElementById('callStatus').textContent = 'Select a user'; document.getElementById('callStatus').className = 'small text-danger'; return; }
+    startByUsername(sel.value, type);
 }
 
-populateUserSelect();
+populateSelect();
 loadUsers();
 setInterval(loadUsers, 5000);
 </script>
