@@ -11,6 +11,7 @@ from .models import Message, Call, UserPresence
 class PresenceConsumer(AsyncWebsocketConsumer):
 
     async def connect(self):
+        print("WebSocket CONNECTED - PresenceConsumer")
         self.user = self.scope["user"]
         if self.user.is_anonymous:
             await self.close()
@@ -30,6 +31,7 @@ class PresenceConsumer(AsyncWebsocketConsumer):
         })
 
     async def disconnect(self, close_code):
+        print(f"WebSocket DISCONNECTED - PresenceConsumer code={close_code}")
         if hasattr(self, "group_name"):
             await self.channel_layer.group_discard(self.group_name, self.channel_name)
         await self.set_online(False)
@@ -66,6 +68,7 @@ def _send_unread(channel_layer, user_id):
 class ChatConsumer(AsyncWebsocketConsumer):
 
     async def connect(self):
+        print("WebSocket CONNECTED - ChatConsumer")
         self.user = self.scope["user"]
         if self.user.is_anonymous:
             await self.close()
@@ -79,11 +82,17 @@ class ChatConsumer(AsyncWebsocketConsumer):
         await self.send(text_data=json.dumps({"type": "unread_update", "count": count}))
 
     async def disconnect(self, close_code):
+        print(f"WebSocket DISCONNECTED - ChatConsumer code={close_code}")
         if hasattr(self, "group_name"):
             await self.channel_layer.group_discard(self.group_name, self.channel_name)
 
     async def receive(self, text_data):
-        data = json.loads(text_data)
+        print(f"WebSocket RECEIVE - ChatConsumer: {text_data}")
+        try:
+            data = json.loads(text_data)
+        except json.JSONDecodeError as e:
+            print(f"ChatConsumer JSON decode error: {e}")
+            return
         receiver_id = data["receiver_id"]
         message = data["message"]
 
@@ -135,6 +144,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
 class CallConsumer(AsyncWebsocketConsumer):
 
     async def connect(self):
+        print("WebSocket CONNECTED - CallConsumer")
         self.user = self.scope["user"]
         if self.user.is_anonymous:
             await self.close()
@@ -145,11 +155,17 @@ class CallConsumer(AsyncWebsocketConsumer):
         await self.accept()
 
     async def disconnect(self, close_code):
+        print(f"WebSocket DISCONNECTED - CallConsumer code={close_code}")
         if hasattr(self, "group_name"):
             await self.channel_layer.group_discard(self.group_name, self.channel_name)
 
     async def receive(self, text_data):
-        data = json.loads(text_data)
+        print(f"WebSocket RECEIVE - CallConsumer: {text_data}")
+        try:
+            data = json.loads(text_data)
+        except json.JSONDecodeError as e:
+            print(f"CallConsumer JSON decode error: {e}")
+            return
         action = data.get("action")
 
         if action == "call_user":
@@ -196,18 +212,20 @@ class CallConsumer(AsyncWebsocketConsumer):
 class CallSignalConsumer(AsyncWebsocketConsumer):
 
     async def connect(self):
+        print("WebSocket CONNECTED - CallSignalConsumer")
         self.user = self.scope['user']
         if self.user.is_anonymous:
             await self.close()
             return
 
-        self.call_id = self.scope['url_route']['kwargs']['call_id']
-        self.call_group_name = f'call_signal_{self.call_id}'
+        self.room_id = self.scope['url_route']['kwargs']['room_id']
+        self.call_group_name = f'call_signal_{self.room_id}'
 
         await self.channel_layer.group_add(self.call_group_name, self.channel_name)
         await self.accept()
 
     async def disconnect(self, close_code):
+        print(f"WebSocket DISCONNECTED - CallSignalConsumer code={close_code}")
         if hasattr(self, 'call_group_name'):
             await self.channel_layer.group_discard(self.call_group_name, self.channel_name)
             await self.channel_layer.group_send(
@@ -216,7 +234,12 @@ class CallSignalConsumer(AsyncWebsocketConsumer):
             )
 
     async def receive(self, text_data):
-        data = json.loads(text_data)
+        print(f"WebSocket RECEIVE - CallSignalConsumer: {text_data}")
+        try:
+            data = json.loads(text_data)
+        except json.JSONDecodeError as e:
+            print(f"CallSignalConsumer JSON decode error: {e}")
+            return
         msg_type = data.get('type')
 
         if msg_type == 'join':

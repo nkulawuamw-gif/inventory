@@ -22,9 +22,10 @@ services:
         value: /var/data/staticfiles
       - key: DATABASE_URL
         value: postgresql://inventory_ugek_user:0V8C4IoBtmIjFIkaRXGndlCRKIVbtYr3@dpg-d84abpj7uimc739h653g-a/inventory_ugek
-      # REQUIRED: Provision a Redis instance (Render Redis add-on or free tier like Redis Cloud) and set REDIS_URL
-      # - key: REDIS_URL
-      #   value: rediss://...
+      # REQUIRED: Set REDIS_URL in Render dashboard (Environment Variables) or via a Redis service.
+      # Without a valid Redis instance, WebSockets and Channels will use InMemoryChannelLayer (dev only).
+      - key: REDIS_URL
+        value: ""
       - key: PYTHONUNBUFFERED
         value: 1
     disk:

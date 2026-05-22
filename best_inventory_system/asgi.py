@@ -6,7 +6,7 @@ from django.core.asgi import get_asgi_application
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "best_inventory_system.settings")
 
-django.setup()  # IMPORTANT FIX
+django.setup()
 
 from stock_manager.routing import websocket_urlpatterns
 
