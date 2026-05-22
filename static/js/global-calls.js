@@ -83,12 +83,22 @@
 
     window.stopCallUI = function () {
         console.log("Call ended");
+
+        if (window.localStream) {
+            window.localStream.getTracks().forEach(track => track.stop());
+        }
+
+        if (window.jitsiApi) {
+            window.jitsiApi.dispose();
+            window.jitsiApi = null;
+        }
+
         if (window.callSocket) {
             window.callSocket.close();
-            window.callSocket = null;
         }
-        var el = document.getElementById('callModal');
-        if (el) el.style.display = 'none';
+
+        var modal = document.getElementById("callModal");
+        if (modal) modal.style.display = "none";
         hideModal();
     };
 
