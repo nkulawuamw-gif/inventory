@@ -192,6 +192,7 @@ function signalToUser(userId, type, data) {
 }
 
 async function handleSignals() {
+    try {
     const response = await fetch(`/meetings/${meetingCode}/signal/`);
     const data = await response.json();
     const signals = data.signals || {};
