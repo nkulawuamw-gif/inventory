@@ -36,6 +36,7 @@ urlpatterns = [
 
     path('calls/', comm.calls_view, name='calls'),
     path('calls/incoming/', comm.check_incoming_call, name='check_incoming_call'),
+    path('calls/api/incoming/', comm.incoming_calls, name='incoming_calls'),
     path('calls/initiate/', comm.initiate_call, name='initiate_call'),
     path('calls/<int:call_id>/', comm.call_room, name='call_room'),
     path('calls/<int:call_id>/end/', comm.end_call, name='end_call'),

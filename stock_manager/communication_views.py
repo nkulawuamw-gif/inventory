@@ -390,16 +390,28 @@ def get_conversation(request, user_id):
 
 @login_required
 def check_incoming_call(request):
-    ringing = Call.objects.filter(receiver=request.user, status='ringing').select_related('caller').first()
-    if ringing:
-        return JsonResponse({
-            'ringing': True,
-            'call_id': ringing.id,
-            'caller': ringing.caller.get_full_name() or ringing.caller.username,
-            'call_type': ringing.call_type,
-            'room_name': ringing.room_name,
-        })
-    return JsonResponse({'ringing': False})
+    try:
+        ringing = Call.objects.filter(receiver=request.user, status='ringing').select_related('caller').first()
+        if ringing:
+            return JsonResponse({
+                'ringing': True,
+                'call_id': ringing.id,
+                'caller': ringing.caller.get_full_name() or ringing.caller.username,
+                'call_type': ringing.call_type,
+                'room_name': ringing.room_name,
+            })
+        return JsonResponse({'ringing': False})
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+def incoming_calls(request):
+    try:
+        calls = list(Call.objects.filter(receiver=request.user).values())
+        return JsonResponse({"calls": calls})
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
 
 
 @login_required
