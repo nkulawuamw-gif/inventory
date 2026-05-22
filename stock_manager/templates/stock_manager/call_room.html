@@ -148,6 +148,7 @@ async function startCaller() {
             if (peerConnection.connectionState === 'disconnected' || peerConnection.connectionState === 'failed') {
                 stopCallingTone();
                 document.getElementById('call-status').innerHTML = '<span class="badge bg-danger fs-6">Disconnected</span>';
+                setTimeout(function() { endCall(); }, 1500);
             }
         };
 
@@ -198,6 +199,7 @@ async function startCallee(offerData) {
         peerConnection.onconnectionstatechange = () => {
             if (peerConnection.connectionState === 'disconnected' || peerConnection.connectionState === 'failed') {
                 document.getElementById('call-status').innerHTML = '<span class="badge bg-danger fs-6">Disconnected</span>';
+                setTimeout(function() { endCall(); }, 1500);
             }
         };
 
@@ -228,6 +230,16 @@ function signalPeer(type, data) {
 async function handleRemoteSignal() {
     const response = await fetch(`/calls/${callId}/signal/`);
     const data = await response.json();
+
+    if (data.call_status === 'ended') {
+        stopCallingTone();
+        if (localStream) { localStream.getTracks().forEach(function(t) { t.stop(); }); }
+        if (peerConnection) { peerConnection.close(); peerConnection = null; }
+        document.getElementById('call-status').innerHTML = '<span class="badge bg-danger fs-6">Call Ended</span>';
+        setTimeout(function() { window.location.href = '/calls/'; }, 2000);
+        return;
+    }
+
     const signaling = data.signaling;
 
     for (const key of Object.keys(signaling)) {
@@ -305,5 +317,22 @@ if (isCaller) {
     startCaller();
 }
 setInterval(handleRemoteSignal, 1000);
+
+(function() {
+    var protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    var ws = new WebSocket(protocol + '//' + window.location.host + '/ws/calls/');
+    ws.onmessage = function(e) {
+        try {
+            var d = JSON.parse(e.data);
+            if (d.type === 'incoming_call' && d.caller === 'CALL_ENDED' && d.call_id === callId) {
+                stopCallingTone();
+                if (localStream) { localStream.getTracks().forEach(function(t) { t.stop(); }); }
+                if (peerConnection) { peerConnection.close(); peerConnection = null; }
+                document.getElementById('call-status').innerHTML = '<span class="badge bg-danger fs-6">Call Ended</span>';
+                setTimeout(function() { window.location.href = '/calls/'; }, 2000);
+            }
+        } catch(err) {}
+    };
+})();
 </script>
 {% endblock %}

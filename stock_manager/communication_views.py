@@ -492,7 +492,7 @@ def call_signal(request, call_id):
         call.save()
         return JsonResponse({'status': 'ok'})
 
-    return JsonResponse({'signaling': call.signaling_data})
+    return JsonResponse({'signaling': call.signaling_data, 'call_status': call.status})
 
 
 @shop_access_required
