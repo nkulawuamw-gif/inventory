@@ -14,7 +14,7 @@ from django.views.decorators.csrf import csrf_exempt
 from datetime import timedelta
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
-from .models import UserPresence, Message, Call, Meeting, MeetingParticipant, UserProfile
+from .models import UserPresence, Message, Call, Meeting, MeetingParticipant, UserProfile, Profile
 from .middleware import get_user_profile, shop_access_required
 
 
@@ -50,38 +50,27 @@ def get_all_users(request):
 
 @login_required
 def get_online_users(request):
-    threshold = timezone.now() - timedelta(seconds=30)
-    online_users = UserPresence.objects.filter(
-        is_online=True, last_seen__gte=threshold
-    ).select_related('user__user_profile__assigned_shop')
+    try:
+        profiles = Profile.objects.filter(
+            is_online=True
+        ).select_related("user")
 
-    users = []
-    for presence in online_users:
-        user = presence.user
-        shop_name = ''
-        is_admin = user.is_superuser
-        if user.is_superuser:
-            shop_name = 'Admin'
-        else:
-            try:
-                profile = user.user_profile
-                if profile.assigned_shop:
-                    shop_name = profile.assigned_shop.name
-                if profile.is_admin:
-                    is_admin = True
-            except UserProfile.DoesNotExist:
-                pass
+        data = []
+        for p in profiles:
+            user = p.user
+            display_name = user.get_full_name().strip() or user.username
+            data.append({
+                "id": user.id,
+                "username": user.username,
+                "display_name": display_name,
+                "last_seen": p.last_seen,
+                "shop": p.shop.name if p.shop else "",
+                "is_admin": user.is_superuser,
+            })
 
-        display_name = user.get_full_name().strip() or user.username
-        users.append({
-            'id': user.id,
-            'username': user.username,
-            'display_name': display_name,
-            'shop': shop_name,
-            'is_admin': is_admin,
-        })
-
-    return JsonResponse({'users': users})
+        return JsonResponse({"users": data})
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
 
 
 
