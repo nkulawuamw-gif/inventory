@@ -81,11 +81,23 @@
         hideModal();
     }
 
+    window.endCall = function () {
+        console.log("Call ended");
+        if (window.currentCallSocket) {
+            window.currentCallSocket.close();
+            window.currentCallSocket = null;
+        }
+        var el = document.getElementById('callModal');
+        if (el) el.style.display = 'none';
+        hideModal();
+    };
+
     function wsConnect() {
         if (ws && ws.readyState === WebSocket.OPEN) return;
         try {
             ws = new WebSocket("wss://" + window.location.host + "/ws/calls/");
         } catch (e) { schedule(); return; }
+        window.currentCallSocket = ws;
         ws.onopen = function () { if (reconnect) { clearTimeout(reconnect); reconnect = null; } };
         ws.onmessage = function (e) {
             try {
