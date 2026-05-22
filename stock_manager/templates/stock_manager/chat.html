@@ -10,7 +10,12 @@
                     <span><i class="bi bi-chat-dots"></i> Conversations</span>
                     <span class="badge bg-danger" id="conversationBadge">{% if total_unread %}{{ total_unread }}{% endif %}</span>
                 </div>
-                <div class="list-group list-group-flush" id="conversationList" style="max-height:70vh;overflow-y:auto;">
+                <div class="p-2 border-bottom">
+                    <select id="userSelect" class="form-select form-select-sm" onchange="onUserSelect(this)">
+                        <option value="">— Select user to chat —</option>
+                    </select>
+                </div>
+                <div class="list-group list-group-flush" id="conversationList" style="max-height:60vh;overflow-y:auto;">
                     {% for conv in conversations %}
                     <a href="#" class="list-group-item list-group-item-action d-flex justify-content-between align-items-start" data-user-id="{{ conv.user.id }}" onclick="openChat({{ conv.user.id }}, '{{ conv.user.get_full_name|default:conv.user.username|escapejs }}')">
                         <div class="ms-2 me-auto">
@@ -58,6 +63,34 @@
 <script>
 let currentChatUserId = null;
 let currentChatUserName = '';
+
+function onUserSelect(sel) {
+    const val = sel.value;
+    if (!val) return;
+    const parts = val.split('|');
+    const userId = parseInt(parts[0], 10);
+    const userName = parts[1];
+    sel.value = '';
+    openChat(userId, userName);
+}
+
+function loadUsers() {
+    fetch('{% url "all_users" %}')
+        .then(r => r.json())
+        .then(d => {
+            const sel = document.getElementById('userSelect');
+            if (!d.users) return;
+            const currentId = {{ request.user.id }};
+            d.users.forEach(u => {
+                if (u.id === currentId) return;
+                const opt = document.createElement('option');
+                opt.value = u.id + '|' + u.username;
+                opt.textContent = u.username;
+                sel.appendChild(opt);
+            });
+        })
+        .catch(() => {});
+}
 
 function openChat(userId, userName) {
     currentChatUserId = userId;
@@ -145,5 +178,6 @@ function updateBadge() {
 }
 
 setInterval(updateBadge, 15000);
+loadUsers();
 </script>
 {% endblock %}
