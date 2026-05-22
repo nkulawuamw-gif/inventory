@@ -275,13 +275,16 @@
     }
 
     /* ── End call ── */
-    function endCall() {
+    window.endCall = function () {
         if (ended) return;
         ended = true;
         if (timer) clearInterval(timer);
         if (pc) { pc.close(); pc = null; }
         if (localStream) { localStream.getTracks().forEach(function (t) { t.stop(); }); }
-        if (ws) { ws.close(); ws = null; }
+        if (ws) {
+            ws.send(JSON.stringify({ type: 'end_call' }));
+            ws.close();
+        }
         var csrf = (document.querySelector('[name=csrfmiddlewaretoken]') || {}).value || '';
         fetch('{% url "end_call" call.id %}', {
             method: 'POST',
@@ -289,8 +292,10 @@
             body: 'csrfmiddlewaretoken=' + encodeURIComponent(csrf),
             keepalive: true,
         });
-        try { window.location.href = '{% url "calls" %}'; } catch (e) { window.location.replace('{% url "calls" %}'); }
-    }
+        setTimeout(function () {
+            window.location.href = '{% url "calls" %}';
+        }, 300);
+    };
 
     function endCallRemote() {
         if (ended) return;
@@ -306,7 +311,9 @@
             body: 'csrfmiddlewaretoken=' + encodeURIComponent(csrf),
             keepalive: true,
         });
-        window.location.href = '{% url "calls" %}';
+        setTimeout(function () {
+            window.location.href = '{% url "calls" %}';
+        }, 300);
     }
 
     window.addEventListener('beforeunload', function () {
