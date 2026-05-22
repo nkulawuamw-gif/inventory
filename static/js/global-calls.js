@@ -81,7 +81,7 @@
         hideModal();
     }
 
-    function stopCallUI() {
+    window.stopCallUI = function () {
         console.log("Call ended");
         if (window.callSocket) {
             window.callSocket.close();
@@ -90,7 +90,7 @@
         var el = document.getElementById('callModal');
         if (el) el.style.display = 'none';
         hideModal();
-    }
+    };
 
     window.endCall = function () {
         if (window.callSocket && window.callSocket.readyState === 1) {
@@ -112,8 +112,8 @@
         ws.onmessage = function (e) {
             try {
                 var d = JSON.parse(e.data);
-                if (d.type === 'call_event' && d.event === 'end_call') {
-                    hideModal();
+                if (d.event === "end_call") {
+                    if (window.stopCallUI) window.stopCallUI();
                 } else if (d.type === 'incoming_call' && d.caller !== 'CALL_ENDED') {
                     showModal(d);
                 } else if (d.caller === 'CALL_ENDED' || d.type === 'call_ended') {

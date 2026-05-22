@@ -158,12 +158,8 @@ function connectCalls() {
         var data;
         try { data = JSON.parse(e.data); } catch (err) { return; }
 
-        if (data.type === 'call_event' && data.event === 'end_call') {
-            var modalEl = document.getElementById('incomingCallModal');
-            if (modalEl) {
-                var m = bootstrap.Modal.getInstance(modalEl);
-                if (m) m.hide();
-            }
+        if (data.event === "end_call") {
+            if (window.stopCallUI) window.stopCallUI();
             return;
         }
 
