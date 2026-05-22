@@ -20,12 +20,18 @@ from .middleware import get_user_profile, shop_access_required
 
 @csrf_exempt
 def heartbeat(request):
-    if request.user.is_authenticated:
-        UserPresence.objects.update_or_create(
-            user=request.user,
-            defaults={'is_online': True, 'last_seen': timezone.now()}
-        )
-    return JsonResponse({'status': 'ok'})
+    try:
+        user = request.user
+
+        if not user.is_authenticated:
+            return JsonResponse({"status": "unauthenticated"})
+
+        user.profile.last_seen = timezone.now()
+        user.profile.save()
+
+        return JsonResponse({"status": "ok"})
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
 
 
 @csrf_exempt
