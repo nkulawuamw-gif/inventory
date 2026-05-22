@@ -342,7 +342,9 @@ def generate_receipt_number():
 
 @shop_access_required
 def point_of_sale(request, shop_slug):
-    shop = get_object_or_404(Shop, slug=shop_slug)
+    shop = Shop.objects.filter(slug=shop_slug).first()
+    if not shop:
+        shop = get_object_or_404(Shop, name__iexact=shop_slug)
 
     is_warehouse = shop.name == 'Warehouse'
 
@@ -1100,7 +1102,10 @@ def search_items(request):
 
 @shop_access_required
 def shop_dashboard(request, shop_slug):
-    shop = get_object_or_404(Shop, slug=shop_slug)
+    # Fallback: try slug first, then name match for existing shops with null slugs
+    shop = Shop.objects.filter(slug=shop_slug).first()
+    if not shop:
+        shop = get_object_or_404(Shop, name__iexact=shop_slug)
 
     if not request.user.is_superuser:
         profile = get_user_profile(request.user)
@@ -1126,6 +1131,69 @@ def shop_dashboard(request, shop_slug):
     warehouse_stocked_in = 0
     warehouse_stocked_out = 0
 
+    # ---- POST: Warehouse stock transfer ----
+    if request.method == 'POST' and is_warehouse:
+        action = request.POST.get('action')
+        if action == 'transfer_item':
+            item_id = request.POST.get('item_id')
+            target_shop_id = request.POST.get('target_shop')
+            try:
+                qty = int(request.POST.get('quantity_transfer', 0))
+            except (ValueError, TypeError):
+                qty = 0
+
+            if not item_id or not target_shop_id or qty <= 0:
+                messages.error(request, 'Missing or invalid transfer fields.')
+                return redirect('shop_dashboard', shop_slug=shop_slug)
+
+            try:
+                source_item = Item.objects.get(id=item_id, shop=shop)
+            except Item.DoesNotExist:
+                messages.error(request, 'Item not found in warehouse.')
+                return redirect('shop_dashboard', shop_slug=shop_slug)
+
+            if qty > source_item.quantity:
+                messages.error(request, f'Not enough stock. Available: {source_item.quantity}, Requested: {qty}')
+                return redirect('shop_dashboard', shop_slug=shop_slug)
+
+            try:
+                target_shop = Shop.objects.get(id=target_shop_id)
+            except Shop.DoesNotExist:
+                messages.error(request, 'Target shop not found.')
+                return redirect('shop_dashboard', shop_slug=shop_slug)
+
+            # Deduct from warehouse
+            source_item.quantity -= qty
+            source_item.save()
+
+            # Add to target shop (create item if missing)
+            target_item, created = Item.objects.get_or_create(
+                name=source_item.name,
+                shop=target_shop,
+                defaults={
+                    'quantity': qty,
+                    'unit_price': source_item.unit_price,
+                    'category': source_item.category,
+                }
+            )
+            if not created:
+                target_item.quantity += qty
+                target_item.save()
+
+            # Record the transfer
+            StockTransaction.objects.create(
+                item=source_item,
+                source_shop=shop,
+                target_shop=target_shop,
+                quantity=qty,
+                transaction_type='transfer',
+                reason=f'Warehouse transfer to {target_shop.name}',
+            )
+
+            messages.success(request, f'Transferred {qty}x {source_item.name} to {target_shop.name}')
+            return redirect('shop_dashboard', shop_slug=shop_slug)
+
+    # ---- GET: Build context ----
     for item in items:
         key = item.name.lower()
         open_data = opening_stock.get(key, {})
@@ -1186,7 +1254,9 @@ def shop_dashboard(request, shop_slug):
 
 @shop_access_required
 def shop_inventory(request, shop_slug):
-    shop = get_object_or_404(Shop, slug=shop_slug)
+    shop = Shop.objects.filter(slug=shop_slug).first()
+    if not shop:
+        shop = get_object_or_404(Shop, name__iexact=shop_slug)
     profile = get_user_profile(request.user)
     user_is_admin = profile is None or profile.is_admin
 

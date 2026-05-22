@@ -455,6 +455,23 @@ def end_call(request, call_id):
         call.status = 'ended'
         call.ended_at = timezone.now()
         call.save()
+
+        other_id = call.callee.id if call.caller == request.user else call.caller.id
+        try:
+            channel_layer = get_channel_layer()
+            async_to_sync(channel_layer.group_send)(
+                f'user_{other_id}',
+                {
+                    'type': 'incoming_call',
+                    'call_id': call.id,
+                    'caller': 'CALL_ENDED',
+                    'caller_id': 0,
+                    'call_type': call.call_type,
+                }
+            )
+        except Exception:
+            pass
+
     return JsonResponse({'status': 'ended'})
 
 
@@ -467,6 +484,7 @@ def call_signal(request, call_id):
 
     if request.method == 'POST':
         data = json.loads(request.body)
+        call.refresh_from_db()
         signal_data = call.signaling_data
         signal_data[data.get('type', 'unknown')] = data.get('data', {})
         call.signaling_data = signal_data

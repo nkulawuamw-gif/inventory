@@ -8,6 +8,8 @@
     var ringingOsc1 = null;
     var ringingOsc2 = null;
     var ringingGain = null;
+    var pollTimer = null;
+    var modalShown = false;
 
     function getCSRFToken() {
         var el = document.querySelector('[name=csrfmiddlewaretoken]');
@@ -48,6 +50,8 @@
     }
 
     function showIncomingCallModal(data) {
+        if (modalShown) return;
+        modalShown = true;
         currentCallId = data.call_id;
         var nameEl = document.getElementById('incomingCallerName');
         var typeEl = document.getElementById('incomingCallType');
@@ -65,6 +69,7 @@
     }
 
     function hideIncomingCallModal() {
+        modalShown = false;
         stopRingingTone();
         currentCallId = null;
         var modalEl = document.getElementById('incomingCallModal');
@@ -72,6 +77,26 @@
             var modal = bootstrap.Modal.getInstance(modalEl);
             if (modal) modal.hide();
         }
+    }
+
+    function checkIncomingCallHTTP() {
+        fetch('/calls/incoming/', {
+            method: 'GET',
+            headers: { 'X-CSRFToken': getCSRFToken() },
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.ringing && !modalShown) {
+                showIncomingCallModal({
+                    call_id: data.call_id,
+                    caller: data.caller,
+                    call_type: data.call_type,
+                });
+            } else if (!data.ringing && modalShown) {
+                hideIncomingCallModal();
+            }
+        })
+        .catch(function() {});
     }
 
     function connectWebSocket() {
@@ -141,12 +166,20 @@
 
         if (document.querySelector('[name=csrfmiddlewaretoken]')) {
             connectWebSocket();
+            checkIncomingCallHTTP();
+            pollTimer = setInterval(checkIncomingCallHTTP, 4000);
         }
     });
 
     document.addEventListener('visibilitychange', function() {
-        if (!document.hidden && (!ws || ws.readyState === WebSocket.CLOSED)) {
-            connectWebSocket();
+        if (!document.hidden) {
+            if (!ws || ws.readyState === WebSocket.CLOSED) {
+                connectWebSocket();
+            }
+            checkIncomingCallHTTP();
+            if (!pollTimer) {
+                pollTimer = setInterval(checkIncomingCallHTTP, 4000);
+            }
         }
     });
 })();
