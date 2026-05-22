@@ -1,0 +1,152 @@
+{% extends 'stock_manager/base.html' %}
+{% block content %}
+<style>
+#jitsi-container {
+    width: 100%;
+    height: calc(100vh - 120px);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+    position: relative;
+    background: #1a1a2e;
+}
+#jitsi-container iframe {
+    width: 100%;
+    height: 100%;
+    border: 0;
+}
+.call-info-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 16px;
+    background: #2c3e50;
+    color: white;
+    border-radius: 12px 12px 0 0;
+    font-size: 0.85rem;
+}
+.call-info-bar .end-call-btn {
+    background: #e74c3c;
+    color: white;
+    border: none;
+    padding: 6px 20px;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.call-info-bar .end-call-btn:hover {
+    background: #c0392b;
+    transform: scale(1.05);
+}
+@media (max-width: 767px) {
+    #jitsi-container { height: calc(100vh - 160px); }
+    .call-info-bar { font-size: 0.75rem; padding: 6px 10px; }
+    .call-info-bar .end-call-btn { padding: 4px 14px; font-size: 0.75rem; }
+}
+</style>
+
+<div class="call-info-bar">
+    <div>
+        <i class="bi bi-telephone{% if call.call_type == 'video' %}-video{% endif %} me-2"></i>
+        Calling <strong>{{ other_user.get_full_name|default:other_user.username }}</strong>
+        <span class="badge bg-{% if call.call_type == 'video' %}success{% else %}info{% endif %} ms-2">
+            {{ call.get_call_type_display }}
+        </span>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+        <span id="callTimer" class="text-light small">00:00</span>
+        <button class="end-call-btn" onclick="endJitsiCall()">
+            <i class="bi bi-telephone-x"></i> End Call
+        </button>
+    </div>
+</div>
+
+<div id="jitsi-container">
+    <div class="d-flex align-items-center justify-content-center text-white" style="height:100%;flex-direction:column;gap:16px;">
+        <div class="spinner-border text-light" role="status"></div>
+        <span>Connecting to Jitsi Meet...</span>
+    </div>
+</div>
+
+{% csrf_token %}
+<script src="https://meet.jit.si/external_api.js"></script>
+<script>
+var jitsiApi = null;
+var callEnded = false;
+var timerInterval = null;
+var timerSeconds = 0;
+
+function updateTimer() {
+    timerSeconds++;
+    var m = String(Math.floor(timerSeconds / 60)).padStart(2, '0');
+    var s = String(timerSeconds % 60).padStart(2, '0');
+    var el = document.getElementById('callTimer');
+    if (el) el.textContent = m + ':' + s;
+}
+
+var domain = 'meet.jit.si';
+var options = {
+    roomName: '{{ room_name }}',
+    width: '100%',
+    height: '100%',
+    parentNode: document.getElementById('jitsi-container'),
+    configOverrides: {
+        startWithAudioMuted: false,
+        startWithVideoMuted: false,
+        disableDeepLinking: true,
+        disableInviteFunctions: true,
+        disableJoinLeaveNotifications: true,
+    },
+    interfaceConfigOverrides: {
+        SHOW_JITSI_WATERMARK: false,
+        SHOW_WATERMARK_FOR_GUESTS: false,
+        TOOLBAR_ALWAYS_VISIBLE: true,
+        DISABLE_JOIN_LEAVE_NOTIFICATIONS: true,
+        FILM_STRIP_MAX_HEIGHT: 120,
+    },
+    userInfo: {
+        displayName: '{{ request.user.get_full_name|default:request.user.username }}',
+    },
+};
+
+jitsiApi = new JitsiMeetExternalAPI(domain, options);
+
+jitsiApi.addListener('videoConferenceJoined', function() {
+    timerInterval = setInterval(updateTimer, 1000);
+});
+
+jitsiApi.addListener('readyToClose', function() {
+    endJitsiCall();
+});
+
+function endJitsiCall() {
+    if (callEnded) return;
+    callEnded = true;
+
+    if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+    }
+
+    if (jitsiApi) {
+        try { jitsiApi.dispose(); } catch(e) {}
+        jitsiApi = null;
+    }
+
+    fetch('{% url "end_call" call.id %}', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || '',
+        },
+    }).catch(function() {});
+
+    window.location.href = '{% url "calls" %}';
+}
+
+window.addEventListener('beforeunload', function() {
+    if (!callEnded) endJitsiCall();
+});
+</script>
+{% endblock %}

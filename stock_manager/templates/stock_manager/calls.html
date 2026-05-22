@@ -5,13 +5,19 @@
 <h2 class="mb-4">{{ page_title }}</h2>
 
 {% if incoming_ringing %}
-<div class="alert alert-info d-flex justify-content-between align-items-center">
+<div class="alert alert-info d-flex justify-content-between align-items-center flex-wrap gap-2">
     <div>
         <i class="bi bi-telephone-ringing"></i> Incoming call from <strong>{{ incoming_ringing.0.caller.get_full_name|default:incoming_ringing.0.caller.username }}</strong>
     </div>
-    <a href="{% url 'call_room' incoming_ringing.0.id %}" class="btn btn-success">
-        <i class="bi bi-telephone"></i> Answer
-    </a>
+    <div class="d-flex gap-2">
+        <form method="post" action="{% url 'end_call' incoming_ringing.0.id %}" style="display:inline">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-outline-danger"><i class="bi bi-telephone-x"></i> Decline</button>
+        </form>
+        <a href="{% url 'call_room' incoming_ringing.0.id %}" class="btn btn-success">
+            <i class="bi bi-telephone"></i> Answer
+        </a>
+    </div>
 </div>
 {% endif %}
 

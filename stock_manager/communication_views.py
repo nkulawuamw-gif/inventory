@@ -413,6 +413,8 @@ def initiate_call(request):
                 status='ringing',
             )
 
+            room_name = f'call_{call.id}'
+
             channel_layer = get_channel_layer()
             async_to_sync(channel_layer.group_send)(
                 f'user_{callee.id}',
@@ -422,12 +424,14 @@ def initiate_call(request):
                     'caller': request.user.get_full_name() or request.user.username,
                     'caller_id': request.user.id,
                     'call_type': call_type,
+                    'room_name': room_name,
                 }
             )
 
             return JsonResponse({
                 'status': 'initiated',
                 'call_id': call.id,
+                'room_name': room_name,
             })
 
     return JsonResponse({'status': 'error', 'error': 'Invalid request'}, status=400)
@@ -435,6 +439,7 @@ def initiate_call(request):
 
 @login_required
 def call_room(request, call_id):
+    """Jitsi Meet call room — replaces old WebRTC implementation."""
     call = get_object_or_404(Call, id=call_id)
 
     if call.caller != request.user and call.callee != request.user:
@@ -444,10 +449,14 @@ def call_room(request, call_id):
         call.status = 'accepted'
         call.save()
 
-    return render(request, 'stock_manager/call_room.html', {
+    other_user = call.callee if call.caller == request.user else call.caller
+    room_name = f'call_{call.id}'
+
+    return render(request, 'stock_manager/jitsi_room.html', {
         'call': call,
-        'other_user': call.callee if call.caller == request.user else call.caller,
-        'page_title': 'Call Room',
+        'other_user': other_user,
+        'room_name': room_name,
+        'page_title': 'Call - Jitsi Meet',
     })
 
 
@@ -475,7 +484,9 @@ def end_call(request, call_id):
         except Exception:
             pass
 
-    return JsonResponse({'status': 'ended'})
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.content_type == 'application/json':
+        return JsonResponse({'status': 'ended'})
+    return redirect('calls')
 
 
 @login_required
@@ -611,6 +622,7 @@ def check_incoming_call(request):
             'call_id': ringing.id,
             'caller': ringing.caller.get_full_name() or ringing.caller.username,
             'call_type': ringing.call_type,
+            'room_name': f'call_{ringing.id}',
         })
     return JsonResponse({'ringing': False})
 

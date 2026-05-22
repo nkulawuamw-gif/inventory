@@ -61,30 +61,40 @@
     <div class="overflow-auto flex-grow-1" id="contact-list">
       {% for contact in contacts %}
       {% cycle '#e74c3c' '#3498db' '#2ecc71' '#f39c12' '#9b59b6' '#1abc9c' '#e67e22' '#34495e' as avatar_color silent %}
-      <a href="?user={{ contact.id }}" class="text-decoration-none contact-item d-flex align-items-center p-3 border-bottom {% if selected_user and selected_user.id == contact.id %}active{% endif %}">
-        <div class="position-relative me-3">
-          <div class="avatar-circle" style="background: {{ avatar_color }}; color: #fff;">
-            {{ contact.username|make_list|first|upper }}
-          </div>
-          {% if contact.is_online %}
-          <span class="position-absolute rounded-circle bg-success border border-white" style="width: 12px; height: 12px; bottom: 0; right: 0;"></span>
-          {% endif %}
-        </div>
-        <div class="flex-grow-1 min-width-0">
-          <div class="d-flex justify-content-between align-items-center">
-            <strong class="text-dark" style="font-size: 0.95rem;">{{ contact.username }}</strong>
-            {% if contact.last_message_at %}
-            <small class="text-muted" style="font-size: 0.7rem; white-space: nowrap; margin-left: 4px;">{{ contact.last_message_at|timesince|cut:" ago" }}</small>
+      <div class="d-flex align-items-center p-3 border-bottom contact-item position-relative">
+        <a href="?user={{ contact.id }}" class="text-decoration-none d-flex align-items-center flex-grow-1 min-width-0">
+          <div class="position-relative me-3">
+            <div class="avatar-circle" style="background: {{ avatar_color }}; color: #fff;">
+              {{ contact.username|make_list|first|upper }}
+            </div>
+            {% if contact.is_online %}
+            <span class="position-absolute rounded-circle bg-success border border-white" style="width: 12px; height: 12px; bottom: 0; right: 0;"></span>
             {% endif %}
           </div>
-          <div class="d-flex justify-content-between align-items-center">
-            <small class="text-muted text-truncate d-block" style="font-size: 0.82rem; max-width: 180px;">{{ contact.last_message }}</small>
-            {% if contact.unread > 0 %}
-            <span class="badge bg-primary rounded-pill" style="font-size: 0.7rem;">{{ contact.unread }}</span>
-            {% endif %}
+          <div class="flex-grow-1 min-width-0">
+            <div class="d-flex justify-content-between align-items-center">
+              <strong class="text-dark" style="font-size: 0.95rem;">{{ contact.username }}</strong>
+              {% if contact.last_message_at %}
+              <small class="text-muted" style="font-size: 0.7rem; white-space: nowrap; margin-left: 4px;">{{ contact.last_message_at|timesince|cut:" ago" }}</small>
+              {% endif %}
+            </div>
+            <div class="d-flex justify-content-between align-items-center">
+              <small class="text-muted text-truncate d-block" style="font-size: 0.82rem; max-width: 140px;">{{ contact.last_message }}</small>
+              {% if contact.unread > 0 %}
+              <span class="badge bg-primary rounded-pill" style="font-size: 0.7rem;">{{ contact.unread }}</span>
+              {% endif %}
+            </div>
           </div>
+        </a>
+        <div class="d-flex gap-1 ms-2 flex-shrink-0">
+          <button class="btn btn-sm btn-outline-primary rounded-circle" style="width:32px;height:32px;padding:0;font-size:0.8rem;" onclick="event.stopPropagation();chatCall('{{ contact.username }}','voice')" title="Voice call">
+            <i class="bi bi-telephone"></i>
+          </button>
+          <button class="btn btn-sm btn-outline-success rounded-circle" style="width:32px;height:32px;padding:0;font-size:0.8rem;" onclick="event.stopPropagation();chatCall('{{ contact.username }}','video')" title="Video call">
+            <i class="bi bi-camera-video"></i>
+          </button>
         </div>
-      </a>
+      </div>
       {% empty %}
       <div class="p-4 text-center text-muted">No users found</div>
       {% endfor %}
@@ -599,6 +609,28 @@ document.getElementById('sendBroadcastBtn')?.addEventListener('click', function(
   });
   }
 })();
+
+function chatCall(username, type) {
+    fetch('{% url "initiate_call" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || '',
+        },
+        body: JSON.stringify({ callee_username: username, call_type: type }),
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.status === 'initiated') {
+            window.location.href = '/calls/' + data.call_id + '/';
+        } else {
+            alert('Call failed: ' + (data.error || 'Unknown error'));
+        }
+    })
+    .catch(function(err) {
+        alert('Call error: ' + err.message);
+    });
+}
 </script>
 {% endif %}
 {% endblock %}
