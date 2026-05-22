@@ -33,13 +33,13 @@ def mark_offline(request):
     return JsonResponse({'status': 'ok'})
 
 
-@shop_access_required
+@login_required
 def get_all_users(request):
     users = User.objects.all().values('id', 'username')
     return JsonResponse({'users': list(users)})
 
 
-@shop_access_required
+@login_required
 def get_online_users(request):
     threshold = timezone.now() - timedelta(seconds=30)
     online_users = UserPresence.objects.filter(
@@ -73,7 +73,7 @@ def get_online_users(request):
     return JsonResponse({'users': users})
 
 
-@shop_access_required
+@login_required
 def chat_view(request):
     threshold = timezone.now() - timedelta(seconds=60)
     online_ids = set(UserPresence.objects.filter(
@@ -172,7 +172,7 @@ def chat_view(request):
     })
 
 
-@shop_access_required
+@login_required
 def send_message(request):
     if request.method == 'POST':
         data = json.loads(request.body)
@@ -181,13 +181,29 @@ def send_message(request):
 
         if receiver_id and body:
             receiver = get_object_or_404(User, id=receiver_id)
-            Message.objects.create(sender=request.user, receiver=receiver, body=body)
-            return JsonResponse({'status': 'sent'})
+            msg = Message.objects.create(sender=request.user, receiver=receiver, body=body)
+
+            channel_layer = get_channel_layer()
+            sender_name = _get_display_name(request.user)
+            async_to_sync(channel_layer.group_send)(
+                f'user_{receiver_id}',
+                {
+                    'type': 'new_message',
+                    'id': msg.id,
+                    'sender': request.user.id,
+                    'sender_name': sender_name,
+                    'body': body,
+                    'created_at': msg.created_at.isoformat(),
+                    'audio_url': None,
+                }
+            )
+
+            return JsonResponse({'status': 'sent', 'id': msg.id})
 
     return JsonResponse({'status': 'error'}, status=400)
 
 
-@shop_access_required
+@login_required
 def send_bulk_message(request):
     if request.method == 'POST':
         data = json.loads(request.body)
@@ -197,12 +213,29 @@ def send_bulk_message(request):
             users = User.objects.exclude(id=request.user.id)
             messages = [Message(sender=request.user, receiver=u, body=body) for u in users]
             Message.objects.bulk_create(messages)
+
+            channel_layer = get_channel_layer()
+            sender_name = _get_display_name(request.user)
+            for u in users:
+                async_to_sync(channel_layer.group_send)(
+                    f'user_{u.id}',
+                    {
+                        'type': 'new_message',
+                        'id': 0,
+                        'sender': request.user.id,
+                        'sender_name': sender_name,
+                        'body': body,
+                        'created_at': timezone.now().isoformat(),
+                        'audio_url': None,
+                    }
+                )
+
             return JsonResponse({'status': 'sent', 'count': len(messages)})
 
     return JsonResponse({'status': 'error'}, status=400)
 
 
-@shop_access_required
+@login_required
 def send_voice_note(request):
     if request.method == 'POST':
         receiver_id = request.POST.get('receiver_id')
@@ -220,6 +253,22 @@ def send_voice_note(request):
             audio_file=audio,
             duration=float(duration) if duration else None,
         )
+
+        channel_layer = get_channel_layer()
+        sender_name = _get_display_name(request.user)
+        async_to_sync(channel_layer.group_send)(
+            f'user_{receiver_id}',
+            {
+                'type': 'new_message',
+                'id': msg.id,
+                'sender': request.user.id,
+                'sender_name': sender_name,
+                'body': '',
+                'created_at': msg.created_at.isoformat(),
+                'audio_url': msg.audio_file.url,
+            }
+        )
+
         return JsonResponse({
             'status': 'sent',
             'id': msg.id,
@@ -230,7 +279,7 @@ def send_voice_note(request):
     return JsonResponse({'status': 'error'}, status=400)
 
 
-@shop_access_required
+@login_required
 def get_messages(request, user_id):
     other_user = get_object_or_404(User, id=user_id)
     messages = Message.objects.filter(
@@ -238,25 +287,23 @@ def get_messages(request, user_id):
         (Q(sender=other_user) & Q(receiver=request.user))
     ).order_by('created_at')
 
-    Message.objects.filter(sender=other_user, receiver=request.user, is_read=False).update(is_read=True)
-
-    def get_display_name(user):
-        if user.is_superuser:
-            return 'Admin'
-        try:
-            p = user.user_profile
-            if p.assigned_shop:
-                return p.assigned_shop.name
-        except UserProfile.DoesNotExist:
-            pass
-        return user.get_full_name() or user.username
+    updated = Message.objects.filter(sender=other_user, receiver=request.user, is_read=False).update(is_read=True)
+    if updated:
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            f'user_{other_user.id}',
+            {
+                'type': 'messages_read',
+                'user_id': request.user.id,
+            }
+        )
 
     msg_list = []
     for msg in messages:
         item = {
             'id': msg.id,
             'sender': msg.sender.id,
-            'sender_name': get_display_name(msg.sender),
+            'sender_name': _get_display_name(msg.sender),
             'body': msg.body,
             'created_at': msg.created_at.isoformat(),
             'is_read': msg.is_read,
@@ -273,7 +320,7 @@ def get_messages(request, user_id):
     return JsonResponse({'messages': msg_list, 'typing': typing})
 
 
-@shop_access_required
+@login_required
 def send_typing(request):
     if request.method == 'POST':
         data = json.loads(request.body)
@@ -289,24 +336,46 @@ def send_typing(request):
     return JsonResponse({'status': 'error'}, status=400)
 
 
-@shop_access_required
+@login_required
 def mark_read(request):
     if request.method == 'POST':
         data = json.loads(request.body)
         user_id = data.get('user_id')
         if user_id:
             Message.objects.filter(sender_id=user_id, receiver=request.user, is_read=False).update(is_read=True)
+
+            channel_layer = get_channel_layer()
+            async_to_sync(channel_layer.group_send)(
+                f'user_{user_id}',
+                {
+                    'type': 'messages_read',
+                    'user_id': request.user.id,
+                }
+            )
+
             return JsonResponse({'status': 'ok'})
     return JsonResponse({'status': 'error'}, status=400)
 
 
-@shop_access_required
+def _get_display_name(user):
+    if user.is_superuser:
+        return 'Admin'
+    try:
+        p = user.user_profile
+        if p.assigned_shop:
+            return p.assigned_shop.name
+    except Exception:
+        pass
+    return user.get_full_name() or user.username
+
+
+@login_required
 def get_unread_count(request):
     count = Message.objects.filter(receiver=request.user, is_read=False).count()
     return JsonResponse({'unread': count})
 
 
-@shop_access_required
+@login_required
 def calls_view(request):
     calls = Call.objects.filter(
         Q(caller=request.user) | Q(callee=request.user)
@@ -321,7 +390,7 @@ def calls_view(request):
     })
 
 
-@shop_access_required
+@login_required
 def initiate_call(request):
     if request.method == 'POST':
         data = json.loads(request.body)
@@ -361,7 +430,7 @@ def initiate_call(request):
     return JsonResponse({'status': 'error', 'error': 'Invalid request'}, status=400)
 
 
-@shop_access_required
+@login_required
 def call_room(request, call_id):
     call = get_object_or_404(Call, id=call_id)
 
@@ -379,7 +448,7 @@ def call_room(request, call_id):
     })
 
 
-@shop_access_required
+@login_required
 def end_call(request, call_id):
     call = get_object_or_404(Call, id=call_id)
     if call.caller == request.user or call.callee == request.user:
@@ -389,7 +458,7 @@ def end_call(request, call_id):
     return JsonResponse({'status': 'ended'})
 
 
-@shop_access_required
+@login_required
 def call_signal(request, call_id):
     call = get_object_or_404(Call, id=call_id)
 

@@ -300,33 +300,19 @@ document.getElementById('sendBroadcastBtn')?.addEventListener('click', function(
     isNearBottom = this.scrollHeight - this.scrollTop - this.clientHeight < 80;
   });
 
-  function sendTyping(receiverId) {
-    fetch('{% url "send_typing" %}', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
-      body: JSON.stringify({ receiver_id: receiverId }),
-    }).catch(function() {});
-  }
-
-  function clearTyping() {
-    fetch('{% url "send_typing" %}', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
-      body: JSON.stringify({ receiver_id: null }),
-    }).catch(function() {});
-  }
-
   messageInput.addEventListener('input', function() {
     if (!this.value.trim()) return;
     if (!typingHeartbeat) {
-      sendTyping(userId);
-      typingHeartbeat = setInterval(function() { sendTyping(userId); }, 3000);
+      if (window.ChatWS) window.ChatWS.sendTyping(userId);
+      typingHeartbeat = setInterval(function() {
+        if (window.ChatWS) window.ChatWS.sendTyping(userId);
+      }, 3000);
     }
     clearTimeout(typingTimer);
     typingTimer = setTimeout(function() {
       clearInterval(typingHeartbeat);
       typingHeartbeat = null;
-      clearTyping();
+      if (window.ChatWS) window.ChatWS.stopTyping();
     }, 4000);
   });
 
@@ -387,7 +373,7 @@ document.getElementById('sendBroadcastBtn')?.addEventListener('click', function(
     clearInterval(typingHeartbeat);
     typingHeartbeat = null;
     clearTimeout(typingTimer);
-    clearTyping();
+    if (window.ChatWS) window.ChatWS.stopTyping();
 
     const optimisticMsg = {
       id: Date.now(),
@@ -396,23 +382,30 @@ document.getElementById('sendBroadcastBtn')?.addEventListener('click', function(
       created_at: new Date().toISOString(),
       is_read: false,
     };
-    const container = document.getElementById('chat-messages');
-    renderMessage(optimisticMsg, container);
+    renderMessage(optimisticMsg, chatMessages);
     lastMessageCount++;
     messageInput.value = '';
 
-    fetch('{% url "send_message" %}', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
-      body: JSON.stringify({ receiver_id: userId, body: body }),
-    }).then(r => r.json()).then(function() {});
+    if (window.ChatWS) {
+      window.ChatWS.sendMessage(userId, body);
+    } else {
+      fetch('{% url "send_message" %}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
+        body: JSON.stringify({ receiver_id: userId, body: body }),
+      }).catch(function() {});
+    }
   });
 
-  fetch('{% url "mark_read" %}', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
-    body: JSON.stringify({ user_id: userId }),
-  });
+  if (window.ChatWS) {
+    window.ChatWS.markRead(userId);
+  } else {
+    fetch('{% url "mark_read" %}', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
+      body: JSON.stringify({ user_id: userId }),
+    });
+  }
 
   function formatTime(isoStr) {
     const d = new Date(isoStr);
@@ -438,35 +431,57 @@ document.getElementById('sendBroadcastBtn')?.addEventListener('click', function(
            a.getDate() === b.getDate();
   }
 
-  function loadMessages() {
-    fetch('{% url "get_messages" selected_user.id %}')
-      .then(r => r.json())
-      .then(data => {
-        if (data.typing) {
-          typingIndicator.style.display = 'block';
-          if (statusText) statusText.textContent = 'typing...';
-        } else {
-          typingIndicator.style.display = 'none';
-          if (statusText) statusText.textContent = 'Online';
-        }
-        if (data.messages.length <= lastMessageCount) return;
-        const container = document.getElementById('chat-messages');
-        var existing = container.querySelectorAll('.message-bubble');
-        var existingIds = new Set();
-        existing.forEach(function(el) { existingIds.add(el.dataset.msgId); });
-        data.messages.forEach(function(msg) {
-          if (existingIds.has(String(msg.id))) return;
-          renderMessage(msg, container);
-        });
-        lastMessageCount = data.messages.length;
-      });
-  }
-
   function formatDuration(sec) {
     var m = Math.floor(sec / 60);
     var s = Math.floor(sec % 60);
     return m + ':' + (s < 10 ? '0' : '') + s;
   }
+
+  document.addEventListener('chat:message', function(e) {
+    var msg = e.detail;
+    if (msg.sender !== userId && msg.sender !== {{ request.user.id }}) return;
+    var container = document.getElementById('chat-messages');
+    if (!container) return;
+    var existing = container.querySelector('.message-bubble[data-msg-id="' + msg.id + '"]');
+    if (existing) {
+      var checkIcon = existing.querySelector('.bi-check');
+      if (checkIcon) checkIcon.className = 'bi bi-check-all';
+      return;
+    }
+    var existingTemp = container.querySelector('.message-bubble[data-msg-id="' + msg.id + '"]');
+    if (existingTemp) return;
+    renderMessage(msg, container);
+    lastMessageCount++;
+  });
+
+  document.addEventListener('chat:typing', function(e) {
+    var data = e.detail;
+    if (data.user_id !== userId) return;
+    if (data.is_typing) {
+      typingIndicator.style.display = 'block';
+      if (statusText) statusText.textContent = 'typing...';
+    } else {
+      typingIndicator.style.display = 'none';
+      if (statusText) statusText.textContent = 'Online';
+    }
+  });
+
+  document.addEventListener('chat:read', function(e) {
+    var data = e.detail;
+    if (data.user_id !== userId) return;
+    var container = document.getElementById('chat-messages');
+    if (!container) return;
+    var bubbles = container.querySelectorAll('.message-bubble');
+    for (var i = 0; i < bubbles.length; i++) {
+      var checkIcon = bubbles[i].querySelector('.bi-check');
+      if (checkIcon) {
+        var parentDiv = bubbles[i].closest('.d-flex');
+        if (parentDiv && parentDiv.classList.contains('justify-content-end')) {
+          checkIcon.className = 'bi bi-check-all';
+        }
+      }
+    }
+  });
 
   document.addEventListener('click', function(e) {
     var btn = e.target.closest('.play-vn');
@@ -581,8 +596,6 @@ document.getElementById('sendBroadcastBtn')?.addEventListener('click', function(
     });
   });
   }
-
-  setInterval(loadMessages, 1000);
 })();
 </script>
 {% endif %}

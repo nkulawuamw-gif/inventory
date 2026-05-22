@@ -457,28 +457,8 @@
         }).catch(() => {});
     }
 
-    function updateUnread() {
-        fetch('{% url "unread_count" %}')
-            .then(r => r.json())
-            .then(data => {
-                var count = data.unread || 0;
-                var badge = document.getElementById('unreadBadge');
-                var badgeMobile = document.getElementById('unreadBadgeMobile');
-                if (count > 0) {
-                    var display = count > 9 ? '9+' : count;
-                    if (badge) { badge.textContent = display; badge.style.display = 'inline'; }
-                    if (badgeMobile) { badgeMobile.textContent = display; badgeMobile.style.display = 'inline'; }
-                } else {
-                    if (badge) badge.style.display = 'none';
-                    if (badgeMobile) badgeMobile.style.display = 'none';
-                }
-            }).catch(() => {});
-    }
-
     heartbeat();
-    updateUnread();
     setInterval(heartbeat, 10000);
-    setInterval(updateUnread, 5000);
 
     window.addEventListener('beforeunload', function() {
         navigator.sendBeacon('{% url "mark_offline" %}');
@@ -759,6 +739,7 @@ document.addEventListener('click', function(e) {
 </script>
 
 <script src="{% static 'js/global-calls.js' %}"></script>
+<script src="{% static 'js/global-chat.js' %}"></script>
 
 </body>
 </html>
