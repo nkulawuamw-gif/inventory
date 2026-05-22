@@ -63,9 +63,10 @@ def get_online_users(request):
             except UserProfile.DoesNotExist:
                 pass
 
+        display_name = user.get_full_name().strip() or user.username
         users.append({
             'id': user.id,
-            'username': user.get_full_name() or user.username,
+            'username': display_name,
             'shop': shop_name,
             'is_admin': is_admin,
         })
@@ -366,7 +367,7 @@ def _get_display_name(user):
             return p.assigned_shop.name
     except Exception:
         pass
-    return user.get_full_name() or user.username
+    return user.get_full_name().strip() or user.username
 
 
 @login_required
