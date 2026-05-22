@@ -301,6 +301,9 @@ class PeriodOpeningStock(models.Model):
         return f"{self.item_name} @ {self.shop.name} ({self.period.name})"
 
 
+def _receipt_pdf_path(instance, filename):
+    return f'receipts/{instance.shop.slug}/{instance.receipt_number}.pdf'
+
 class Receipt(models.Model):
     receipt_number = models.CharField(max_length=20, unique=True)
     shop = models.ForeignKey(Shop, on_delete=models.CASCADE, related_name='receipts')
@@ -311,6 +314,7 @@ class Receipt(models.Model):
     change = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     created_at = models.DateTimeField(default=timezone.now)
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    pdf_file = models.FileField(upload_to=_receipt_pdf_path, blank=True, null=True, verbose_name='Receipt PDF')
 
     class Meta:
         ordering = ['-created_at']

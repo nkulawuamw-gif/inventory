@@ -480,12 +480,22 @@ def point_of_sale(request, shop_slug):
                     item.quantity -= qty
                     item.save()
 
+                try:
+                    from django.core.files.base import ContentFile
+                    company = CompanyProfile.objects.first()
+                    pdf_bytes = _generate_pdf_bytes(receipt, company)
+                    receipt.pdf_file.save(f'{receipt.receipt_number}.pdf', ContentFile(pdf_bytes), save=False)
+                    receipt.save(update_fields=['pdf_file'])
+                except Exception:
+                    pass
+
                 return JsonResponse({
                     'success': True,
                     'receipt_id': receipt.id,
                     'receipt_number': receipt.receipt_number,
                     'change': float(change),
-                    'message': 'Sale completed successfully'
+                    'message': 'Sale completed successfully',
+                    'pdf_url': receipt.pdf_file.url if receipt.pdf_file else None,
                 })
 
         except Exception as e:
@@ -621,86 +631,21 @@ def download_receipt_pdf(request, receipt_id):
         messages.error(request, 'Access denied.')
         return redirect('sales_history')
 
+    if receipt.pdf_file and receipt.pdf_file.storage.exists(receipt.pdf_file.name):
+        response = HttpResponse(receipt.pdf_file.read(), content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="receipt_{receipt.receipt_number}.pdf"'
+        return response
+
     company = CompanyProfile.objects.first()
+    pdf_bytes = _generate_pdf_bytes(receipt, company)
 
-    from reportlab.lib.pagesizes import A4
-    from reportlab.lib.units import mm
-    from reportlab.lib import colors
-    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
-    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-    from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
-    from io import BytesIO
+    from django.core.files.base import ContentFile
+    try:
+        receipt.pdf_file.save(f'{receipt.receipt_number}.pdf', ContentFile(pdf_bytes), save=True)
+    except Exception:
+        pass
 
-    buf = BytesIO()
-    doc = SimpleDocTemplate(buf, pagesize=A4, topMargin=20*mm, bottomMargin=15*mm, leftMargin=15*mm, rightMargin=15*mm)
-
-    styles = getSampleStyleSheet()
-    styles.add(ParagraphStyle(name='CenterTitle', parent=styles['Heading2'], alignment=TA_CENTER, spaceAfter=4))
-    styles.add(ParagraphStyle(name='CenterSmall', parent=styles['Normal'], alignment=TA_CENTER, textColor=colors.grey, fontSize=8, spaceAfter=12))
-    styles.add(ParagraphStyle(name='InfoLine', parent=styles['Normal'], fontSize=9, spaceAfter=2))
-    styles.add(ParagraphStyle(name='RightAlign', parent=styles['Normal'], fontSize=9, alignment=TA_RIGHT))
-    styles.add(ParagraphStyle(name='Thanks', parent=styles['Normal'], alignment=TA_CENTER, textColor=colors.grey, fontSize=9, italic=True, spaceBefore=12))
-
-    elements = []
-
-    name = company.company_name if company and company.company_name else 'STOCK MANAGER'
-    tagline = company.address if company and company.address else 'Inventory Management System'
-    elements.append(Paragraph(name, styles['CenterTitle']))
-    elements.append(Paragraph(tagline, styles['CenterSmall']))
-
-    if company and (company.phone or company.email or company.tax_id):
-        if company.phone: elements.append(Paragraph(f"<b>Phone:</b> {company.phone}", styles['InfoLine']))
-        if company.email: elements.append(Paragraph(f"<b>Email:</b> {company.email}", styles['InfoLine']))
-        if company.tax_id: elements.append(Paragraph(f"<b>Tax ID:</b> {company.tax_id}", styles['InfoLine']))
-        elements.append(Spacer(1, 4))
-
-    elements.append(Paragraph(f"<b>Receipt #:</b> {receipt.receipt_number}", styles['InfoLine']))
-    elements.append(Paragraph(f"<b>Date:</b> {receipt.created_at.strftime('%d/%m/%Y %H:%M')}", styles['InfoLine']))
-    elements.append(Paragraph(f"<b>Shop:</b> {receipt.shop.name}", styles['InfoLine']))
-    if receipt.customer_name:
-        elements.append(Paragraph(f"<b>Customer:</b> {receipt.customer_name}", styles['InfoLine']))
-    if receipt.created_by:
-        elements.append(Paragraph(f"<b>Cashier:</b> {receipt.created_by.get_full_name().strip() or receipt.created_by.username}", styles['InfoLine']))
-    elements.append(Spacer(1, 8))
-
-    data = [['Item', 'Qty', 'Price', 'Total']]
-    for li in receipt.items.all():
-        data.append([
-            li.item_name,
-            str(li.quantity),
-            f"MWK {li.unit_price:,.2f}",
-            f"MWK {li.total:,.2f}",
-        ])
-
-    col_widths = [180, 40, 80, 80]
-    table = Table(data, colWidths=col_widths)
-    table.setStyle(TableStyle([
-        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0,0), (-1,-1), 9),
-        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#2c3e50')),
-        ('TEXTCOLOR', (0,0), (-1,0), colors.white),
-        ('ALIGN', (1,0), (-1,-1), 'CENTER'),
-        ('ALIGN', (-1,0), (-1,-1), 'RIGHT'),
-        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#dee2e6')),
-        ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.white, colors.HexColor('#f8f9fa')]),
-        ('TOPPADDING', (0,0), (-1,-1), 4),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 4),
-    ]))
-    elements.append(table)
-    elements.append(Spacer(1, 8))
-
-    elements.append(Paragraph(f"<b>Total:</b> MWK {receipt.total:,.2f}", styles['RightAlign']))
-    elements.append(Paragraph(f"<b>Amount Received:</b> MWK {receipt.amount_received:,.2f}", styles['RightAlign']))
-    elements.append(Paragraph(f"<b>Change:</b> MWK {receipt.change:,.2f}", styles['RightAlign']))
-
-    footer = company.receipt_footer if company and company.receipt_footer else 'Thank you for your business!'
-    elements.append(Paragraph(footer, styles['Thanks']))
-
-    doc.build(elements)
-    pdf = buf.getvalue()
-    buf.close()
-
-    response = HttpResponse(pdf, content_type='application/pdf')
+    response = HttpResponse(pdf_bytes, content_type='application/pdf')
     response['Content-Disposition'] = f'attachment; filename="receipt_{receipt.receipt_number}.pdf"'
     return response
 
