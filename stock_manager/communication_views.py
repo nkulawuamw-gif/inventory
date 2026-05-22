@@ -24,10 +24,10 @@ def heartbeat(request):
         if not request.user.is_authenticated:
             return JsonResponse({"status": "anon"})
 
-        profile = request.user.profile
+        profile, created = Profile.objects.get_or_create(user=request.user)
         profile.last_seen = timezone.now()
         profile.is_online = True
-        profile.save()
+        profile.save(update_fields=["last_seen", "is_online"])
 
         return JsonResponse({"status": "ok"})
     except Exception as e:
@@ -53,7 +53,7 @@ def get_online_users(request):
     try:
         profiles = Profile.objects.filter(
             is_online=True
-        ).select_related("user")
+        ).select_related("user", "shop")
 
         data = []
         for p in profiles:
