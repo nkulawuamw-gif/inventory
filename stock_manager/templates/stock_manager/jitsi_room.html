@@ -59,7 +59,7 @@
     <div id="jitsi-container"></div>
     <div id="jitsi-loading">
         <div class="spinner-border text-light" role="status"></div>
-        <span>Connecting...</span>
+        <span id="loadingMsg">Connecting to Jitsi Meet...</span>
     </div>
     <div id="jitsi-error">
         <i class="bi bi-exclamation-triangle" style="font-size:3rem;"></i>
@@ -73,7 +73,6 @@
 </div>
 
 {% csrf_token %}
-<script src="https://meet.jit.si/external_api.js"></script>
 <script>
 (function () {
     'use strict';
@@ -82,6 +81,7 @@
     var timer = null;
     var seconds = 0;
     var api = null;
+    var initTimeout = null;
 
     function el(id) { return document.getElementById(id); }
 
@@ -91,19 +91,26 @@
         el('jitsi-error').classList.add('show');
     }
 
+    function navigateToCalls() {
+        try { window.location.href = '{% url "calls" %}'; } catch (e) { window.location.replace('{% url "calls" %}'); }
+    }
+
     function endCall() {
         if (ended) return;
         ended = true;
         if (timer) { clearInterval(timer); timer = null; }
-        if (api) { try { api.dispose(); } catch (e) {} api = null; }
+        if (initTimeout) { clearTimeout(initTimeout); initTimeout = null; }
+        if (api) { try { api.dispose(); } catch (e) { console.warn('[Jitsi] dispose error:', e); } api = null; }
 
         var csrf = (document.querySelector('[name=csrfmiddlewaretoken]') || {}).value || '';
-        var f = new XMLHttpRequest();
-        f.open('POST', '{% url "end_call" call.id %}', false);
-        f.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-        f.send('csrfmiddlewaretoken=' + encodeURIComponent(csrf));
+        fetch('{% url "end_call" call.id %}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'csrfmiddlewaretoken=' + encodeURIComponent(csrf),
+            keepalive: true,
+        }).catch(function (err) { console.warn('[Jitsi] end_call fetch error:', err); });
 
-        window.location.href = '{% url "calls" %}';
+        navigateToCalls();
     }
 
     function initJitsi() {
@@ -143,14 +150,15 @@
             return;
         }
 
-        var to = setTimeout(function () {
-            console.warn('[Jitsi] timeout');
+        initTimeout = setTimeout(function () {
+            console.warn('[Jitsi] timed out waiting for videoConferenceJoined');
             showError('Connection timed out. Try again.');
         }, 25000);
 
         api.addListener('videoConferenceJoined', function () {
-            console.log('[Jitsi] joined');
-            clearTimeout(to);
+            console.log('[Jitsi] joined room successfully');
+            clearTimeout(initTimeout);
+            initTimeout = null;
             el('jitsi-loading').classList.add('hidden');
             timer = setInterval(function () {
                 seconds++;
@@ -160,38 +168,55 @@
             }, 1000);
         });
 
-        api.addListener('readyToClose', endCall);
-        api.addListener('videoConferenceLeft', endCall);
+        api.addListener('readyToClose', function () {
+            console.log('[Jitsi] readyToClose');
+            endCall();
+        });
+
+        api.addListener('videoConferenceLeft', function () {
+            console.log('[Jitsi] videoConferenceLeft');
+            endCall();
+        });
 
         api.addListener('errorOccurred', function (e) {
-            console.error('[Jitsi] error:', e);
+            console.error('[Jitsi] error:', JSON.stringify(e));
+        });
+
+        api.addListener('peerConnectionStateChanged', function (state) {
+            console.log('[Jitsi] connection state:', state);
+            if (state === 'failed') showError('Connection lost. Reload to retry.');
         });
     }
 
     window.addEventListener('beforeunload', function () {
         if (!ended) {
             ended = true;
+            if (timer) clearInterval(timer);
+            if (initTimeout) clearTimeout(initTimeout);
             if (api) { try { api.dispose(); } catch (e) {} }
             var csrf = (document.querySelector('[name=csrfmiddlewaretoken]') || {}).value || '';
-            navigator.sendBeacon(
-                '{% url "end_call" call.id %}',
-                'csrfmiddlewaretoken=' + encodeURIComponent(csrf)
-            );
+            var blob = new Blob(['csrfmiddlewaretoken=' + encodeURIComponent(csrf)], { type: 'application/x-www-form-urlencoded' });
+            navigator.sendBeacon('{% url "end_call" call.id %}', blob);
         }
     });
 
-    if (typeof JitsiMeetExternalAPI !== 'undefined') {
+    var script = document.querySelector('script[src*="external_api.js"]');
+    if (script && script.complete && typeof JitsiMeetExternalAPI !== 'undefined') {
+        console.log('[Jitsi] script already loaded');
+        initJitsi();
+    } else if (typeof JitsiMeetExternalAPI !== 'undefined') {
         initJitsi();
     } else {
-        var check = setInterval(function () {
+        el('loadingMsg').textContent = 'Loading Jitsi Meet...';
+        var poll = setInterval(function () {
             if (typeof JitsiMeetExternalAPI !== 'undefined') {
-                clearInterval(check);
+                clearInterval(poll);
                 initJitsi();
             }
-        }, 200);
+        }, 100);
         setTimeout(function () {
-            clearInterval(check);
-            if (!api) showError('Jitsi script failed to load. Reload to retry.');
+            clearInterval(poll);
+            if (!api) showError('Jitsi script failed to load. The server may be blocked in your region.');
         }, 15000);
     }
 })();
