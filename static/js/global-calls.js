@@ -117,7 +117,7 @@
         ws.onmessage = function(e) {
             try {
                 var data = JSON.parse(e.data);
-                if (data.type === 'incoming_call') {
+                if (data.type === 'incoming_call' && data.caller !== 'CALL_ENDED') {
                     showIncomingCallModal(data);
                 }
             } catch(err) {}

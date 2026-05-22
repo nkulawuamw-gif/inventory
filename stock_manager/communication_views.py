@@ -34,6 +34,7 @@ def mark_offline(request):
 
 
 @login_required
+@login_required
 def get_all_users(request):
     users = User.objects.all().values('id', 'username')
     return JsonResponse({'users': list(users)})
@@ -66,7 +67,8 @@ def get_online_users(request):
         display_name = user.get_full_name().strip() or user.username
         users.append({
             'id': user.id,
-            'username': display_name,
+            'username': user.username,
+            'display_name': display_name,
             'shop': shop_name,
             'is_admin': is_admin,
         })

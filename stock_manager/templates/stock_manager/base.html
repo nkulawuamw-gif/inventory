@@ -526,7 +526,7 @@
             var label = u.is_admin ? 'Admin' : u.shop;
             html += '<div class="d-flex align-items-center gap-2 px-2 py-1 border-bottom" style="font-size:0.8rem;">'
                 + '<span class="text-success" style="font-size:0.5rem;">&#9679;</span>'
-                + '<span class="fw-semibold">' + escapeHtml(u.username) + '</span>'
+                + '<span class="fw-semibold">' + escapeHtml(u.display_name || u.username) + '</span>'
                 + '<span class="text-muted ms-auto small">' + escapeHtml(label) + '</span>'
                 + '</div>';
         }

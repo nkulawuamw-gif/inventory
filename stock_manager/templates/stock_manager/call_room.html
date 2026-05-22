@@ -13,7 +13,7 @@
                         <strong>{{ other_user.get_full_name|default:other_user.username }}</strong>
                     </h4>
 
-                    <audio id="remote-audio" autoplay style="display:none;"></audio>
+                    <audio id="remote-audio" autoplay style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;overflow:hidden;"></audio>
                     {% if call.call_type == 'video' %}
                     <div class="row mb-4">
                         <div class="col-12">
@@ -61,6 +61,7 @@ let peerConnection = null;
 let isMuted = false;
 let isCameraOff = false;
 let processedSignals = new Set();
+let pendingIceCandidates = [];
 let callingAudioCtx = null;
 let callingOsc1 = null;
 let callingOsc2 = null;
@@ -113,6 +114,15 @@ function getCSRFToken() {
     return document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
 }
 
+async function flushIceCandidates() {
+    while (pendingIceCandidates.length > 0) {
+        var c = pendingIceCandidates.shift();
+        if (peerConnection) {
+            try { await peerConnection.addIceCandidate(new RTCIceCandidate(c)); } catch(e) {}
+        }
+    }
+}
+
 async function startCaller() {
     try {
         localStream = await navigator.mediaDevices.getUserMedia({
@@ -154,8 +164,9 @@ async function startCaller() {
 
         const offer = await peerConnection.createOffer();
         await peerConnection.setLocalDescription(offer);
+        await flushIceCandidates();
         signalPeer('offer', { sdp: { type: offer.type, sdp: offer.sdp } });
-
+        
         startCallingTone();
         document.getElementById('call-status').innerHTML = '<span class="badge bg-warning fs-6">Ringing...</span>';
 
@@ -204,10 +215,11 @@ async function startCallee(offerData) {
         };
 
         await peerConnection.setRemoteDescription(new RTCSessionDescription(offerData.sdp));
+        await flushIceCandidates();
         const answer = await peerConnection.createAnswer();
         await peerConnection.setLocalDescription(answer);
         signalPeer('answer', { sdp: { type: answer.type, sdp: answer.sdp } });
-
+        
         document.getElementById('call-status').innerHTML = '<span class="badge bg-success fs-6">Connected</span>';
 
     } catch (err) {
@@ -258,6 +270,7 @@ async function handleRemoteSignal() {
                 try {
                     stopCallingTone();
                     await peerConnection.setRemoteDescription(new RTCSessionDescription(value.sdp));
+                    await flushIceCandidates();
                     document.getElementById('call-status').innerHTML = '<span class="badge bg-success fs-6">Connected</span>';
                 } catch (e) {
                     console.error('Error setting remote description:', e);
@@ -266,11 +279,15 @@ async function handleRemoteSignal() {
             continue;
         }
 
-        if (key.startsWith('ice-candidate-') && peerConnection && value && value.candidate) {
-            try {
-                await peerConnection.addIceCandidate(new RTCIceCandidate(value.candidate));
-            } catch (e) {
-                console.log('ICE candidate error:', e);
+        if (key.startsWith('ice-candidate-') && value && value.candidate) {
+            if (peerConnection) {
+                try {
+                    await peerConnection.addIceCandidate(new RTCIceCandidate(value.candidate));
+                } catch (e) {
+                    console.log('ICE candidate error:', e);
+                }
+            } else {
+                pendingIceCandidates.push(value.candidate);
             }
             continue;
         }
