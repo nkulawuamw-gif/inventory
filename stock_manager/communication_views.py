@@ -113,18 +113,21 @@ def initiate_call(request):
                 call_type=call_type,
             )
 
-            channel_layer = get_channel_layer()
-            async_to_sync(channel_layer.group_send)(
-                f'user_{receiver.id}',
-                {
-                    'type': 'incoming_call',
-                    'call_id': call.id,
-                    'caller': request.user.get_full_name() or request.user.username,
-                    'caller_id': request.user.id,
-                    'call_type': call_type,
-                    'room_name': call.room_name,
-                }
-            )
+            try:
+                channel_layer = get_channel_layer()
+                async_to_sync(channel_layer.group_send)(
+                    f'user_{receiver.id}',
+                    {
+                        'type': 'incoming_call',
+                        'call_id': call.id,
+                        'caller': request.user.get_full_name() or request.user.username,
+                        'caller_id': request.user.id,
+                        'call_type': call_type,
+                        'room_name': call.room_name,
+                    }
+                )
+            except Exception:
+                pass
 
             return JsonResponse({
                 'status': 'initiated',
