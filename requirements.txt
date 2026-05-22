@@ -1,9 +1,7 @@
-Django>=4.2,<5.0
+Django>=4.2
 daphne
 channels
 channels-redis
 gunicorn
 psycopg2-binary
 redis
-dj-database-url
-whitenoise
