@@ -408,8 +408,18 @@
             <main class="col-12 col-md-10 ms-sm-auto px-2 px-md-4 py-3" style="min-height:calc(100vh - 100px);">
                 {% block content %}{% endblock %}
             </main>
-            <footer class="col-12 col-md-10 offset-md-2 text-center text-muted py-2" style="font-size:0.7rem;border-top:1px solid #dee2e6;">
-                Developed by Mantchombe Technology Group
+            <style>
+                @keyframes colorCycle {
+                    0% { color: #ff0000; }
+                    25% { color: #00aa00; }
+                    50% { color: #000000; }
+                    75% { color: #0066ff; }
+                    100% { color: #ff0000; }
+                }
+                .footer-brand { animation: colorCycle 4s infinite; font-weight:700; }
+            </style>
+            <footer class="col-12 col-md-10 offset-md-2 text-center py-2" style="font-size:1rem;border-top:1px solid #dee2e6;">
+                <span class="footer-brand">Developed by Mantchombe Technology Group</span>
             </footer>
         </div>
     </div>
