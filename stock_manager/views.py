@@ -554,7 +554,7 @@ def sales_history(request):
         'date_to': date_to,
         'selected_shop': shop_filter,
         'user_is_admin': user_is_admin,
-        'page_title': 'Sales History',
+        'page_title': 'Receipts',
     }
 
     return render(request, 'stock_manager/sales_history.html', context)
