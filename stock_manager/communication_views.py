@@ -21,13 +21,13 @@ from .middleware import get_user_profile, shop_access_required
 @csrf_exempt
 def heartbeat(request):
     try:
-        user = request.user
+        if not request.user.is_authenticated:
+            return JsonResponse({"status": "anon"})
 
-        if not user.is_authenticated:
-            return JsonResponse({"status": "unauthenticated"})
-
-        user.profile.last_seen = timezone.now()
-        user.profile.save()
+        profile = request.user.profile
+        profile.last_seen = timezone.now()
+        profile.is_online = True
+        profile.save()
 
         return JsonResponse({"status": "ok"})
     except Exception as e:
