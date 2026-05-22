@@ -68,7 +68,7 @@
                     <td>{{ r.created_at|date:"d/m/y H:i" }}</td>
                     <td>{{ r.shop.name }}</td>
                     <td>{{ r.customer_name|default:"Walk-in" }}</td>
-                    <td>{{ r.created_by.get_full_name|default:r.created_by.username|default:"—" }}</td>
+                    <td>{% firstof r.created_by.get_full_name r.created_by.username "—" %}</td>
                     <td>{{ r.items.count }}</td>
                     <td class="text-end"><strong>MWK {{ r.total|floatformat:2 }}</strong></td>
                     <td class="text-center">
