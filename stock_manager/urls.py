@@ -39,7 +39,6 @@ urlpatterns = [
     path('whatsapp/', wa.whatsapp_inbox, name='whatsapp_inbox'),
     path('whatsapp/webhook/', wa.whatsapp_webhook, name='whatsapp_webhook'),
 
-    path('login/', views.login_view, name='login'),
     path('logout/', views.logout_view, name='logout'),
     path('change-password/', views.change_password, name='change_password'),
     path('shop/<slug:shop_slug>/', views.shop_dashboard, name='shop_dashboard'),
