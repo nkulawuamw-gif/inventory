@@ -131,7 +131,8 @@
     </style>
     <style>
         .toast-container { position: fixed; top: 70px; right: 20px; z-index: 99999; display: flex; flex-direction: column; gap: 8px; max-width: 420px; }
-        .toast-notification { display: flex; align-items: center; gap: 12px; padding: 14px 18px; border-radius: 12px; color: white; font-weight: 500; font-size: 0.9rem; box-shadow: 0 8px 24px rgba(0,0,0,0.15); animation: toastIn 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275); min-width: 300px; }
+            .toast-notification { display: flex; align-items: center; gap: 12px; padding: 14px 18px; border-radius: 12px; color: white; font-weight: 500; font-size: 0.9rem; box-shadow: 0 8px 24px rgba(0,0,0,0.15); animation: toastIn 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275); min-width: 300px; }
+            .pw-toggle { position:absolute; right:10px; top:38px; cursor:pointer; z-index:5; color:#888; font-size:1.1rem; }
         .toast-notification .toast-icon { font-size: 1.3rem; flex-shrink: 0; }
         .toast-notification .toast-msg { flex: 1; }
         .toast-notification .toast-close { background: none; border: none; color: rgba(255,255,255,0.7); font-size: 1.2rem; cursor: pointer; padding: 0 4px; line-height: 1; }
@@ -493,6 +494,19 @@
         if (!iso) return '';
         var d = new Date(iso);
         return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function togglePw(id) {
+        var input = document.getElementById(id);
+        var icon = document.getElementById('ico_' + id);
+        if (!input || !icon) return;
+        if (input.type === 'password') {
+            input.type = 'text';
+            icon.className = 'bi bi-eye-slash';
+        } else {
+            input.type = 'password';
+            icon.className = 'bi bi-eye';
+        }
     }
 
     var modalChatUserId = null;
@@ -860,17 +874,20 @@
             <form method="post" action="{% url 'change_password' %}">
                 {% csrf_token %}
                 <div class="modal-body">
-                    <div class="mb-3">
+                    <div class="mb-3 position-relative">
                         <label class="form-label" for="currentPassword">Current Password *</label>
                         <input type="password" name="current_password" id="currentPassword" class="form-control" required>
+                        <span class="pw-toggle" onclick="togglePw('currentPassword')"><i class="bi bi-eye" id="ico_currentPassword"></i></span>
                     </div>
-                    <div class="mb-3">
+                    <div class="mb-3 position-relative">
                         <label class="form-label" for="newPassword">New Password *</label>
                         <input type="password" name="new_password" id="newPassword" class="form-control" required minlength="4">
+                        <span class="pw-toggle" onclick="togglePw('newPassword')"><i class="bi bi-eye" id="ico_newPassword"></i></span>
                     </div>
-                    <div class="mb-3">
+                    <div class="mb-3 position-relative">
                         <label class="form-label" for="confirmPassword">Confirm New Password *</label>
                         <input type="password" name="confirm_password" id="confirmPassword" class="form-control" required minlength="4">
+                        <span class="pw-toggle" onclick="togglePw('confirmPassword')"><i class="bi bi-eye" id="ico_confirmPassword"></i></span>
                     </div>
                 </div>
                 <div class="modal-footer">

@@ -91,9 +91,10 @@
             <input type="text" name="webhook_secret" id="wa_webhook_secret" class="form-control" value="{{ whatsapp.webhook_secret }}">
             <div class="form-text">Used to verify incoming webhook requests from WhatsApp API.</div>
           </div>
-          <div class="mb-3">
+          <div class="mb-3 position-relative">
             <label class="form-label" for="wa_api_key">API Key (for WhatsApp Business API)</label>
             <input type="password" name="api_key" id="wa_api_key" class="form-control" value="{{ whatsapp.api_key }}">
+            <span class="pw-toggle" onclick="togglePw('wa_api_key')"><i class="bi bi-eye" id="ico_wa_api_key"></i></span>
             <div class="form-text">Optional. Required for sending replies via WhatsApp Business API.</div>
           </div>
           {% if whatsapp.phone_number %}
@@ -392,9 +393,10 @@
               <input type="text" name="last_name" id="last_name" class="form-control" placeholder="Doe">
             </div>
           </div>
-          <div class="mb-3">
+          <div class="mb-3 position-relative">
             <label class="form-label" for="user_password">Password *</label>
             <input type="password" name="password" id="user_password" class="form-control" placeholder="Enter password" required>
+            <span class="pw-toggle" onclick="togglePw('user_password')"><i class="bi bi-eye" id="ico_user_password"></i></span>
           </div>
           <div class="mb-3">
             <label class="form-label" for="user_role">Role</label>

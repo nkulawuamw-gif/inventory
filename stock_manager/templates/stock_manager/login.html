@@ -61,6 +61,7 @@
       font-size: 0.85rem; margin-bottom: 20px; transition: 0.3s;
     }
     .back-link:hover { color: white; }
+    .pw-toggle { position:absolute; right:14px; top:50%; transform:translateY(-50%); cursor:pointer; z-index:5; color:#888; font-size:1.1rem; }
   </style>
 </head>
 <body>
@@ -90,9 +91,7 @@
         <div class="form-floating position-relative">
           <input type="password" name="password" id="id_password" class="form-control" placeholder="Password" required>
           <label for="id_password"><i class="bi bi-lock"></i> Password</label>
-          <span class="password-toggle" onclick="togglePassword()" style="position:absolute;right:14px;top:50%;transform:translateY(-50%);cursor:pointer;z-index:5;color:#888;">
-            <i class="bi bi-eye" id="passwordIcon"></i>
-          </span>
+          <span class="pw-toggle" onclick="togglePw('id_password')" style="top:50%;transform:translateY(-50%);"><i class="bi bi-eye" id="ico_id_password"></i></span>
         </div>
         <button type="submit" class="btn-login"><i class="bi bi-box-arrow-in-right"></i> Sign In</button>
       </form>
@@ -103,16 +102,12 @@
     </div>
   </div>
   <script>
-  function togglePassword() {
-    var input = document.getElementById('id_password');
-    var icon = document.getElementById('passwordIcon');
-    if (input.type === 'password') {
-      input.type = 'text';
-      icon.className = 'bi bi-eye-slash';
-    } else {
-      input.type = 'password';
-      icon.className = 'bi bi-eye';
-    }
+  function togglePw(id) {
+    var input = document.getElementById(id);
+    var icon = document.getElementById('ico_' + id);
+    if (!input || !icon) return;
+    if (input.type === 'password') { input.type = 'text'; icon.className = 'bi bi-eye-slash'; }
+    else { input.type = 'password'; icon.className = 'bi bi-eye'; }
   }
   </script>
 </body>
