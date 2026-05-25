@@ -76,7 +76,7 @@ def shop_access_required(view_func):
         url_name = resolver_match.url_name if resolver_match else None
 
         if not request.user.is_authenticated:
-            return go_back(request, 'landing')
+            return redirect('landing')
 
         if request.user.is_superuser:
             return view_func(request, *args, **kwargs)
@@ -85,7 +85,7 @@ def shop_access_required(view_func):
 
         if profile is None:
             messages.error(request, 'Your account is not configured.')
-            return go_back(request, 'landing')
+            return redirect('landing')
 
         if profile.is_admin:
             return view_func(request, *args, **kwargs)
