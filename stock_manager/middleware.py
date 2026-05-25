@@ -63,6 +63,12 @@ class ShopAccessMiddleware:
         return response
 
 
+def go_back(request, fallback='dashboard'):
+    referer = request.META.get('HTTP_REFERER', '')
+    if referer and referer.startswith(request.build_absolute_uri('/')):
+        return redirect(referer)
+    return redirect(fallback)
+
 def shop_access_required(view_func):
     @wraps(view_func)
     def _wrapped_view(request, *args, **kwargs):
@@ -70,7 +76,7 @@ def shop_access_required(view_func):
         url_name = resolver_match.url_name if resolver_match else None
 
         if not request.user.is_authenticated:
-            return redirect('landing')
+            return go_back(request, 'landing')
 
         if request.user.is_superuser:
             return view_func(request, *args, **kwargs)
@@ -79,7 +85,7 @@ def shop_access_required(view_func):
 
         if profile is None:
             messages.error(request, 'Your account is not configured.')
-            return redirect('landing')
+            return go_back(request, 'landing')
 
         if profile.is_admin:
             return view_func(request, *args, **kwargs)
@@ -89,7 +95,7 @@ def shop_access_required(view_func):
                 return view_func(request, *args, **kwargs)
             msg = ACCESS_DENIED.get(url_name, 'No access.')
             messages.error(request, msg)
-            return redirect('dashboard')
+            return go_back(request, 'dashboard')
 
         if url_name in SHOP_RESTRICTED_VIEWS:
             shop_slug = kwargs.get('shop_slug', '')
@@ -100,11 +106,11 @@ def shop_access_required(view_func):
                     messages.error(request, 'Access denied to this shop.')
                     return redirect('shop_dashboard', shop_slug=allowed_slug)
             else:
-                return redirect('dashboard')
+                return go_back(request, 'dashboard')
 
         if profile.permissions is not None and url_name in PERMISSION_GATED_VIEWS and url_name not in profile.permissions:
             messages.error(request, 'Access denied.')
-            return redirect('dashboard')
+            return go_back(request, 'dashboard')
 
         return view_func(request, *args, **kwargs)
 
