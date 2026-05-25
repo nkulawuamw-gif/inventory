@@ -85,7 +85,7 @@ def chat_view(request):
                 'last_message': msg.content,
                 'timestamp': msg.timestamp,
                 'unread': 0,
-                'last_status': msg.status if msg.sender == request.user else '',
+                'last_status': getattr(msg, 'status', 'sent') if msg.sender == request.user else '',
             }
         if msg.receiver == request.user and not msg.is_read:
             conversations[other.id]['unread'] += 1
@@ -149,7 +149,7 @@ def get_conversation(request, user_id):
             'sender': m.sender.username,
             'timestamp': m.timestamp.isoformat(),
             'is_mine': m.sender == request.user,
-            'status': m.status,
+            'status': getattr(m, 'status', 'sent'),
         } for m in msgs]
     })
 
