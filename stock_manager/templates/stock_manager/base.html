@@ -574,7 +574,13 @@
 
     function sendModalMessage(e) {
         e.preventDefault();
-        if (!modalChatUserId || typeof chatSocket === 'undefined' || !chatSocket || chatSocket.readyState !== WebSocket.OPEN) return false;
+        if (!modalChatUserId) return false;
+        if (typeof chatSocket === 'undefined' || !chatSocket || chatSocket.readyState !== WebSocket.OPEN) {
+            if (typeof showToast === 'function') {
+                showToast('Chat connection not ready. Please wait...', 'warning');
+            }
+            return false;
+        }
         var input = document.getElementById('modalMessageInput');
         var text = input.value.trim();
         if (!text) return false;
@@ -587,36 +593,31 @@
 
     (function () {
         function tryHook() {
-            if (typeof chatSocket !== 'undefined' && chatSocket) {
-                if (chatSocket.readyState === WebSocket.OPEN || chatSocket.readyState === WebSocket.CONNECTING) {
-                    if (!chatSocket._modalHooked) {
-                        chatSocket._modalHooked = true;
-                        chatSocket.addEventListener('message', function (ev) {
-                            try {
-                                var data = JSON.parse(ev.data);
-                                if (data.type === 'chat_message' && modalChatUserId && data.sender_id === modalChatUserId) {
-                                    var modal = document.getElementById('chatUserModal');
-                                    if (modal && modal.classList.contains('show')) {
-                                        var container = document.getElementById('modalChatMessages');
-                                        if (container && !container.querySelector('[data-msg-id="' + data.message_id + '"]')) {
-                                            addModalMessage(data.sender, data.message, data.timestamp, false, data.message_id);
-                                            if (typeof chatSocket !== 'undefined' && chatSocket && chatSocket.readyState === WebSocket.OPEN) {
-                                                chatSocket.send(JSON.stringify({ type: 'mark_read', sender_id: modalChatUserId }));
-                                            }
+            if (typeof chatSocket !== 'undefined' && chatSocket && chatSocket.readyState === WebSocket.OPEN) {
+                if (!chatSocket._modalHooked) {
+                    chatSocket._modalHooked = true;
+                    chatSocket.addEventListener('message', function (ev) {
+                        try {
+                            var data = JSON.parse(ev.data);
+                            if (data.type === 'chat_message' && modalChatUserId && data.sender_id === modalChatUserId) {
+                                var modal = document.getElementById('chatUserModal');
+                                if (modal && modal.classList.contains('show')) {
+                                    var container = document.getElementById('modalChatMessages');
+                                    if (container && !container.querySelector('[data-msg-id="' + data.message_id + '"]')) {
+                                        addModalMessage(data.sender, data.message, data.timestamp, false, data.message_id);
+                                        if (chatSocket && chatSocket.readyState === WebSocket.OPEN) {
+                                            chatSocket.send(JSON.stringify({ type: 'mark_read', sender_id: modalChatUserId }));
                                         }
                                     }
                                 }
-                            } catch (err) {}
-                        });
-                    }
-                } else {
-                    setTimeout(tryHook, 1000);
+                            }
+                        } catch (err) {}
+                    });
                 }
-            } else {
-                setTimeout(tryHook, 1000);
             }
+            setTimeout(tryHook, 3000);
         }
-        setTimeout(tryHook, 1500);
+        tryHook();
     })();
 
     document.addEventListener('DOMContentLoaded', function () {
