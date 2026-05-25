@@ -232,7 +232,7 @@ if not DEBUG:
     # Allow Jitsi popups/signaling via cross-origin windows
     SECURE_CROSS_ORIGIN_OPENER_POLICY = 'same-origin-allow-popups'
 
-# SESSION_COOKIE_SAMESITE defaults to 'Lax' (Django 6.0), fine for CSRF-protected end_call POSTs.
+# SESSION_COOKIE_SAMESITE defaults to 'Lax' (Django 6.0)
 
 # ========================
 # EMAIL

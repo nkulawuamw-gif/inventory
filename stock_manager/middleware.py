@@ -17,7 +17,7 @@ SHOP_RESTRICTED_VIEWS = ['shop_dashboard', 'point_of_sale']
 
 PERMISSION_GATED_VIEWS = [
     'dashboard', 'admin_manage', 'financial_report', 'sales_history',
-    'meetings', 'whatsapp',
+    'whatsapp',
     'settings', 'export_csv', 'dashboard_bulk_import', 'inventory',
 ]
 

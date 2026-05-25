@@ -169,20 +169,6 @@ class StockTransaction(models.Model):
         return ""
 
 
-class UserPresence(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='presences')
-    last_seen = models.DateTimeField(auto_now=True)
-    is_online = models.BooleanField(default=False)
-    current_shop = models.ForeignKey(Shop, on_delete=models.SET_NULL, null=True, blank=True)
-    typing_to = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='typing_by')
-
-    class Meta:
-        ordering = ['-last_seen']
-
-    def __str__(self):
-        return f"{self.user.username} ({'online' if self.is_online else 'offline'})"
-
-
 class Message(models.Model):
     sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name="sent_messages")
     receiver = models.ForeignKey(User, on_delete=models.CASCADE, related_name="received_messages")
@@ -192,58 +178,6 @@ class Message(models.Model):
 
     def __str__(self):
         return f"{self.sender} -> {self.receiver}"
-
-
-class Call(models.Model):
-    CALL_TYPES = (
-        ("audio", "Audio"),
-        ("video", "Video"),
-    )
-
-    caller = models.ForeignKey(User, on_delete=models.CASCADE, related_name="made_calls")
-    receiver = models.ForeignKey(User, on_delete=models.CASCADE, related_name="received_calls")
-    room_name = models.CharField(max_length=255, unique=True, null=True, blank=True)
-    call_type = models.CharField(max_length=10, choices=CALL_TYPES)
-    status = models.CharField(max_length=20, default="ringing")
-    timestamp = models.DateTimeField(auto_now_add=True)
-
-    def save(self, *args, **kwargs):
-        if not self.room_name:
-            import uuid
-            self.room_name = f"call_{uuid.uuid4().hex[:12]}"
-        super().save(*args, **kwargs)
-
-
-class Meeting(models.Model):
-    host = models.ForeignKey(User, on_delete=models.CASCADE, related_name='hosted_meetings')
-    name = models.CharField(max_length=200)
-    meeting_code = models.CharField(max_length=10, unique=True)
-    meeting_type = models.CharField(max_length=10, default='video')
-    description = models.TextField(blank=True, default='')
-    started_at = models.DateTimeField(auto_now_add=True)
-    ended_at = models.DateTimeField(null=True, blank=True)
-    is_active = models.BooleanField(default=True)
-    signaling_data = models.JSONField(default=dict, blank=True)
-
-    class Meta:
-        ordering = ['-started_at']
-
-    def __str__(self):
-        return f"{self.name} ({self.meeting_code})"
-
-
-class MeetingParticipant(models.Model):
-    meeting = models.ForeignKey(Meeting, on_delete=models.CASCADE, related_name='participants')
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='meetings_joined')
-    joined_at = models.DateTimeField(auto_now_add=True)
-    left_at = models.DateTimeField(null=True, blank=True)
-
-    class Meta:
-        ordering = ['joined_at']
-        unique_together = ['meeting', 'user']
-
-    def __str__(self):
-        return f"{self.user.username} in {self.meeting.name}"
 
 
 class BusinessPeriod(models.Model):

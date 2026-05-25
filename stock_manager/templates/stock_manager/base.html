@@ -284,10 +284,6 @@
                     <li class="nav-item"><a class="nav-link py-1" href="{% url 'sales_history' %}"><i class="bi bi-receipt"></i> Receipts</a></li>
                     <li class="nav-item"><a class="nav-link py-1" href="{% url 'chat' %}"><i class="bi bi-chat-dots"></i> Chat <span class="badge bg-danger" id="navbarChatBadge" style="display:none;">0</span></a></li>
 <li class="nav-item"><a class="nav-link py-1" href="#" onclick="event.preventDefault();var m=new bootstrap.Modal(document.getElementById('chatUserModal'));m.show();"><i class="bi bi-person-plus"></i></a></li>
-                    <li class="nav-item"><a class="nav-link py-1" href="{% url 'calls' %}"><i class="bi bi-telephone"></i> Calls</a></li>
-                    {% if user_access.is_admin or 'meetings' in user_access.permissions %}
-                    <li class="nav-item"><a class="nav-link py-1" href="{% url 'meetings' %}"><i class="bi bi-camera-video"></i> Meetings</a></li>
-                    {% endif %}
                     {% if user_access.is_admin or 'whatsapp' in user_access.permissions %}
                     <li class="nav-item"><a class="nav-link py-1" href="{% url 'whatsapp_inbox' %}"><i class="bi bi-whatsapp text-success"></i> WhatsApp</a></li>
                     {% endif %}
@@ -349,14 +345,6 @@
                         <span><i class="bi bi-chat-dots"></i> Chat</span>
                         <span class="badge bg-danger rounded-pill" id="sidebarChatBadge" style="display:none;font-size:0.65rem;">0</span>
                     </a>
-                    <a href="{% url 'calls' %}" class="{% if request.resolver_match.url_name == 'calls' %}active{% endif %}">
-                        <i class="bi bi-telephone"></i> Calls
-                    </a>
-                    {% if user_access.is_admin or 'meetings' in user_access.permissions %}
-                    <a href="{% url 'meetings' %}" class="{% if request.resolver_match.url_name == 'meetings' %}active{% endif %}">
-                        <i class="bi bi-camera-video"></i> Meetings
-                    </a>
-                    {% endif %}
                     {% if user_access.is_admin or 'whatsapp' in user_access.permissions %}
                     <a href="{% url 'whatsapp_inbox' %}" class="{% if request.resolver_match.url_name == 'whatsapp_inbox' %}active{% endif %}">
                         <i class="bi bi-whatsapp text-success"></i> WhatsApp
@@ -429,29 +417,6 @@
 
     <div class="toast-container" id="toastContainer"></div>
 
-    <div class="modal fade" id="incomingCallModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content text-center">
-                <div class="modal-body py-4">
-                    <div class="mb-3">
-                        <i class="bi bi-telephone-ringing text-success" style="font-size:3rem;animation:ringPulse 1s infinite;"></i>
-                    </div>
-                    <h5 id="incomingCallerName" class="fw-bold">Unknown</h5>
-                    <p class="text-muted mb-1" id="incomingCallType">Incoming voice call</p>
-                    <p class="small text-muted">is calling you...</p>
-                    <div class="d-flex justify-content-center gap-3 mt-3">
-                        <a href="#" id="answerCallBtn" class="btn btn-success btn-lg rounded-circle" style="width:60px;height:60px;">
-                            <i class="bi bi-telephone"></i>
-                        </a>
-                        <button id="declineCallBtn" class="btn btn-danger btn-lg rounded-circle" style="width:60px;height:60px;">
-                            <i class="bi bi-telephone-x"></i>
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <div class="modal fade" id="chatUserModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered modal-sm">
             <div class="modal-content">
@@ -472,13 +437,7 @@
         </div>
     </div>
 
-    <style>
-        @keyframes ringPulse {
-            0% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(1.2); opacity: 0.7; }
-            100% { transform: scale(1); opacity: 1; }
-        }
-    </style>
+
 
     <script>
     function showToast(message, type, duration) {
@@ -653,7 +612,6 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
-    <script src="{% static 'js/global-calls.js' %}"></script>
     <script src="{% static 'js/global-chat.js' %}"></script>
 
     <div class="confirm-overlay" id="confirmOverlay">

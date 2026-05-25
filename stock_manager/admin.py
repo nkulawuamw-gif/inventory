@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.contrib.auth import get_user_model
 User = get_user_model()
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from .models import Shop, Item, Sale, Receipt, ReceiptItem, StockTransaction, UserProfile, Profile, UserPresence, Message, Call, Meeting, MeetingParticipant, BusinessPeriod, CompanyProfile, WhatsAppSetting, WhatsAppMessage
+from .models import Shop, Item, Sale, Receipt, ReceiptItem, StockTransaction, UserProfile, Profile, Message, BusinessPeriod, CompanyProfile, WhatsAppSetting, WhatsAppMessage
 
 
 class UserProfileInline(admin.StackedInline):
@@ -92,13 +92,6 @@ class StockTransactionAdmin(admin.ModelAdmin):
     search_fields = ['item__name', 'source_shop__name']
 
 
-@admin.register(UserPresence)
-class UserPresenceAdmin(admin.ModelAdmin):
-    list_display = ['user', 'is_online', 'last_seen', 'current_shop']
-    list_filter = ['is_online', 'current_shop']
-    search_fields = ['user__username']
-
-
 @admin.register(Message)
 class MessageAdmin(admin.ModelAdmin):
     list_display = ['sender', 'receiver', 'content_short', 'is_read', 'timestamp']
@@ -108,27 +101,6 @@ class MessageAdmin(admin.ModelAdmin):
     def content_short(self, obj):
         return obj.content[:50]
     content_short.short_description = 'Message'
-
-
-@admin.register(Call)
-class CallAdmin(admin.ModelAdmin):
-    list_display = ['caller', 'receiver', 'call_type', 'status', 'timestamp']
-    list_filter = ['call_type', 'status']
-    search_fields = ['caller__username', 'receiver__username']
-
-
-@admin.register(Meeting)
-class MeetingAdmin(admin.ModelAdmin):
-    list_display = ['name', 'meeting_code', 'host', 'meeting_type', 'is_active', 'started_at']
-    list_filter = ['meeting_type', 'is_active']
-    search_fields = ['name', 'meeting_code', 'host__username']
-
-
-@admin.register(MeetingParticipant)
-class MeetingParticipantAdmin(admin.ModelAdmin):
-    list_display = ['meeting', 'user', 'joined_at', 'left_at']
-    list_filter = ['meeting']
-    search_fields = ['meeting__name', 'user__username']
 
 
 @admin.register(BusinessPeriod)
