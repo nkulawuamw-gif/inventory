@@ -318,13 +318,12 @@ footer { background: var(--dark); color: rgba(255,255,255,0.8); padding: 60px 0 
       <div class="img-table" id="heroSlider">
         {% if landing.image %}
           <img class="slide active" src="{{ landing.image.url }}" alt="Landing Image">
-        {% else %}
-          <img class="slide active" src="{% static 'images/vanr-final.png' %}" alt="Vanr Final">
-          <img class="slide" src="{% static 'images/varn-4.png' %}" alt="Varn 4">
-          <img class="slide" src="{% static 'images/varn-5.png' %}" alt="Varn 5">
-          <img class="slide" src="{% static 'images/varn-6.png' %}" alt="Varn 6">
-          <img class="slide" src="{% static 'images/varn-7.png' %}" alt="Varn 7">
         {% endif %}
+        <img class="slide{% if not landing.image %} active{% endif %}" src="{% static 'images/vanr-final.png' %}" alt="Vanr Final">
+        <img class="slide" src="{% static 'images/varn-4.png' %}" alt="Varn 4">
+        <img class="slide" src="{% static 'images/varn-5.png' %}" alt="Varn 5">
+        <img class="slide" src="{% static 'images/varn-6.png' %}" alt="Varn 6">
+        <img class="slide" src="{% static 'images/varn-7.png' %}" alt="Varn 7">
       </div>
     </div>
     <p class="hero-subtitle">{{ landing.data.hero.subtitle|default:"Your trusted destination for authentic hygiene and beauty products.<br>Feel fresh, smell amazing, and shine every day." }}</p>
