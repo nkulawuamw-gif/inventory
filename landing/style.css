@@ -42,7 +42,9 @@ img { max-width: 100%; }
   font-family: 'Playfair Display', serif;
   font-size: 1.6rem; font-weight: 700;
   color: var(--dark); display: flex; align-items: center; gap: 8px; white-space: nowrap;
+  cursor: pointer; transition: color 0.3s;
 }
+.logo:hover { color: var(--pink); }
 .logo i { color: var(--pink); font-size: 1.4rem; }
 .nav-links { display: flex; gap: 32px; margin-left: auto; }
 .nav-links a {

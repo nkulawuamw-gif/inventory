@@ -48,7 +48,9 @@ img { max-width: 100%; height: auto; }
   font-family: 'Playfair Display', serif;
   font-size: 1.6rem; font-weight: 700;
   color: var(--dark); display: flex; align-items: center; gap: 8px; white-space: nowrap;
+  cursor: pointer; transition: color 0.3s;
 }
+.logo:hover { color: var(--pink); }
 .logo i { color: var(--pink); }
 .nav-links { display: flex; gap: 32px; margin-left: auto; }
 .nav-links a {
@@ -290,7 +292,7 @@ footer { background: var(--dark); color: rgba(255,255,255,0.8); padding: 60px 0 
 <!-- NAVBAR -->
 <nav id="navbar">
   <div class="nav-container">
-    <a href="{% url 'login' %}" class="logo"><i class="fas fa-spa"></i> VARNISHIELA BEAUTY PALOUR</a>
+    <a href="/login/" class="logo"><i class="fas fa-spa"></i> VARNISHIELA BEAUTY PALOUR</a>
     <ul class="nav-links" id="navLinks">
       <li><a href="#home" class="active">Home</a></li>
       <li><a href="#about">About</a></li>
@@ -298,10 +300,10 @@ footer { background: var(--dark); color: rgba(255,255,255,0.8); padding: 60px 0 
       <li><a href="#why-us">Why Us</a></li>
       <li><a href="#contact">Contact</a></li>
       <li class="nav-mobile-only"><a href="https://wa.me/{{ landing.data.contact.whatsapp|cut:'+'|cut:' '|default:'265883994035' }}" target="_blank"><i class="fab fa-whatsapp"></i> Order Now</a></li>
-      <li class="nav-mobile-only"><a href="{% url 'login' %}"><i class="fas fa-user-lock"></i> Staff Login</a></li>
+      <li class="nav-mobile-only"><a href="/login/"><i class="fas fa-user-lock"></i> Staff Login</a></li>
     </ul>
     <a href="https://wa.me/{{ landing.data.contact.whatsapp|cut:'+'|cut:' '|default:'265883994035' }}" target="_blank" class="nav-wa-btn desktop-only"><i class="fab fa-whatsapp"></i> Order Now</a>
-    <a href="{% url 'login' %}" class="nav-login-btn desktop-only"><i class="fas fa-user-lock"></i> Staff Login</a>
+    <a href="/login/" class="nav-login-btn desktop-only"><i class="fas fa-user-lock"></i> Staff Login</a>
     <div class="hamburger" id="hamburger" onclick="toggleMenu()">
       <span></span><span></span><span></span>
     </div>
