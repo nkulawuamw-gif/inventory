@@ -72,31 +72,37 @@ def get_online_users(request):
 
 @login_required
 def chat_view(request):
-    conversations = {}
-    messages = Message.objects.filter(
-        Q(sender=request.user) | Q(receiver=request.user)
-    ).select_related('sender', 'receiver').order_by('-timestamp')
+    try:
+        conversations = {}
+        messages = Message.objects.filter(
+            Q(sender=request.user) | Q(receiver=request.user)
+        ).select_related('sender', 'receiver').order_by('-timestamp')
 
-    for msg in messages:
-        other = msg.receiver if msg.sender == request.user else msg.sender
-        if other.id not in conversations:
-            conversations[other.id] = {
-                'user': other,
-                'last_message': msg.content,
-                'timestamp': msg.timestamp,
-                'unread': 0,
-                'last_status': getattr(msg, 'status', 'sent') if msg.sender == request.user else '',
-            }
-        if msg.receiver == request.user and not msg.is_read:
-            conversations[other.id]['unread'] += 1
+        for msg in messages:
+            other = msg.receiver if msg.sender == request.user else msg.sender
+            if other.id not in conversations:
+                conversations[other.id] = {
+                    'user': other,
+                    'last_message': msg.content,
+                    'timestamp': msg.timestamp,
+                    'unread': 0,
+                    'last_status': getattr(msg, 'status', 'sent') if msg.sender == request.user else '',
+                }
+            if msg.receiver == request.user and not msg.is_read:
+                conversations[other.id]['unread'] += 1
 
-    total_unread = sum(c['unread'] for c in conversations.values())
+        total_unread = sum(c['unread'] for c in conversations.values())
 
-    return render(request, 'stock_manager/chat.html', {
-        'conversations': sorted(conversations.values(), key=lambda c: c['timestamp'], reverse=True),
-        'total_unread': total_unread,
-        'page_title': 'Chat',
-    })
+        return render(request, 'stock_manager/chat.html', {
+            'conversations': sorted(conversations.values(),
+                                    key=lambda c: c['timestamp'], reverse=True),
+            'total_unread': total_unread,
+            'page_title': 'Chat',
+        })
+    except Exception as e:
+        import traceback
+        tb = traceback.format_exc()
+        return JsonResponse({'error': str(e), 'traceback': tb}, status=500)
 
 
 @login_required
