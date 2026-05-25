@@ -418,20 +418,32 @@
     <div class="toast-container" id="toastContainer"></div>
 
     <div class="modal fade" id="chatUserModal" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered modal-sm">
-            <div class="modal-content">
-                <div class="modal-header bg-dark text-white">
-                    <h6 class="modal-title"><i class="bi bi-chat-dots"></i> New Chat</h6>
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content" style="min-height:500px;">
+                <div class="modal-header bg-dark text-white py-2">
+                    <h6 class="modal-title" id="modalChatTitle"><i class="bi bi-chat-dots"></i> New Chat</h6>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="modal-body">
-                    <select id="chatUserSelect" class="form-select">
-                        <option value="">— Select user —</option>
-                    </select>
-                </div>
-                <div class="modal-footer">
-                    <button class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button class="btn btn-sm btn-primary" onclick="startChatFromModal()"><i class="bi bi-send"></i> Start Chat</button>
+                <div class="modal-body p-0 d-flex" style="min-height:450px;">
+                    <div id="modalUserListView" class="w-100 p-3">
+                        <input type="text" id="modalUserSearch" class="form-control form-control-sm mb-2" placeholder="Search users...">
+                        <div id="modalUserList" class="list-group list-group-flush" style="max-height:380px;overflow-y:auto;"></div>
+                    </div>
+                    <div id="modalChatView" style="display:none;width:100%;flex-direction:column;">
+                        <div class="d-flex align-items-center p-2 border-bottom bg-light">
+                            <button class="btn btn-sm btn-outline-secondary me-2" onclick="showModalUserList()"><i class="bi bi-arrow-left"></i></button>
+                            <strong id="modalChatUserName" class="text-truncate"></strong>
+                        </div>
+                        <div id="modalChatMessages" style="flex:1;overflow-y:auto;padding:10px;background:#f8f9fa;"></div>
+                        <div class="p-2 border-top">
+                            <form onsubmit="return sendModalMessage(event)">
+                                <div class="input-group">
+                                    <input type="text" id="modalMessageInput" class="form-control" placeholder="Type a message..." required>
+                                    <button class="btn btn-primary" type="submit"><i class="bi bi-send"></i></button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -468,38 +480,152 @@
         return cookie ? cookie[1] : '';
     }
 
+    function escapeHtml(s) {
+        var d = document.createElement('div');
+        d.appendChild(document.createTextNode(s || ''));
+        return d.innerHTML;
+    }
+
+    function formatTime(iso) {
+        if (!iso) return '';
+        var d = new Date(iso);
+        return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+
+    var modalChatUserId = null;
+
     function loadChatUsers() {
         fetch('/api/all-users/', { credentials: 'include' })
             .then(function (r) { return r.json(); })
             .then(function (d) {
-                var sel = document.getElementById('chatUserSelect');
-                if (!sel || !d.users) return;
-                sel.innerHTML = '<option value="">— Select user —</option>';
+                var list = document.getElementById('modalUserList');
+                if (!list || !d.users) return;
+                var currentId = {{ request.user.id }};
+                list.innerHTML = '';
                 d.users.forEach(function (u) {
-                    if (u.id === {{ request.user.id }}) return;
-                    var opt = document.createElement('option');
-                    opt.value = u.id;
-                    opt.textContent = u.username;
-                    sel.appendChild(opt);
+                    if (u.id === currentId) return;
+                    var a = document.createElement('a');
+                    a.href = '#';
+                    a.className = 'list-group-item list-group-item-action d-flex align-items-center gap-2 py-2';
+                    a.innerHTML = '<i class="bi bi-person-circle fs-5"></i> <span>' + escapeHtml(u.username) + '</span>';
+                    a.onclick = function (e) {
+                        e.preventDefault();
+                        openModalChat(u.id, u.username);
+                    };
+                    list.appendChild(a);
                 });
+                var search = document.getElementById('modalUserSearch');
+                if (search) {
+                    search.oninput = function () {
+                        var q = this.value.toLowerCase();
+                        var items = list.querySelectorAll('a');
+                        for (var i = 0; i < items.length; i++) {
+                            items[i].style.display = items[i].textContent.toLowerCase().indexOf(q) !== -1 ? '' : 'none';
+                        }
+                    };
+                }
             })
             .catch(function () {});
     }
 
-    function startChatFromModal() {
-        var sel = document.getElementById('chatUserSelect');
-        if (!sel || !sel.value) return;
-        var userId = sel.value;
-        var userName = sel.options[sel.selectedIndex].text;
-        var modal = bootstrap.Modal.getInstance(document.getElementById('chatUserModal'));
-        if (modal) modal.hide();
-        window.location.href = '/chat/#' + userId;
+    function openModalChat(userId, userName) {
+        modalChatUserId = userId;
+        document.getElementById('modalUserListView').style.display = 'none';
+        var chatView = document.getElementById('modalChatView');
+        chatView.style.display = 'flex';
+        document.getElementById('modalChatTitle').innerHTML = '<i class="bi bi-chat-dots"></i> ' + escapeHtml(userName);
+        document.getElementById('modalChatUserName').textContent = userName;
+        document.getElementById('modalMessageInput').value = '';
+
+        fetch('/chat/conversation/' + userId + '/')
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                var container = document.getElementById('modalChatMessages');
+                container.innerHTML = '';
+                (data.messages || []).forEach(function (m) {
+                    addModalMessage(m.sender, m.content, m.timestamp, m.is_mine, m.id);
+                });
+                container.scrollTop = container.scrollHeight;
+            });
+
+        if (typeof chatSocket !== 'undefined' && chatSocket && chatSocket.readyState === WebSocket.OPEN) {
+            chatSocket.send(JSON.stringify({ type: 'mark_read', sender_id: userId }));
+        }
     }
+
+    function showModalUserList() {
+        modalChatUserId = null;
+        document.getElementById('modalChatView').style.display = 'none';
+        document.getElementById('modalUserListView').style.display = '';
+        document.getElementById('modalChatTitle').innerHTML = '<i class="bi bi-chat-dots"></i> New Chat';
+    }
+
+    function addModalMessage(sender, content, timestamp, isMine, msgId) {
+        var container = document.getElementById('modalChatMessages');
+        if (!container) return;
+        var div = document.createElement('div');
+        div.className = 'd-flex mb-2 ' + (isMine ? 'justify-content-end' : 'justify-content-start');
+        if (msgId) div.dataset.msgId = msgId;
+        var ticks = isMine ? '<span class="tick-icon tick-delivered" style="color:#999;font-size:0.7rem;margin-left:3px;">\u2713</span>' : '';
+        div.innerHTML = '<div class="' + (isMine ? 'bg-primary text-white' : 'bg-white border') + ' rounded-3 px-3 py-2" style="max-width:75%;"><small class="fw-bold d-block">' + (isMine ? 'You' : escapeHtml(sender)) + '</small>' + escapeHtml(content) + '<br><small class="text-muted" style="font-size:0.7rem;">' + formatTime(timestamp) + ticks + '</small></div>';
+        container.appendChild(div);
+        container.scrollTop = container.scrollHeight;
+    }
+
+    function sendModalMessage(e) {
+        e.preventDefault();
+        if (!modalChatUserId || typeof chatSocket === 'undefined' || !chatSocket || chatSocket.readyState !== WebSocket.OPEN) return false;
+        var input = document.getElementById('modalMessageInput');
+        var text = input.value.trim();
+        if (!text) return false;
+        var tempId = 'tmp_' + Date.now();
+        chatSocket.send(JSON.stringify({ receiver_id: modalChatUserId, message: text }));
+        addModalMessage('You', text, new Date().toISOString(), true, tempId);
+        input.value = '';
+        return false;
+    }
+
+    (function () {
+        function tryHook() {
+            if (typeof chatSocket !== 'undefined' && chatSocket) {
+                if (chatSocket.readyState === WebSocket.OPEN || chatSocket.readyState === WebSocket.CONNECTING) {
+                    if (!chatSocket._modalHooked) {
+                        chatSocket._modalHooked = true;
+                        chatSocket.addEventListener('message', function (ev) {
+                            try {
+                                var data = JSON.parse(ev.data);
+                                if (data.type === 'chat_message' && modalChatUserId && data.sender_id === modalChatUserId) {
+                                    var modal = document.getElementById('chatUserModal');
+                                    if (modal && modal.classList.contains('show')) {
+                                        var container = document.getElementById('modalChatMessages');
+                                        if (container && !container.querySelector('[data-msg-id="' + data.message_id + '"]')) {
+                                            addModalMessage(data.sender, data.message, data.timestamp, false, data.message_id);
+                                            if (typeof chatSocket !== 'undefined' && chatSocket && chatSocket.readyState === WebSocket.OPEN) {
+                                                chatSocket.send(JSON.stringify({ type: 'mark_read', sender_id: modalChatUserId }));
+                                            }
+                                        }
+                                    }
+                                }
+                            } catch (err) {}
+                        });
+                    }
+                } else {
+                    setTimeout(tryHook, 1000);
+                }
+            } else {
+                setTimeout(tryHook, 1000);
+            }
+        }
+        setTimeout(tryHook, 1500);
+    })();
 
     document.addEventListener('DOMContentLoaded', function () {
         var chatModalEl = document.getElementById('chatUserModal');
         if (chatModalEl) {
-            chatModalEl.addEventListener('show.bs.modal', loadChatUsers);
+            chatModalEl.addEventListener('show.bs.modal', function () {
+                showModalUserList();
+                setTimeout(loadChatUsers, 100);
+            });
         }
     });
 

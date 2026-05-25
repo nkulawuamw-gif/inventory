@@ -122,7 +122,8 @@ function connectChat() {
         try { data = JSON.parse(e.data); } catch (err) { return; }
 
         if (data.type === 'chat_message') {
-            if (data.sender_id && data.sender_id !== currentChatUserId) {
+            var inModalChat = typeof modalChatUserId !== 'undefined' && modalChatUserId && data.sender_id === modalChatUserId;
+            if (data.sender_id && data.sender_id !== currentChatUserId && !inModalChat) {
                 showBrowserNotification(data.sender, data.message, '/chat/');
             }
             updateUnreadBadge();
