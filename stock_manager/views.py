@@ -196,7 +196,7 @@ def get_period_opening_stock(period, shop=None):
 @login_required
 def dashboard(request):
     if not request.user.is_authenticated:
-        return redirect('login')
+        return redirect('landing')
 
     profile = get_user_profile(request.user)
     user_is_admin = profile is None or profile.is_admin
