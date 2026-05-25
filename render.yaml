@@ -16,6 +16,8 @@ services:
         value: https://*.onrender.com,http://localhost:8000
       - key: DB_DIR
         value: /var/data
+      - key: DATABASE_URL
+        value: postgresql://inventory_ugek_user:0V8C4IoBtmIjFIkaRXGndlCRKIVbtYr3@dpg-d84abpj7uimc739h653g-a/inventory_ugek
       - key: REDIS_URL
         value: ""
       - key: PYTHONUNBUFFERED
