@@ -85,6 +85,7 @@ def chat_view(request):
                 'last_message': msg.content,
                 'timestamp': msg.timestamp,
                 'unread': 0,
+                'last_status': msg.status if msg.sender == request.user else '',
             }
         if msg.receiver == request.user and not msg.is_read:
             conversations[other.id]['unread'] += 1
@@ -122,7 +123,24 @@ def get_conversation(request, user_id):
         Q(sender=request.user, receiver=other) | Q(sender=other, receiver=request.user)
     ).select_related('sender').order_by('timestamp')
 
-    Message.objects.filter(sender=other, receiver=request.user, is_read=False).update(is_read=True)
+    unread = Message.objects.filter(sender=other, receiver=request.user, status__in=['sent', 'delivered'])
+    updated_ids = list(unread.values_list('id', flat=True))
+    if updated_ids:
+        unread.update(status='read', is_read=True)
+        try:
+            from channels.layers import get_channel_layer
+            from asgiref.sync import async_to_sync
+            channel_layer = get_channel_layer()
+            async_to_sync(channel_layer.group_send)(
+                f"user_{other.id}",
+                {
+                    "type": "read_receipt",
+                    "message_ids": updated_ids,
+                    "read_by": request.user.id,
+                }
+            )
+        except Exception:
+            pass
 
     return JsonResponse({
         'messages': [{
@@ -131,6 +149,7 @@ def get_conversation(request, user_id):
             'sender': m.sender.username,
             'timestamp': m.timestamp.isoformat(),
             'is_mine': m.sender == request.user,
+            'status': m.status,
         } for m in msgs]
     })
 

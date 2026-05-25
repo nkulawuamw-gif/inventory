@@ -20,7 +20,7 @@
                     <a href="#" class="list-group-item list-group-item-action d-flex justify-content-between align-items-start" data-user-id="{{ conv.user.id }}" onclick="openChat({{ conv.user.id }}, '{{ conv.user.get_full_name|default:conv.user.username|escapejs }}')">
                         <div class="ms-2 me-auto">
                             <div class="fw-bold">{{ conv.user.get_full_name|default:conv.user.username }}</div>
-                            <small class="text-muted">{{ conv.last_message|truncatechars:30 }}</small>
+                            <small class="text-muted">{{ conv.last_message|truncatechars:30 }}{% if conv.last_status %}<span class="tick-icon {% if conv.last_status == 'read' %}tick-read{% else %}tick-delivered{% endif %}">{% if conv.last_status == 'read' or conv.last_status == 'delivered' %}✓✓{% else %}✓{% endif %}</span>{% endif %}</small>
                         </div>
                         {% if conv.unread %}
                         <span class="badge bg-danger rounded-pill">{{ conv.unread }}</span>
@@ -60,9 +60,16 @@
 {% endblock %}
 
 {% block extra_js %}
+<style>
+.tick-icon { font-size: 0.7rem; margin-left: 3px; vertical-align: middle; }
+.tick-sent { color: #999; }
+.tick-delivered { color: #999; }
+.tick-read { color: #53bdeb; }
+</style>
 <script>
 let currentChatUserId = null;
 let currentChatUserName = '';
+let pendingMessageIds = {};
 
 function onUserSelect(sel) {
     const val = sel.value;
@@ -92,11 +99,23 @@ function loadUsers() {
         .catch(() => {});
 }
 
+function renderTicks(status) {
+    if (status === 'sent') return '<span class="tick-icon tick-sent">\u2713</span>';
+    if (status === 'delivered') return '<span class="tick-icon tick-delivered">\u2713\u2713</span>';
+    if (status === 'read') return '<span class="tick-icon tick-read">\u2713\u2713</span>';
+    return '';
+}
+
 function openChat(userId, userName) {
     currentChatUserId = userId;
     currentChatUserName = userName;
     document.getElementById('chatHeader').innerHTML = '<i class="bi bi-person-circle"></i> ' + userName;
     document.getElementById('chatFooter').style.display = '';
+
+    // send mark_read via WebSocket
+    if (chatSocket && chatSocket.readyState === WebSocket.OPEN) {
+        chatSocket.send(JSON.stringify({ type: 'mark_read', sender_id: userId }));
+    }
 
     fetch('{% url "get_conversation" 0 %}'.replace('/0/', '/' + userId + '/'))
         .then(r => r.json())
@@ -106,7 +125,9 @@ function openChat(userId, userName) {
             data.messages.forEach(m => {
                 const div = document.createElement('div');
                 div.className = 'd-flex mb-2 ' + (m.is_mine ? 'justify-content-end' : 'justify-content-start');
-                div.innerHTML = '<div class="' + (m.is_mine ? 'bg-primary text-white' : 'bg-white border') + ' rounded-3 px-3 py-2" style="max-width:75%;"><small class="fw-bold d-block">' + (m.is_mine ? 'You' : m.sender) + '</small>' + escapeHtml(m.content) + '<br><small class="text-muted" style="font-size:0.7rem;">' + formatTime(m.timestamp) + '</small></div>';
+                const ticks = m.is_mine ? renderTicks(m.status) : '';
+                div.innerHTML = '<div class="' + (m.is_mine ? 'bg-primary text-white' : 'bg-white border') + ' rounded-3 px-3 py-2" style="max-width:75%;"><small class="fw-bold d-block">' + (m.is_mine ? 'You' : m.sender) + '</small>' + escapeHtml(m.content) + '<br><small class="text-muted" style="font-size:0.7rem;">' + formatTime(m.timestamp) + ticks + '</small></div>';
+                if (m.id) div.dataset.msgId = m.id;
                 container.appendChild(div);
             });
             container.scrollTop = container.scrollHeight;
@@ -121,13 +142,18 @@ function sendMessage(e) {
     const text = input.value.trim();
     if (!text) return false;
 
+    // temporary ID for tracking
+    const tempId = 'tmp_' + Date.now();
+    pendingMessageIds[tempId] = true;
+
     chatSocket.send(JSON.stringify({ receiver_id: currentChatUserId, message: text }));
     input.value = '';
 
     const container = document.getElementById('chatMessages');
     const div = document.createElement('div');
     div.className = 'd-flex mb-2 justify-content-end';
-    div.innerHTML = '<div class="bg-primary text-white rounded-3 px-3 py-2" style="max-width:75%;"><small class="fw-bold d-block">You</small>' + escapeHtml(text) + '<br><small class="text-muted" style="font-size:0.7rem;">just now</small></div>';
+    div.dataset.tempId = tempId;
+    div.innerHTML = '<div class="bg-primary text-white rounded-3 px-3 py-2" style="max-width:75%;"><small class="fw-bold d-block">You</small>' + escapeHtml(text) + '<br><small class="text-muted" style="font-size:0.7rem;">just now' + renderTicks('sent') + '</small></div>';
     container.appendChild(div);
     container.scrollTop = container.scrollHeight;
     return false;
@@ -151,17 +177,53 @@ if (typeof chatSocket !== 'undefined') {
     chatSocket.onmessage = function(e) {
         let data;
         try { data = JSON.parse(e.data); } catch (err) { return; }
+
         if (data.type === 'chat_message') {
             if (currentChatUserId && data.sender_id === currentChatUserId) {
                 const container = document.getElementById('chatMessages');
                 const div = document.createElement('div');
                 div.className = 'd-flex mb-2 justify-content-start';
+                div.dataset.msgId = data.message_id;
                 div.innerHTML = '<div class="bg-white border rounded-3 px-3 py-2" style="max-width:75%;"><small class="fw-bold d-block">' + escapeHtml(data.sender) + '</small>' + escapeHtml(data.message) + '<br><small class="text-muted" style="font-size:0.7rem;">' + formatTime(data.timestamp) + '</small></div>';
                 container.appendChild(div);
                 container.scrollTop = container.scrollHeight;
             }
             updateBadge();
         }
+
+        if (data.type === 'message_status') {
+            if (data.message_id) {
+                var el = document.querySelector('[data-msg-id="' + data.message_id + '"]');
+                if (!el) {
+                    // find by temp-id (first pending message)
+                    el = document.querySelector('[data-temp-id]');
+                    if (el) {
+                        el.removeAttribute('data-temp-id');
+                        el.dataset.msgId = data.message_id;
+                    }
+                }
+                if (el) {
+                    var small = el.querySelector('small.text-muted');
+                    if (small) {
+                        var timeText = small.childNodes[0] ? (small.childNodes[0].textContent || '') : '';
+                        small.innerHTML = timeText + renderTicks(data.status);
+                    }
+                }
+            }
+            if (data.message_ids) {
+                data.message_ids.forEach(function(id) {
+                    var el = document.querySelector('[data-msg-id="' + id + '"]');
+                    if (el) {
+                        var small = el.querySelector('small.text-muted');
+                        if (small) {
+                            var timeText = small.childNodes[0] ? (small.childNodes[0].textContent || '') : '';
+                            small.innerHTML = timeText + renderTicks(data.status);
+                        }
+                    }
+                });
+            }
+        }
+
         if (orig) orig.call(this, e);
     };
 }

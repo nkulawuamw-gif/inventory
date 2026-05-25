@@ -2,6 +2,7 @@ import json
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from django.utils import timezone
+from django.db.models import Q
 from .models import Message, Profile
 
 
@@ -91,15 +92,29 @@ class ChatConsumer(AsyncWebsocketConsumer):
         except json.JSONDecodeError as e:
             print(f"ChatConsumer JSON decode error: {e}")
             return
+
+        msg_type = data.get("type")
+
+        if msg_type == "mark_read":
+            await self.handle_mark_read(data)
+            return
+
+        if msg_type == "delivery_ack":
+            await self.handle_delivery_ack(data)
+            return
+
+        # default: send message
         receiver_id = data["receiver_id"]
         message = data["message"]
 
         msg = await self.create_message(receiver_id, message)
 
+        # send to receiver's group
         await self.channel_layer.group_send(
             f"user_{receiver_id}",
             {
                 "type": "chat_message",
+                "message_id": msg.id,
                 "message": message,
                 "sender": self.user.username,
                 "sender_id": self.user.id,
@@ -118,16 +133,84 @@ class ChatConsumer(AsyncWebsocketConsumer):
         )
 
     async def chat_message(self, event):
+        # when receiver gets the message, auto-send delivery_ack back
+        if event.get("sender_id") != self.user.id:
+            await self.channel_layer.group_send(
+                f"user_{event['sender_id']}",
+                {
+                    "type": "delivery_ack",
+                    "message_id": event["message_id"],
+                    "sender_id": self.user.id,
+                }
+            )
         await self.send(text_data=json.dumps(event))
+
+    async def delivery_ack(self, event):
+        await self.update_message_status(event["message_id"], "delivered")
+        await self.send(text_data=json.dumps({
+            "type": "message_status",
+            "message_id": event["message_id"],
+            "status": "delivered",
+        }))
+
+    async def read_receipt(self, event):
+        await self.send(text_data=json.dumps({
+            "type": "message_status",
+            "message_ids": event["message_ids"],
+            "status": "read",
+            "read_by": event["read_by"],
+        }))
 
     async def unread_update(self, event):
         await self.send(text_data=json.dumps(event))
 
+    async def handle_mark_read(self, data):
+        sender_id = data.get("sender_id")
+        if not sender_id:
+            return
+        updated_ids = await self.mark_messages_read(sender_id)
+        if updated_ids:
+            await self.channel_layer.group_send(
+                f"user_{sender_id}",
+                {
+                    "type": "read_receipt",
+                    "message_ids": updated_ids,
+                    "read_by": self.user.id,
+                }
+            )
+
+    async def handle_delivery_ack(self, data):
+        message_id = data.get("message_id")
+        if message_id:
+            await self.update_message_status(message_id, "delivered")
+            await self.send(text_data=json.dumps({
+                "type": "message_status",
+                "message_id": message_id,
+                "status": "delivered",
+            }))
+
     @database_sync_to_async
     def create_message(self, receiver_id, content):
         return Message.objects.create(
-            sender=self.user, receiver_id=receiver_id, content=content
+            sender=self.user, receiver_id=receiver_id, content=content, status='sent'
         )
+
+    @database_sync_to_async
+    def update_message_status(self, message_id, status):
+        Message.objects.filter(id=message_id, status__in=['sent', 'delivered']).update(
+            status=status,
+            is_read=True if status == 'read' else False
+        )
+
+    @database_sync_to_async
+    def mark_messages_read(self, sender_id):
+        qs = Message.objects.filter(
+            sender_id=sender_id, receiver=self.user, status__in=['sent', 'delivered']
+        )
+        ids = list(qs.values_list('id', flat=True))
+        if ids:
+            qs.update(status='read', is_read=True)
+        return ids
 
     @database_sync_to_async
     def get_unread_count(self):
@@ -136,6 +219,3 @@ class ChatConsumer(AsyncWebsocketConsumer):
     @database_sync_to_async
     def count_unread(self, user_id):
         return Message.objects.filter(receiver_id=user_id, is_read=False).count()
-
-
-
