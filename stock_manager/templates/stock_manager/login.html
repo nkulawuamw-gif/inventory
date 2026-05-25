@@ -87,9 +87,12 @@
           <input type="text" name="username" id="id_username" class="form-control" placeholder="Username" required autofocus>
           <label for="id_username"><i class="bi bi-person"></i> Username</label>
         </div>
-        <div class="form-floating">
+        <div class="form-floating position-relative">
           <input type="password" name="password" id="id_password" class="form-control" placeholder="Password" required>
           <label for="id_password"><i class="bi bi-lock"></i> Password</label>
+          <span class="password-toggle" onclick="togglePassword()" style="position:absolute;right:14px;top:50%;transform:translateY(-50%);cursor:pointer;z-index:5;color:#888;">
+            <i class="bi bi-eye" id="passwordIcon"></i>
+          </span>
         </div>
         <button type="submit" class="btn-login"><i class="bi bi-box-arrow-in-right"></i> Sign In</button>
       </form>
@@ -99,5 +102,18 @@
       </div>
     </div>
   </div>
+  <script>
+  function togglePassword() {
+    var input = document.getElementById('id_password');
+    var icon = document.getElementById('passwordIcon');
+    if (input.type === 'password') {
+      input.type = 'text';
+      icon.className = 'bi bi-eye-slash';
+    } else {
+      input.type = 'password';
+      icon.className = 'bi bi-eye';
+    }
+  }
+  </script>
 </body>
 </html>
