@@ -26,6 +26,7 @@ urlpatterns = [
 
     path('heartbeat/', comm.heartbeat, name='heartbeat'),
     path('mark-offline/', comm.mark_offline, name='mark_offline'),
+    path('auto-logout/', comm.auto_logout, name='auto_logout'),
     path('api/all-users/', comm.get_all_users, name='all_users'),
     path('api/online-users/', comm.get_online_users, name='online_users'),
 

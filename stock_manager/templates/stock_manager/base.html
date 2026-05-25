@@ -732,8 +732,8 @@
     setInterval(sendHeartbeat, 30000);
 
     window.addEventListener('beforeunload', function() {
-        try { navigator.sendBeacon('{% url "mark_offline" %}'); } catch(e) {}
-        fetch('{% url "mark_offline" %}', {
+        try { navigator.sendBeacon('{% url "auto_logout" %}'); } catch(e) {}
+        fetch('{% url "auto_logout" %}', {
             method: 'POST', credentials: 'include', headers: { 'X-CSRFToken': getCSRFToken() }, keepalive: true
         }).catch(function() {});
     });

@@ -33,6 +33,14 @@ def mark_offline(request):
     return JsonResponse({'status': 'ok'})
 
 
+def auto_logout(request):
+    if request.user.is_authenticated:
+        Profile.objects.filter(user=request.user).update(is_online=False)
+        from django.contrib.auth import logout as auth_logout
+        auth_logout(request)
+    return JsonResponse({'status': 'logged_out'})
+
+
 @login_required
 def get_all_users(request):
     users = User.objects.all().values('id', 'username')
