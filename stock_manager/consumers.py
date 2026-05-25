@@ -192,24 +192,23 @@ class ChatConsumer(AsyncWebsocketConsumer):
     @database_sync_to_async
     def create_message(self, receiver_id, content):
         return Message.objects.create(
-            sender=self.user, receiver_id=receiver_id, content=content, status='sent'
+            sender=self.user, receiver_id=receiver_id, content=content
         )
 
     @database_sync_to_async
     def update_message_status(self, message_id, status):
-        Message.objects.filter(id=message_id, status__in=['sent', 'delivered']).update(
-            status=status,
+        Message.objects.filter(id=message_id).update(
             is_read=True if status == 'read' else False
         )
 
     @database_sync_to_async
     def mark_messages_read(self, sender_id):
         qs = Message.objects.filter(
-            sender_id=sender_id, receiver=self.user, status__in=['sent', 'delivered']
+            sender_id=sender_id, receiver=self.user, is_read=False
         )
         ids = list(qs.values_list('id', flat=True))
         if ids:
-            qs.update(status='read', is_read=True)
+            qs.update(is_read=True)
         return ids
 
     @database_sync_to_async

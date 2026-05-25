@@ -72,37 +72,32 @@ def get_online_users(request):
 
 @login_required
 def chat_view(request):
-    try:
-        conversations = {}
-        messages = Message.objects.filter(
-            Q(sender=request.user) | Q(receiver=request.user)
-        ).select_related('sender', 'receiver').order_by('-timestamp')
+    conversations = {}
+    messages = Message.objects.filter(
+        Q(sender=request.user) | Q(receiver=request.user)
+    ).select_related('sender', 'receiver').defer('status').order_by('-timestamp')
 
-        for msg in messages:
-            other = msg.receiver if msg.sender == request.user else msg.sender
-            if other.id not in conversations:
-                conversations[other.id] = {
-                    'user': other,
-                    'last_message': msg.content,
-                    'timestamp': msg.timestamp,
-                    'unread': 0,
-                    'last_status': getattr(msg, 'status', 'sent') if msg.sender == request.user else '',
-                }
-            if msg.receiver == request.user and not msg.is_read:
-                conversations[other.id]['unread'] += 1
+    for msg in messages:
+        other = msg.receiver if msg.sender == request.user else msg.sender
+        if other.id not in conversations:
+            conversations[other.id] = {
+                'user': other,
+                'last_message': msg.content,
+                'timestamp': msg.timestamp,
+                'unread': 0,
+                'last_status': 'sent' if msg.sender == request.user else '',
+            }
+        if msg.receiver == request.user and not msg.is_read:
+            conversations[other.id]['unread'] += 1
 
-        total_unread = sum(c['unread'] for c in conversations.values())
+    total_unread = sum(c['unread'] for c in conversations.values())
 
-        return render(request, 'stock_manager/chat.html', {
-            'conversations': sorted(conversations.values(),
-                                    key=lambda c: c['timestamp'], reverse=True),
-            'total_unread': total_unread,
-            'page_title': 'Chat',
-        })
-    except Exception as e:
-        import traceback
-        tb = traceback.format_exc()
-        return JsonResponse({'error': str(e), 'traceback': tb}, status=500)
+    return render(request, 'stock_manager/chat.html', {
+        'conversations': sorted(conversations.values(),
+                                key=lambda c: c['timestamp'], reverse=True),
+        'total_unread': total_unread,
+        'page_title': 'Chat',
+    })
 
 
 @login_required
@@ -127,12 +122,12 @@ def get_conversation(request, user_id):
     other = get_object_or_404(User, id=user_id)
     msgs = Message.objects.filter(
         Q(sender=request.user, receiver=other) | Q(sender=other, receiver=request.user)
-    ).select_related('sender').order_by('timestamp')
+    ).select_related('sender').defer('status').order_by('timestamp')
 
-    unread = Message.objects.filter(sender=other, receiver=request.user, status__in=['sent', 'delivered'])
+    unread = Message.objects.filter(sender=other, receiver=request.user, is_read=False)
     updated_ids = list(unread.values_list('id', flat=True))
     if updated_ids:
-        unread.update(status='read', is_read=True)
+        unread.update(is_read=True)
         try:
             from channels.layers import get_channel_layer
             from asgiref.sync import async_to_sync
@@ -155,7 +150,7 @@ def get_conversation(request, user_id):
             'sender': m.sender.username,
             'timestamp': m.timestamp.isoformat(),
             'is_mine': m.sender == request.user,
-            'status': getattr(m, 'status', 'sent'),
+            'status': 'sent',
         } for m in msgs]
     })
 
