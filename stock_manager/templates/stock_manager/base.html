@@ -233,9 +233,9 @@
                 </span>
                 {% endif %}
             </div>
-            <a href="{% url 'login' %}" class="text-center text-light mx-1 text-decoration-none" style="font-size:clamp(0.7rem, 3.5vw, 1.1rem); font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; min-width:0;">
+            <div class="text-center text-light mx-1" style="font-size:clamp(0.7rem, 3.5vw, 1.1rem); font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; min-width:0;">
                 {{ company.company_name|default:"Inventory" }}
-            </a>
+            </div>
             <form class="d-none d-md-flex mx-1" action="{% url 'search' %}" method="get" style="max-width:300px; flex-shrink:1;">
                 <div class="input-group input-group-sm">
                     <input class="form-control" type="search" name="q" placeholder="Search..." value="{{ query|default:'' }}" aria-label="Search">
