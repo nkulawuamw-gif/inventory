@@ -7,6 +7,9 @@
     <title>{{ page_title|default:"Stock Manager" }}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
+    <script src="{% static 'js/global-chat.js' %}" defer></script>
     <script src="https://meet.jit.si/external_api.js"></script>
     <style>
         html, body { overflow-x: hidden; width: 100%; max-width: 100%; margin: 0; padding: 0; }
@@ -128,7 +131,8 @@
     </style>
     <style>
         .toast-container { position: fixed; top: 70px; right: 20px; z-index: 99999; display: flex; flex-direction: column; gap: 8px; max-width: 420px; }
-        .toast-notification { display: flex; align-items: center; gap: 12px; padding: 14px 18px; border-radius: 12px; color: white; font-weight: 500; font-size: 0.9rem; box-shadow: 0 8px 24px rgba(0,0,0,0.15); animation: toastIn 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275); min-width: 300px; }
+            .toast-notification { display: flex; align-items: center; gap: 12px; padding: 14px 18px; border-radius: 12px; color: white; font-weight: 500; font-size: 0.9rem; box-shadow: 0 8px 24px rgba(0,0,0,0.15); animation: toastIn 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275); min-width: 300px; }
+            .pw-toggle { position:absolute; right:10px; top:38px; cursor:pointer; z-index:5; color:#888; font-size:1.1rem; }
         .toast-notification .toast-icon { font-size: 1.3rem; flex-shrink: 0; }
         .toast-notification .toast-msg { flex: 1; }
         .toast-notification .toast-close { background: none; border: none; color: rgba(255,255,255,0.7); font-size: 1.2rem; cursor: pointer; padding: 0 4px; line-height: 1; }
@@ -252,7 +256,7 @@
                 </button>
             </div>
         </div>
-        <div id="onlineUsersPanel" class="position-absolute bg-dark border border-secondary rounded shadow-sm" style="z-index:1050;top:100%;right:60px;width:260px;display:none;max-height:300px;overflow-y:auto;">
+        <div id="onlineUsersPanel" class="position-absolute bg-dark text-white border border-secondary rounded shadow-sm" style="z-index:1050;top:100%;right:60px;width:260px;display:none;max-height:300px;overflow-y:auto;">
         </div>
         <style>
             #onlineUsersPanel.show { display:block !important; }
@@ -284,10 +288,6 @@
                     <li class="nav-item"><a class="nav-link py-1" href="{% url 'sales_history' %}"><i class="bi bi-receipt"></i> Receipts</a></li>
                     <li class="nav-item"><a class="nav-link py-1" href="{% url 'chat' %}"><i class="bi bi-chat-dots"></i> Chat <span class="badge bg-danger" id="navbarChatBadge" style="display:none;">0</span></a></li>
 <li class="nav-item"><a class="nav-link py-1" href="#" onclick="event.preventDefault();var m=new bootstrap.Modal(document.getElementById('chatUserModal'));m.show();"><i class="bi bi-person-plus"></i></a></li>
-                    <li class="nav-item"><a class="nav-link py-1" href="{% url 'calls' %}"><i class="bi bi-telephone"></i> Calls</a></li>
-                    {% if user_access.is_admin or 'meetings' in user_access.permissions %}
-                    <li class="nav-item"><a class="nav-link py-1" href="{% url 'meetings' %}"><i class="bi bi-camera-video"></i> Meetings</a></li>
-                    {% endif %}
                     {% if user_access.is_admin or 'whatsapp' in user_access.permissions %}
                     <li class="nav-item"><a class="nav-link py-1" href="{% url 'whatsapp_inbox' %}"><i class="bi bi-whatsapp text-success"></i> WhatsApp</a></li>
                     {% endif %}
@@ -349,14 +349,6 @@
                         <span><i class="bi bi-chat-dots"></i> Chat</span>
                         <span class="badge bg-danger rounded-pill" id="sidebarChatBadge" style="display:none;font-size:0.65rem;">0</span>
                     </a>
-                    <a href="{% url 'calls' %}" class="{% if request.resolver_match.url_name == 'calls' %}active{% endif %}">
-                        <i class="bi bi-telephone"></i> Calls
-                    </a>
-                    {% if user_access.is_admin or 'meetings' in user_access.permissions %}
-                    <a href="{% url 'meetings' %}" class="{% if request.resolver_match.url_name == 'meetings' %}active{% endif %}">
-                        <i class="bi bi-camera-video"></i> Meetings
-                    </a>
-                    {% endif %}
                     {% if user_access.is_admin or 'whatsapp' in user_access.permissions %}
                     <a href="{% url 'whatsapp_inbox' %}" class="{% if request.resolver_match.url_name == 'whatsapp_inbox' %}active{% endif %}">
                         <i class="bi bi-whatsapp text-success"></i> WhatsApp
@@ -429,56 +421,39 @@
 
     <div class="toast-container" id="toastContainer"></div>
 
-    <div class="modal fade" id="incomingCallModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content text-center">
-                <div class="modal-body py-4">
-                    <div class="mb-3">
-                        <i class="bi bi-telephone-ringing text-success" style="font-size:3rem;animation:ringPulse 1s infinite;"></i>
-                    </div>
-                    <h5 id="incomingCallerName" class="fw-bold">Unknown</h5>
-                    <p class="text-muted mb-1" id="incomingCallType">Incoming voice call</p>
-                    <p class="small text-muted">is calling you...</p>
-                    <div class="d-flex justify-content-center gap-3 mt-3">
-                        <a href="#" id="answerCallBtn" class="btn btn-success btn-lg rounded-circle" style="width:60px;height:60px;">
-                            <i class="bi bi-telephone"></i>
-                        </a>
-                        <button id="declineCallBtn" class="btn btn-danger btn-lg rounded-circle" style="width:60px;height:60px;">
-                            <i class="bi bi-telephone-x"></i>
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <div class="modal fade" id="chatUserModal" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered modal-sm">
-            <div class="modal-content">
-                <div class="modal-header bg-dark text-white">
-                    <h6 class="modal-title"><i class="bi bi-chat-dots"></i> New Chat</h6>
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content" style="min-height:500px;">
+                <div class="modal-header bg-dark text-white py-2">
+                    <h6 class="modal-title" id="modalChatTitle"><i class="bi bi-chat-dots"></i> New Chat</h6>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="modal-body">
-                    <select id="chatUserSelect" class="form-select">
-                        <option value="">— Select user —</option>
-                    </select>
-                </div>
-                <div class="modal-footer">
-                    <button class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button class="btn btn-sm btn-primary" onclick="startChatFromModal()"><i class="bi bi-send"></i> Start Chat</button>
+                <div class="modal-body p-0 d-flex" style="min-height:450px;">
+                    <div id="modalUserListView" class="w-100 p-3">
+                        <input type="text" id="modalUserSearch" class="form-control form-control-sm mb-2" placeholder="Search users...">
+                        <div id="modalUserList" class="list-group list-group-flush" style="max-height:380px;overflow-y:auto;"></div>
+                    </div>
+                    <div id="modalChatView" style="display:none;width:100%;flex-direction:column;">
+                        <div class="d-flex align-items-center p-2 border-bottom bg-light">
+                            <button class="btn btn-sm btn-outline-secondary me-2" onclick="showModalUserList()"><i class="bi bi-arrow-left"></i></button>
+                            <strong id="modalChatUserName" class="text-truncate"></strong>
+                        </div>
+                        <div id="modalChatMessages" style="flex:1;overflow-y:auto;padding:10px;background:#f8f9fa;"></div>
+                        <div class="p-2 border-top">
+                            <form onsubmit="return sendModalMessage(event)">
+                                <div class="input-group">
+                                    <input type="text" id="modalMessageInput" class="form-control" placeholder="Type a message..." required>
+                                    <button class="btn btn-primary" type="submit"><i class="bi bi-send"></i></button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <style>
-        @keyframes ringPulse {
-            0% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(1.2); opacity: 0.7; }
-            100% { transform: scale(1); opacity: 1; }
-        }
-    </style>
+
 
     <script>
     function showToast(message, type, duration) {
@@ -509,38 +484,166 @@
         return cookie ? cookie[1] : '';
     }
 
+    function escapeHtml(s) {
+        var d = document.createElement('div');
+        d.appendChild(document.createTextNode(s || ''));
+        return d.innerHTML;
+    }
+
+    function formatTime(iso) {
+        if (!iso) return '';
+        var d = new Date(iso);
+        return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function togglePw(id) {
+        var input = document.getElementById(id);
+        var icon = document.getElementById('ico_' + id);
+        if (!input || !icon) return;
+        if (input.type === 'password') {
+            input.type = 'text';
+            icon.className = 'bi bi-eye-slash';
+        } else {
+            input.type = 'password';
+            icon.className = 'bi bi-eye';
+        }
+    }
+
+    var modalChatUserId = null;
+
     function loadChatUsers() {
         fetch('/api/all-users/', { credentials: 'include' })
             .then(function (r) { return r.json(); })
             .then(function (d) {
-                var sel = document.getElementById('chatUserSelect');
-                if (!sel || !d.users) return;
-                sel.innerHTML = '<option value="">— Select user —</option>';
+                var list = document.getElementById('modalUserList');
+                if (!list || !d.users) return;
+                var currentId = {{ request.user.id }};
+                list.innerHTML = '';
                 d.users.forEach(function (u) {
-                    if (u.id === {{ request.user.id }}) return;
-                    var opt = document.createElement('option');
-                    opt.value = u.id;
-                    opt.textContent = u.username;
-                    sel.appendChild(opt);
+                    if (u.id === currentId) return;
+                    var a = document.createElement('a');
+                    a.href = '#';
+                    a.className = 'list-group-item list-group-item-action d-flex align-items-center gap-2 py-2';
+                    a.innerHTML = '<i class="bi bi-person-circle fs-5"></i> <span>' + escapeHtml(u.username) + '</span>';
+                    a.onclick = function (e) {
+                        e.preventDefault();
+                        openModalChat(u.id, u.username);
+                    };
+                    list.appendChild(a);
                 });
+                var search = document.getElementById('modalUserSearch');
+                if (search) {
+                    search.oninput = function () {
+                        var q = this.value.toLowerCase();
+                        var items = list.querySelectorAll('a');
+                        for (var i = 0; i < items.length; i++) {
+                            items[i].style.display = items[i].textContent.toLowerCase().indexOf(q) !== -1 ? '' : 'none';
+                        }
+                    };
+                }
             })
             .catch(function () {});
     }
 
-    function startChatFromModal() {
-        var sel = document.getElementById('chatUserSelect');
-        if (!sel || !sel.value) return;
-        var userId = sel.value;
-        var userName = sel.options[sel.selectedIndex].text;
-        var modal = bootstrap.Modal.getInstance(document.getElementById('chatUserModal'));
-        if (modal) modal.hide();
-        window.location.href = '/chat/#' + userId;
+    function openModalChat(userId, userName) {
+        modalChatUserId = userId;
+        document.getElementById('modalUserListView').style.display = 'none';
+        var chatView = document.getElementById('modalChatView');
+        chatView.style.display = 'flex';
+        document.getElementById('modalChatTitle').innerHTML = '<i class="bi bi-chat-dots"></i> ' + escapeHtml(userName);
+        document.getElementById('modalChatUserName').textContent = userName;
+        document.getElementById('modalMessageInput').value = '';
+
+        fetch('/chat/conversation/' + userId + '/')
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                var container = document.getElementById('modalChatMessages');
+                container.innerHTML = '';
+                (data.messages || []).forEach(function (m) {
+                    addModalMessage(m.sender, m.content, m.timestamp, m.is_mine, m.id);
+                });
+                container.scrollTop = container.scrollHeight;
+            });
+
+        if (typeof chatSocket !== 'undefined' && chatSocket && chatSocket.readyState === WebSocket.OPEN) {
+            chatSocket.send(JSON.stringify({ type: 'mark_read', sender_id: userId }));
+        }
     }
+
+    function showModalUserList() {
+        modalChatUserId = null;
+        document.getElementById('modalChatView').style.display = 'none';
+        document.getElementById('modalUserListView').style.display = '';
+        document.getElementById('modalChatTitle').innerHTML = '<i class="bi bi-chat-dots"></i> New Chat';
+    }
+
+    function addModalMessage(sender, content, timestamp, isMine, msgId) {
+        var container = document.getElementById('modalChatMessages');
+        if (!container) return;
+        var div = document.createElement('div');
+        div.className = 'd-flex mb-2 ' + (isMine ? 'justify-content-end' : 'justify-content-start');
+        if (msgId) div.dataset.msgId = msgId;
+        var ticks = isMine ? '<span class="tick-icon tick-delivered" style="color:#999;font-size:0.7rem;margin-left:3px;">\u2713</span>' : '';
+        div.innerHTML = '<div class="' + (isMine ? 'bg-primary text-white' : 'bg-white border') + ' rounded-3 px-3 py-2" style="max-width:75%;"><small class="fw-bold d-block">' + (isMine ? 'You' : escapeHtml(sender)) + '</small>' + escapeHtml(content) + '<br><small class="text-muted" style="font-size:0.7rem;">' + formatTime(timestamp) + ticks + '</small></div>';
+        container.appendChild(div);
+        container.scrollTop = container.scrollHeight;
+    }
+
+    function sendModalMessage(e) {
+        e.preventDefault();
+        if (!modalChatUserId) return false;
+        if (typeof chatSocket === 'undefined' || !chatSocket || chatSocket.readyState !== WebSocket.OPEN) {
+            if (typeof showToast === 'function') {
+                showToast('Chat connection not ready. Please wait...', 'warning');
+            }
+            return false;
+        }
+        var input = document.getElementById('modalMessageInput');
+        var text = input.value.trim();
+        if (!text) return false;
+        var tempId = 'tmp_' + Date.now();
+        chatSocket.send(JSON.stringify({ receiver_id: modalChatUserId, message: text }));
+        addModalMessage('You', text, new Date().toISOString(), true, tempId);
+        input.value = '';
+        return false;
+    }
+
+    (function () {
+        function tryHook() {
+            if (typeof chatSocket !== 'undefined' && chatSocket && chatSocket.readyState === WebSocket.OPEN) {
+                if (!chatSocket._modalHooked) {
+                    chatSocket._modalHooked = true;
+                    chatSocket.addEventListener('message', function (ev) {
+                        try {
+                            var data = JSON.parse(ev.data);
+                            if (data.type === 'chat_message' && modalChatUserId && data.sender_id === modalChatUserId) {
+                                var modal = document.getElementById('chatUserModal');
+                                if (modal && modal.classList.contains('show')) {
+                                    var container = document.getElementById('modalChatMessages');
+                                    if (container && !container.querySelector('[data-msg-id="' + data.message_id + '"]')) {
+                                        addModalMessage(data.sender, data.message, data.timestamp, false, data.message_id);
+                                        if (chatSocket && chatSocket.readyState === WebSocket.OPEN) {
+                                            chatSocket.send(JSON.stringify({ type: 'mark_read', sender_id: modalChatUserId }));
+                                        }
+                                    }
+                                }
+                            }
+                        } catch (err) {}
+                    });
+                }
+            }
+            setTimeout(tryHook, 3000);
+        }
+        tryHook();
+    })();
 
     document.addEventListener('DOMContentLoaded', function () {
         var chatModalEl = document.getElementById('chatUserModal');
         if (chatModalEl) {
-            chatModalEl.addEventListener('show.bs.modal', loadChatUsers);
+            chatModalEl.addEventListener('show.bs.modal', function () {
+                showModalUserList();
+                setTimeout(loadChatUsers, 100);
+            });
         }
     });
 
@@ -588,7 +691,7 @@
         var panel = document.getElementById('onlineUsersPanel');
         if (!panel) return;
         if (users.length === 0) {
-            panel.innerHTML = '<div class="p-2 text-muted small text-center">No users online</div>';
+            panel.innerHTML = '<div class="p-2 text-white-50 small text-center">No users online</div>';
             return;
         }
         var html = '';
@@ -598,7 +701,7 @@
             html += '<div class="d-flex align-items-center gap-2 px-2 py-1 border-bottom" style="font-size:0.8rem;">'
                 + '<span class="text-success" style="font-size:0.5rem;">&#9679;</span>'
                 + '<span class="fw-semibold">' + escapeHtml(u.display_name || u.username) + '</span>'
-                + '<span class="text-muted ms-auto small">' + escapeHtml(label) + '</span>'
+                + '<span class="text-white-50 ms-auto small">' + escapeHtml(label) + '</span>'
                 + '</div>';
         }
         panel.innerHTML = html;
@@ -644,17 +747,9 @@
 
     window.addEventListener('beforeunload', function() {
         try { navigator.sendBeacon('{% url "mark_offline" %}'); } catch(e) {}
-        fetch('{% url "mark_offline" %}', {
-            method: 'POST', credentials: 'include', headers: { 'X-CSRFToken': getCSRFToken() }, keepalive: true
-        }).catch(function() {});
     });
     </script>
 
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-
-    <script src="{% static 'js/global-calls.js' %}"></script>
-    <script src="{% static 'js/global-chat.js' %}"></script>
 
     <div class="confirm-overlay" id="confirmOverlay">
         <div class="confirm-box" id="confirmBox">
@@ -776,17 +871,20 @@
             <form method="post" action="{% url 'change_password' %}">
                 {% csrf_token %}
                 <div class="modal-body">
-                    <div class="mb-3">
+                    <div class="mb-3 position-relative">
                         <label class="form-label" for="currentPassword">Current Password *</label>
                         <input type="password" name="current_password" id="currentPassword" class="form-control" required>
+                        <span class="pw-toggle" onclick="togglePw('currentPassword')"><i class="bi bi-eye" id="ico_currentPassword"></i></span>
                     </div>
-                    <div class="mb-3">
+                    <div class="mb-3 position-relative">
                         <label class="form-label" for="newPassword">New Password *</label>
                         <input type="password" name="new_password" id="newPassword" class="form-control" required minlength="4">
+                        <span class="pw-toggle" onclick="togglePw('newPassword')"><i class="bi bi-eye" id="ico_newPassword"></i></span>
                     </div>
-                    <div class="mb-3">
+                    <div class="mb-3 position-relative">
                         <label class="form-label" for="confirmPassword">Confirm New Password *</label>
                         <input type="password" name="confirm_password" id="confirmPassword" class="form-control" required minlength="4">
+                        <span class="pw-toggle" onclick="togglePw('confirmPassword')"><i class="bi bi-eye" id="ico_confirmPassword"></i></span>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -925,6 +1023,8 @@ document.addEventListener('click', function(e) {
     }
 });
 </script>
+
+{% block extra_js %}{% endblock %}
 
 </body>
 </html>

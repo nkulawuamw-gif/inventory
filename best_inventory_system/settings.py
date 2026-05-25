@@ -56,7 +56,6 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',
 
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -69,6 +68,12 @@ MIDDLEWARE = [
 
     'stock_manager.middleware.ShopAccessMiddleware',
 ]
+
+try:
+    import whitenoise
+    MIDDLEWARE.insert(1, 'whitenoise.middleware.WhiteNoiseMiddleware')
+except ImportError:
+    pass
 
 # ========================
 # URLS
@@ -172,14 +177,25 @@ STATICFILES_DIRS = [BASE_DIR / 'static'] if (BASE_DIR / 'static').exists() else 
 
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
-STORAGES = {
-    'default': {
-        'BACKEND': 'django.core.files.storage.FileSystemStorage',
-    },
-    'staticfiles': {
-        'BACKEND': 'whitenoise.storage.CompressedStaticFilesStorage',
-    },
-}
+try:
+    import whitenoise
+    STORAGES = {
+        'default': {
+            'BACKEND': 'django.core.files.storage.FileSystemStorage',
+        },
+        'staticfiles': {
+            'BACKEND': 'whitenoise.storage.CompressedStaticFilesStorage',
+        },
+    }
+except ImportError:
+    STORAGES = {
+        'default': {
+            'BACKEND': 'django.core.files.storage.FileSystemStorage',
+        },
+        'staticfiles': {
+            'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage',
+        },
+    }
 
 # ========================
 # MEDIA FILES
@@ -198,7 +214,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # LOGIN SETTINGS
 # ========================
 
-LOGIN_URL = 'login'
+LOGIN_URL = 'landing'
 LOGIN_REDIRECT_URL = '/'
 
 # ========================
@@ -216,7 +232,7 @@ if not DEBUG:
     # Allow Jitsi popups/signaling via cross-origin windows
     SECURE_CROSS_ORIGIN_OPENER_POLICY = 'same-origin-allow-popups'
 
-# SESSION_COOKIE_SAMESITE defaults to 'Lax' (Django 6.0), fine for CSRF-protected end_call POSTs.
+# SESSION_COOKIE_SAMESITE defaults to 'Lax' (Django 6.0)
 
 # ========================
 # EMAIL

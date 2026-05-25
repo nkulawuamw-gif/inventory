@@ -292,7 +292,7 @@ footer { background: var(--dark); color: rgba(255,255,255,0.8); padding: 60px 0 
 <!-- NAVBAR -->
 <nav id="navbar">
   <div class="nav-container">
-    <a href="/login/" class="logo"><i class="fas fa-spa"></i> VARNISHIELA BEAUTY PALOUR</a>
+    <a href="#" onclick="openLoginModal();return false;" class="logo"><i class="fas fa-spa"></i> VARNISHIELA BEAUTY PALOUR</a>
     <ul class="nav-links" id="navLinks">
       <li><a href="#home" class="active">Home</a></li>
       <li><a href="#about">About</a></li>
@@ -300,10 +300,10 @@ footer { background: var(--dark); color: rgba(255,255,255,0.8); padding: 60px 0 
       <li><a href="#why-us">Why Us</a></li>
       <li><a href="#contact">Contact</a></li>
       <li class="nav-mobile-only"><a href="https://wa.me/{{ landing.data.contact.whatsapp|cut:'+'|cut:' '|default:'265883994035' }}" target="_blank"><i class="fab fa-whatsapp"></i> Order Now</a></li>
-      <li class="nav-mobile-only"><a href="/login/"><i class="fas fa-user-lock"></i> Staff Login</a></li>
+      <li class="nav-mobile-only"><a href="#" onclick="openLoginModal();return false;"><i class="fas fa-user-lock"></i> Staff Login</a></li>
     </ul>
     <a href="https://wa.me/{{ landing.data.contact.whatsapp|cut:'+'|cut:' '|default:'265883994035' }}" target="_blank" class="nav-wa-btn desktop-only"><i class="fab fa-whatsapp"></i> Order Now</a>
-    <a href="/login/" class="nav-login-btn desktop-only"><i class="fas fa-user-lock"></i> Staff Login</a>
+    <a href="#" onclick="openLoginModal();return false;" class="nav-login-btn desktop-only"><i class="fas fa-user-lock"></i> Staff Login</a>
     <div class="hamburger" id="hamburger" onclick="toggleMenu()">
       <span></span><span></span><span></span>
     </div>
@@ -320,13 +320,12 @@ footer { background: var(--dark); color: rgba(255,255,255,0.8); padding: 60px 0 
       <div class="img-table" id="heroSlider">
         {% if landing.image %}
           <img class="slide active" src="{{ landing.image.url }}" alt="Landing Image">
-        {% else %}
-          <img class="slide active" src="{% static 'images/vanr-final.png' %}" alt="Vanr Final">
-          <img class="slide" src="{% static 'images/varn-4.png' %}" alt="Varn 4">
-          <img class="slide" src="{% static 'images/varn-5.png' %}" alt="Varn 5">
-          <img class="slide" src="{% static 'images/varn-6.png' %}" alt="Varn 6">
-          <img class="slide" src="{% static 'images/varn-7.png' %}" alt="Varn 7">
         {% endif %}
+        <img class="slide{% if not landing.image %} active{% endif %}" src="{% static 'images/vanr-final.png' %}" alt="Vanr Final">
+        <img class="slide" src="{% static 'images/varn-4.png' %}" alt="Varn 4">
+        <img class="slide" src="{% static 'images/varn-5.png' %}" alt="Varn 5">
+        <img class="slide" src="{% static 'images/varn-6.png' %}" alt="Varn 6">
+        <img class="slide" src="{% static 'images/varn-7.png' %}" alt="Varn 7">
       </div>
     </div>
     <p class="hero-subtitle">{{ landing.data.hero.subtitle|default:"Your trusted destination for authentic hygiene and beauty products.<br>Feel fresh, smell amazing, and shine every day." }}</p>
@@ -538,7 +537,54 @@ footer { background: var(--dark); color: rgba(255,255,255,0.8); padding: 60px 0 
 
 <button id="backToTop" onclick="window.scrollTo({top:0,behavior:'smooth'})"><i class="fas fa-arrow-up"></i></button>
 
+<div class="login-overlay" id="loginOverlay" onclick="closeLoginModal(event)">
+  <div class="login-modal" onclick="event.stopPropagation()">
+    <button class="login-close" onclick="closeLoginModal()">&times;</button>
+    <h3><i class="fas fa-user-lock"></i> Staff Login</h3>
+    {% if messages %}
+    {% for message in messages %}
+    <div class="login-error"><i class="fas fa-exclamation-triangle"></i> {{ message }}</div>
+    {% endfor %}
+    {% endif %}
+    <form method="post" action="{% url 'landing' %}">
+      {% csrf_token %}
+      <div class="login-field">
+        <label for="land_username"><i class="fas fa-user"></i> Username</label>
+        <input type="text" name="username" id="land_username" placeholder="Enter username" required autofocus>
+      </div>
+      <div class="login-field">
+        <label for="land_password"><i class="fas fa-lock"></i> Password</label>
+        <div class="pw-wrap">
+          <input type="password" name="password" id="land_password" placeholder="Enter password" required>
+          <span class="pw-eye" onclick="toggleLp()"><i class="fas fa-eye" id="ico_land_password"></i></span>
+        </div>
+      </div>
+      <button type="submit" class="login-submit"><i class="fas fa-sign-in-alt"></i> Sign In</button>
+    </form>
+  </div>
+</div>
+
+<style>
+.login-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:9999; align-items:center; justify-content:center; padding:20px; }
+.login-overlay.show { display:flex; }
+.login-modal { background:white; border-radius:16px; padding:32px 28px; max-width:380px; width:100%; box-shadow:0 20px 60px rgba(0,0,0,0.3); position:relative; }
+.login-close { position:absolute; top:10px; right:14px; background:none; border:none; font-size:1.6rem; cursor:pointer; color:#888; }
+.login-modal h3 { text-align:center; margin-bottom:20px; color:#1a1a2e; font-weight:700; font-size:1.2rem; }
+.login-error { background:#ffeaea; color:#c0392b; padding:10px 14px; border-radius:8px; font-size:0.85rem; margin-bottom:16px; }
+.login-field { margin-bottom:16px; }
+.login-field label { display:block; font-size:0.85rem; font-weight:600; margin-bottom:4px; color:#555; }
+.login-field input { width:100%; padding:12px 14px; border:2px solid #e0e0e0; border-radius:10px; font-size:0.9rem; outline:none; transition:0.2s; }
+.login-field input:focus { border-color:#e91e63; }
+.pw-wrap { position:relative; }
+.pw-eye { position:absolute; right:12px; top:50%; transform:translateY(-50%); cursor:pointer; color:#aaa; font-size:1rem; }
+.login-submit { width:100%; padding:13px; border:none; border-radius:10px; background:linear-gradient(135deg,#e91e63,#c2185b); color:white; font-weight:700; font-size:0.95rem; cursor:pointer; transition:0.3s; }
+.login-submit:hover { transform:translateY(-2px); box-shadow:0 8px 25px rgba(233,30,99,0.3); }
+</style>
+
 <script>
+function openLoginModal(){document.getElementById('loginOverlay').classList.add('show');document.getElementById('land_username').focus();}
+function closeLoginModal(e){if(!e||e.target===document.getElementById('loginOverlay'))document.getElementById('loginOverlay').classList.remove('show');}
+function toggleLp(){var i=document.getElementById('land_password'),c=document.getElementById('ico_land_password');if(i.type==='password'){i.type='text';c.className='fas fa-eye-slash'}else{i.type='password';c.className='fas fa-eye'}}
 function toggleMenu(){document.getElementById('navLinks').classList.toggle('active');document.getElementById('hamburger').classList.toggle('active');}
 document.querySelectorAll('.nav-links a').forEach(l=>l.addEventListener('click',()=>{document.getElementById('navLinks').classList.remove('active');}));
 const navbar=document.getElementById('navbar');

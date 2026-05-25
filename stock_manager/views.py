@@ -196,7 +196,7 @@ def get_period_opening_stock(period, shop=None):
 @login_required
 def dashboard(request):
     if not request.user.is_authenticated:
-        return redirect('login')
+        return redirect('landing')
 
     profile = get_user_profile(request.user)
     user_is_admin = profile is None or profile.is_admin
@@ -1957,32 +1957,25 @@ def landing_view(request):
     landing = LandingPageContent.get_content()
     shops = Shop.objects.exclude(name__iexact='warehouse').order_by('name')
     items = Item.objects.exclude(shop__name__iexact='warehouse').select_related('shop').order_by('shop__name', 'name')
-    return render(request, 'stock_manager/landing.html', {'company': company, 'landing': landing, 'items': items, 'shops': shops})
 
-
-
-
-def login_view(request):
     if request.method == 'POST':
         username = request.POST.get('username')
         password = request.POST.get('password')
-
         user = authenticate(request, username=username, password=password)
-
         if user is not None:
             login(request, user)
             return redirect('dashboard')
         else:
             messages.error(request, 'Invalid username or password.')
 
-    return render(request, 'stock_manager/login.html')
+    return render(request, 'stock_manager/landing.html', {'company': company, 'landing': landing, 'items': items, 'shops': shops})
 
 
 
 
 def logout_view(request):
     auth_logout(request)
-    next_url = request.GET.get('next', 'login')
+    next_url = request.GET.get('next', 'landing')
     return redirect(next_url)
 
 

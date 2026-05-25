@@ -122,7 +122,8 @@ function connectChat() {
         try { data = JSON.parse(e.data); } catch (err) { return; }
 
         if (data.type === 'chat_message') {
-            if (data.sender_id && data.sender_id !== currentChatUserId) {
+            var inModalChat = typeof modalChatUserId !== 'undefined' && modalChatUserId && data.sender_id === modalChatUserId;
+            if (data.sender_id && data.sender_id !== currentChatUserId && !inModalChat) {
                 showBrowserNotification(data.sender, data.message, '/chat/');
             }
             updateUnreadBadge();
@@ -147,61 +148,6 @@ function connectChat() {
 }
 
 connectChat();
-
-// ---------------- CALLS ----------------
-var callSocket = null;
-
-function connectCalls() {
-    callSocket = new WebSocket("wss://" + window.location.host + "/ws/calls/");
-
-    callSocket.onmessage = function(e) {
-        var data;
-        try { data = JSON.parse(e.data); } catch (err) { return; }
-
-        if (data.event === "end_call") {
-            if (window.stopCallUI) window.stopCallUI();
-            return;
-        }
-
-        if (data.incoming_call) {
-            showBrowserNotification(
-                data.caller || 'Incoming Call',
-                data.call_type === 'video' ? 'Video call' : 'Audio call',
-                '/calls/'
-            );
-            showCallPopup(data);
-        }
-
-        if (data.room_name) {
-            openJitsi(data.room_name);
-        }
-    };
-
-    callSocket.onclose = function() { setTimeout(connectCalls, 2000); };
-}
-
-connectCalls();
-
-// ---------------- JITSI ----------------
-function openJitsi(roomName) {
-    var domain = "meet.jit.si";
-    var options = {
-        roomName: roomName,
-        parentNode: document.getElementById("jitsi-container"),
-        configOverwrite: {
-            prejoinPageEnabled: false,
-            disableDeepLinking: true
-        },
-        interfaceConfigOverwrite: {
-            MOBILE_APP_PROMO: false
-        }
-    };
-
-    if (window.jitsiApi) {
-        window.jitsiApi.dispose();
-    }
-    window.jitsiApi = new JitsiMeetExternalAPI(domain, options);
-}
 
 // ---------------- POLL UNREAD BADGE ----------------
 setInterval(updateUnreadBadge, 30000);

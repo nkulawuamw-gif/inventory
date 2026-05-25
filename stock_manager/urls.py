@@ -26,6 +26,7 @@ urlpatterns = [
 
     path('heartbeat/', comm.heartbeat, name='heartbeat'),
     path('mark-offline/', comm.mark_offline, name='mark_offline'),
+    path('auto-logout/', comm.auto_logout, name='auto_logout'),
     path('api/all-users/', comm.get_all_users, name='all_users'),
     path('api/online-users/', comm.get_online_users, name='online_users'),
 
@@ -34,25 +35,10 @@ urlpatterns = [
     path('chat/conversation/<int:user_id>/', comm.get_conversation, name='get_conversation'),
     path('chat/mark-read/', comm.mark_read, name='mark_read'),
 
-    path('calls/', comm.calls_view, name='calls'),
-    path('calls/incoming/', comm.check_incoming_call, name='check_incoming_call'),
-    path('calls/api/incoming/', comm.incoming_calls, name='incoming_calls'),
-    path('calls/initiate/', comm.initiate_call, name='initiate_call'),
-    path('calls/<int:call_id>/', comm.call_room, name='call_room'),
-    path('calls/<int:call_id>/end/', comm.end_call, name='end_call'),
-    path('calls/<int:call_id>/delete/', comm.delete_call, name='delete_call'),
-    path('calls/clear/', comm.clear_calls, name='clear_calls'),
-    path('meetings/', comm.meetings_view, name='meetings'),
-    path('meetings/create/', comm.create_meeting, name='create_meeting'),
-    path('meetings/join/<str:meeting_code>/', comm.join_meeting, name='join_meeting'),
-    path('meetings/<str:meeting_code>/', comm.meeting_room, name='meeting_room'),
-    path('meetings/<str:meeting_code>/leave/', comm.leave_meeting, name='leave_meeting'),
-    path('meetings/<str:meeting_code>/signal/', comm.meeting_signal, name='meeting_signal'),
 
     path('whatsapp/', wa.whatsapp_inbox, name='whatsapp_inbox'),
     path('whatsapp/webhook/', wa.whatsapp_webhook, name='whatsapp_webhook'),
 
-    path('login/', views.login_view, name='login'),
     path('logout/', views.logout_view, name='logout'),
     path('change-password/', views.change_password, name='change_password'),
     path('shop/<slug:shop_slug>/', views.shop_dashboard, name='shop_dashboard'),
