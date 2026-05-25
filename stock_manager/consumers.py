@@ -191,9 +191,15 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def create_message(self, receiver_id, content):
-        return Message.objects.create(
-            sender=self.user, receiver_id=receiver_id, content=content
-        )
+        from django.db import connection
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "INSERT INTO stock_manager_message (sender_id, receiver_id, content, timestamp, is_read) "
+                "VALUES (%s, %s, %s, NOW(), %s) RETURNING id",
+                [self.user.id, receiver_id, content, False]
+            )
+            msg_id = cursor.fetchone()[0]
+        return Message.objects.defer('status').get(id=msg_id)
 
     @database_sync_to_async
     def update_message_status(self, message_id, status):
