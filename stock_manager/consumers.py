@@ -104,46 +104,67 @@ class ChatConsumer(AsyncWebsocketConsumer):
             return
 
         # default: send message
-        receiver_id = data["receiver_id"]
-        message = data["message"]
+        receiver_id = data.get("receiver_id")
+        message_text = data.get("message")
+        if not receiver_id or not message_text:
+            print("ChatConsumer: missing receiver_id or message")
+            return
 
-        msg = await self.create_message(receiver_id, message)
+        try:
+            msg = await self.create_message(receiver_id, message_text)
+        except Exception as e:
+            print(f"ChatConsumer: create_message failed: {e}")
+            import traceback
+            traceback.print_exc()
+            return
 
-        # send to receiver's group
-        await self.channel_layer.group_send(
-            f"user_{receiver_id}",
-            {
-                "type": "chat_message",
-                "message_id": msg.id,
-                "message": message,
-                "sender": self.user.username,
-                "sender_id": self.user.id,
-                "timestamp": msg.timestamp.isoformat() if msg.timestamp else None,
-            }
-        )
-
-        await self.channel_layer.group_send(
-            f"user_{receiver_id}",
-            {"type": "unread_update", "count": await self.count_unread(receiver_id)}
-        )
-
-        await self.channel_layer.group_send(
-            f"user_{self.user.id}",
-            {"type": "unread_update", "count": await self.count_unread(self.user.id)}
-        )
-
-    async def chat_message(self, event):
-        # when receiver gets the message, auto-send delivery_ack back
-        if event.get("sender_id") != self.user.id:
+        try:
+            # send to receiver's group
             await self.channel_layer.group_send(
-                f"user_{event['sender_id']}",
+                f"user_{receiver_id}",
                 {
-                    "type": "delivery_ack",
-                    "message_id": event["message_id"],
+                    "type": "chat_message",
+                    "message_id": msg.id,
+                    "message": message_text,
+                    "sender": self.user.username,
                     "sender_id": self.user.id,
+                    "timestamp": msg.timestamp.isoformat() if msg.timestamp else None,
                 }
             )
-        await self.send(text_data=json.dumps(event))
+        except Exception as e:
+            print(f"ChatConsumer: group_send to receiver failed: {e}")
+
+        try:
+            await self.channel_layer.group_send(
+                f"user_{receiver_id}",
+                {"type": "unread_update", "count": await self.count_unread(receiver_id)}
+            )
+        except Exception as e:
+            print(f"ChatConsumer: unread_update to receiver failed: {e}")
+
+        try:
+            await self.channel_layer.group_send(
+                f"user_{self.user.id}",
+                {"type": "unread_update", "count": await self.count_unread(self.user.id)}
+            )
+        except Exception as e:
+            print(f"ChatConsumer: unread_update to sender failed: {e}")
+
+    async def chat_message(self, event):
+        try:
+            # when receiver gets the message, auto-send delivery_ack back
+            if event.get("sender_id") != self.user.id:
+                await self.channel_layer.group_send(
+                    f"user_{event['sender_id']}",
+                    {
+                        "type": "delivery_ack",
+                        "message_id": event["message_id"],
+                        "sender_id": self.user.id,
+                    }
+                )
+            await self.send(text_data=json.dumps(event))
+        except Exception as e:
+            print(f"ChatConsumer: chat_message error: {e}")
 
     async def delivery_ack(self, event):
         await self.update_message_status(event["message_id"], "delivered")
@@ -191,15 +212,21 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def create_message(self, receiver_id, content):
-        from django.db import connection
-        with connection.cursor() as cursor:
-            cursor.execute(
-                "INSERT INTO stock_manager_message (sender_id, receiver_id, content, timestamp, is_read) "
-                "VALUES (%s, %s, %s, NOW(), %s) RETURNING id",
-                [self.user.id, receiver_id, content, False]
+        from django.db import connection, ProgrammingError
+        try:
+            return Message.objects.create(
+                sender=self.user, receiver_id=receiver_id, content=content
             )
-            msg_id = cursor.fetchone()[0]
-        return Message.objects.defer('status').get(id=msg_id)
+        except ProgrammingError as e:
+            print(f"ChatConsumer: ORM create failed ({e}), falling back to raw SQL")
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    "INSERT INTO stock_manager_message (sender_id, receiver_id, content, timestamp, is_read) "
+                    "VALUES (%s, %s, %s, NOW(), %s) RETURNING id",
+                    [self.user.id, receiver_id, content, False]
+                )
+                msg_id = cursor.fetchone()[0]
+            return Message.objects.defer('status').get(id=msg_id)
 
     @database_sync_to_async
     def update_message_status(self, message_id, status):
