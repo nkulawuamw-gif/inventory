@@ -255,7 +255,7 @@
                 </button>
             </div>
         </div>
-        <div id="onlineUsersPanel" class="position-absolute bg-dark border border-secondary rounded shadow-sm" style="z-index:1050;top:100%;right:60px;width:260px;display:none;max-height:300px;overflow-y:auto;">
+        <div id="onlineUsersPanel" class="position-absolute bg-dark text-white border border-secondary rounded shadow-sm" style="z-index:1050;top:100%;right:60px;width:260px;display:none;max-height:300px;overflow-y:auto;">
         </div>
         <style>
             #onlineUsersPanel.show { display:block !important; }
@@ -677,7 +677,7 @@
         var panel = document.getElementById('onlineUsersPanel');
         if (!panel) return;
         if (users.length === 0) {
-            panel.innerHTML = '<div class="p-2 text-muted small text-center">No users online</div>';
+            panel.innerHTML = '<div class="p-2 text-white-50 small text-center">No users online</div>';
             return;
         }
         var html = '';
@@ -687,7 +687,7 @@
             html += '<div class="d-flex align-items-center gap-2 px-2 py-1 border-bottom" style="font-size:0.8rem;">'
                 + '<span class="text-success" style="font-size:0.5rem;">&#9679;</span>'
                 + '<span class="fw-semibold">' + escapeHtml(u.display_name || u.username) + '</span>'
-                + '<span class="text-muted ms-auto small">' + escapeHtml(label) + '</span>'
+                + '<span class="text-white-50 ms-auto small">' + escapeHtml(label) + '</span>'
                 + '</div>';
         }
         panel.innerHTML = html;
