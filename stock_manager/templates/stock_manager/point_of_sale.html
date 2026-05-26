@@ -160,6 +160,7 @@
         <div class="rcp-num" id="receiptNum"></div>
         <div class="actions">
             <a href="#" class="btn-print" id="printReceiptBtn" data-print-url="{% url 'print_receipt' 0 %}"><i class="bi bi-printer"></i> Print Receipt</a>
+            <button class="btn-save" onclick="dismissReceipt()"><i class="bi bi-check-lg"></i> Save Receipt</button>
             <button class="btn-new" onclick="newSale()"><i class="bi bi-plus-lg"></i> New Sale</button>
         </div>
     </div>
