@@ -330,6 +330,12 @@ async function completeSale() {
     }
 }
 
+function resetCompleteBtn() {
+    const btn = document.getElementById('completeBtn');
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-check-lg"></i> Complete Sale';
+}
+
 function newSale() {
     cart = [];
     lastReceiptId = null;
@@ -337,10 +343,12 @@ function newSale() {
     document.getElementById('amountReceived').value = '';
     document.getElementById('customerName').value = '';
     renderCart();
+    resetCompleteBtn();
 }
 
 function saveReceipt() {
     document.getElementById('receiptOverlay').classList.remove('active');
+    resetCompleteBtn();
 }
 
 function onSearchInput(val) {

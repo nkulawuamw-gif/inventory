@@ -396,6 +396,8 @@ async function shopCompleteSale() {
 }
 function shopSaveReceipt() {
     document.getElementById('shopReceiptOverlay').classList.remove('active');
+    document.getElementById('shopCompleteBtn').disabled = false;
+    document.getElementById('shopCompleteBtn').innerHTML = '<i class="bi bi-check-lg"></i> Complete Sale';
 }
 
 function shopNewSale() {
