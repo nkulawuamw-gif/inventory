@@ -315,7 +315,6 @@ async function completeSale() {
             document.getElementById('receiptOverlay').classList.add('active');
             const printBase = document.getElementById('printReceiptBtn').getAttribute('data-print-url');
             document.getElementById('printReceiptBtn').href = printBase.replace('/0/', `/${data.receipt_id}/`);
-            document.getElementById('shareReceiptBtn').href = '/receipt/' + data.receipt_id + '/';
             if (data.pdf_url) document.getElementById('saveReceiptBtn').dataset.pdfUrl = data.pdf_url;
             showToast(`Sale complete! Receipt: ${data.receipt_number}`, 'success');
         } else {
