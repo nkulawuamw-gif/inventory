@@ -1,4 +1,5 @@
 from django.db import models
+from django.db.utils import ProgrammingError
 from django.db.models import Q
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
@@ -204,18 +205,24 @@ class Notification(models.Model):
 
 def create_notification(user, title, message, link=''):
     """Helper to create a notification and return it."""
-    return Notification.objects.create(user=user, title=title, message=message, link=link)
+    try:
+        return Notification.objects.create(user=user, title=title, message=message, link=link)
+    except ProgrammingError:
+        return None
 
 
 def notify_shop_users(shop, title, message, link=''):
     """Notify all users assigned to a shop and all admins."""
     from django.contrib.auth.models import User
-    users = User.objects.filter(
-        Q(user_profile__role='admin') |
-        Q(user_profile__assigned_shop=shop)
-    ).distinct()
-    for u in users:
-        create_notification(u, title, message, link)
+    try:
+        users = User.objects.filter(
+            Q(user_profile__role='admin') |
+            Q(user_profile__assigned_shop=shop)
+        ).distinct()
+        for u in users:
+            create_notification(u, title, message, link)
+    except ProgrammingError:
+        pass
 
 
 class BusinessPeriod(models.Model):
