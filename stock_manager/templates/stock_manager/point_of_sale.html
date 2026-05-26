@@ -350,6 +350,8 @@ function saveReceipt() {
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
+    } else {
+        showToast('Receipt PDF not available — try Print Receipt instead', 'warning');
     }
     document.getElementById('receiptOverlay').classList.remove('active');
 }
