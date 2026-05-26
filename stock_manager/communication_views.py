@@ -7,15 +7,7 @@ from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
-from django.db.utils import ProgrammingError
 from .models import Message, Profile, Notification
-
-
-def _safe_notifications(*args, limit=50, **kwargs):
-    try:
-        return list(Notification.objects.filter(*args, **kwargs)[:limit])
-    except ProgrammingError:
-        return []
 
 
 @csrf_exempt
@@ -177,45 +169,46 @@ def get_conversation(request, user_id):
 
 @login_required
 def notification_list(request):
-    notifications = _safe_notifications(user=request.user)
+    notes = Notification.objects.filter(user=request.user)[:50]
     return render(request, 'stock_manager/notifications.html', {
-        'notifications': notifications,
+        'notifications': notes,
+        'page_title': 'Notifications',
     })
 
 
 @login_required
 def notification_unread_count(request):
-    try:
-        count = Notification.objects.filter(user=request.user, is_read=False).count()
-    except ProgrammingError:
-        count = 0
+    count = Notification.objects.filter(user=request.user, is_read=False).count()
     return JsonResponse({'count': count})
 
 
 @login_required
 def notification_mark_read(request):
     if request.method == 'POST':
-        try:
-            notif_id = request.POST.get('id')
-            if notif_id:
-                Notification.objects.filter(id=notif_id, user=request.user).update(is_read=True)
-            else:
-                Notification.objects.filter(user=request.user, is_read=False).update(is_read=True)
-        except ProgrammingError:
-            pass
+        nid = request.POST.get('id')
+        if nid:
+            Notification.objects.filter(id=nid, user=request.user).update(is_read=True)
+        else:
+            Notification.objects.filter(user=request.user, is_read=False).update(is_read=True)
     return JsonResponse({'status': 'ok'})
 
 
 @login_required
 def notification_data(request):
-    notes = _safe_notifications(user=request.user, limit=20)
+    notes = Notification.objects.filter(user=request.user)[:20]
     data = [{
         'id': n.id,
-        'title': n.title,
         'message': n.message,
         'link': n.link,
         'is_read': n.is_read,
         'created_at': n.created_at.isoformat(),
     } for n in notes]
     return JsonResponse({'notifications': data})
+
+
+@login_required
+def notification_test(request):
+    from .models import create_notification
+    create_notification(request.user, 'This is a test notification', '/dashboard/')
+    return JsonResponse({'status': 'ok', 'message': 'Test notification created'})
 

@@ -1,5 +1,4 @@
 from django.db import models
-from django.db.utils import ProgrammingError
 from django.db.models import Q
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
@@ -189,9 +188,8 @@ class Message(models.Model):
 
 
 class Notification(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
-    title = models.CharField(max_length=200)
-    message = models.TextField()
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    message = models.CharField(max_length=255)
     link = models.CharField(max_length=500, blank=True, default='')
     is_read = models.BooleanField(default=False)
     created_at = models.DateTimeField(default=timezone.now)
@@ -200,29 +198,11 @@ class Notification(models.Model):
         ordering = ['-created_at']
 
     def __str__(self):
-        return f"{self.user.username} - {self.title}"
+        return f"{self.user.username} - {self.message[:50]}"
 
 
-def create_notification(user, title, message, link=''):
-    """Helper to create a notification and return it."""
-    try:
-        return Notification.objects.create(user=user, title=title, message=message, link=link)
-    except ProgrammingError:
-        return None
-
-
-def notify_shop_users(shop, title, message, link=''):
-    """Notify all users assigned to a shop and all admins."""
-    from django.contrib.auth.models import User
-    try:
-        users = User.objects.filter(
-            Q(user_profile__role='admin') |
-            Q(user_profile__assigned_shop=shop)
-        ).distinct()
-        for u in users:
-            create_notification(u, title, message, link)
-    except ProgrammingError:
-        pass
+def create_notification(user, message, link=''):
+    Notification.objects.create(user=user, message=message, link=link)
 
 
 class BusinessPeriod(models.Model):
