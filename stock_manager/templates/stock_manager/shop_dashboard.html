@@ -282,7 +282,7 @@
                         <td><span class="num">{{ forloop.counter }}</span></td>
                         <td><span class="iname">{{ item.name }}</span></td>
                         <td>MWK {{ item.unit_price|floatformat:0 }}</td>
-                        <td>{{ item.quantity }}</td>
+                        <td><span class="stock-badge {% if item.is_low_stock %}low{% endif %}">{{ item.quantity }}</span></td>
                     </tr>
                     {% empty %}
                     <tr><td colspan="4" class="text-center text-muted py-3">No items</td></tr>
@@ -395,11 +395,13 @@ async function shopCompleteSale() {
             const row = document.querySelector(`tr[data-id="${x.id}"]`);
             if (row) {
                 const badge = row.querySelector('.stock-badge');
-                const newQty = parseInt(badge.textContent) - x.qty;
-                badge.textContent = newQty;
-                badge.className = 'stock-badge' + (newQty < 5 ? ' low' : '');
-                if (newQty < 5) row.classList.add('low-stock');
-                else row.classList.remove('low-stock');
+                if (badge) {
+                    const newQty = parseInt(badge.textContent) - x.qty;
+                    badge.textContent = newQty;
+                    badge.className = 'stock-badge' + (newQty < 5 ? ' low' : '');
+                    if (newQty < 5) row.classList.add('low-stock');
+                    else row.classList.remove('low-stock');
+                }
             }
         });
         showToast(`Sale complete! Receipt: ${data.receipt_number}`, 'success');
