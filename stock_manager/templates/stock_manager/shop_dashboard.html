@@ -391,23 +391,10 @@ async function shopCompleteSale() {
         const shopPrintBase = document.getElementById('shopPrintReceipt').getAttribute('data-print-url');
         document.getElementById('shopPrintReceipt').href = shopPrintBase.replace('/0/', `/${data.receipt_id}/`);
         document.getElementById('shopReceiptOverlay').classList.add('active');
-        if (data.pdf_url) document.getElementById('shopSaveReceiptBtn').dataset.pdfUrl = data.pdf_url;
         showToast(`Sale complete! Receipt: ${data.receipt_number}`, 'success');
     } catch(e) { showToast('Error: '+e.message, 'error'); btn.disabled=false; btn.innerHTML='<i class="bi bi-check-lg"></i> Complete Sale'; }
 }
 function shopSaveReceipt() {
-    const btn = document.getElementById('shopSaveReceiptBtn');
-    const url = btn.dataset.pdfUrl;
-    if (url) {
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = '';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-    } else {
-        showToast('Receipt PDF not available — try Print Receipt instead', 'warning');
-    }
     document.getElementById('shopReceiptOverlay').classList.remove('active');
 }
 
