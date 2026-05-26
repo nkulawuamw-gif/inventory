@@ -87,6 +87,7 @@ if ('serviceWorker' in navigator && 'Notification' in window) {
     document.addEventListener('DOMContentLoaded', function() {
         if (document.querySelector('[name=csrfmiddlewaretoken]')) {
             connectPresence();
+            connectChat();
         }
     });
 })();
@@ -145,9 +146,8 @@ function connectChat() {
     };
 
     chatSocket.onclose = function() { setTimeout(connectChat, 2000); };
+    chatSocket.onerror = function() { try { chatSocket.close(); } catch(e) {} };
 }
-
-connectChat();
 
 // ---------------- POLL UNREAD BADGE ----------------
 setInterval(updateUnreadBadge, 30000);
