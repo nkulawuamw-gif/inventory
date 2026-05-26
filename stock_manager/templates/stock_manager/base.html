@@ -493,7 +493,11 @@
     function formatTime(iso) {
         if (!iso) return '';
         var d = new Date(iso);
-        return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        var today = new Date();
+        var isToday = d.toDateString() === today.toDateString();
+        var time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        if (isToday) return time;
+        return d.toLocaleDateString([], { day: 'numeric', month: 'short' }) + ' ' + time;
     }
 
     function togglePw(id) {
