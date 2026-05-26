@@ -187,24 +187,6 @@ class Message(models.Model):
         return f"{self.sender} -> {self.receiver}"
 
 
-class Notification(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    message = models.CharField(max_length=255)
-    link = models.CharField(max_length=500, blank=True, default='')
-    is_read = models.BooleanField(default=False)
-    created_at = models.DateTimeField(default=timezone.now)
-
-    class Meta:
-        ordering = ['-created_at']
-
-    def __str__(self):
-        return f"{self.user.username} - {self.message[:50]}"
-
-
-def create_notification(user, message, link=''):
-    Notification.objects.create(user=user, message=message, link=link)
-
-
 class BusinessPeriod(models.Model):
     PERIOD_TYPES = [
         ('monthly', 'Monthly'),

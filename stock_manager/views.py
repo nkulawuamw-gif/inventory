@@ -20,7 +20,7 @@ from .models import (
     Shop, Item, Sale, StockTransaction, UserProfile, PERMISSION_CHOICES,
     BusinessPeriod, PeriodOpeningStock, Receipt, ReceiptItem,
     CompanyProfile, WhatsAppSetting, WhatsAppMessage, LandingPageContent,
-    Notification, create_notification
+
 )
 
 from .middleware import shop_access_required
@@ -77,12 +77,6 @@ def auto_deduct_from_warehouse(item_name, shop, quantity, unit_price, category='
                 reason=f'Auto-deducted: stocked into {shop.name}',
             )
 
-            msg = f'{deduct} x {item_name} received from warehouse'
-            for u in User.objects.filter(
-                Q(user_profile__role='admin') |
-                Q(user_profile__assigned_shop=shop)
-            ).distinct():
-                create_notification(u, msg, f'/inventory/{shop.slug}/')
 
 
 # ========================
@@ -1110,12 +1104,6 @@ def admin_manage(request):
                 )
                 if transaction_type == 'transfer':
                     messages.success(request, f'Transferred {quantity}x {item.name} from {from_shop.name} to {to_shop.name}')
-                    msg = f'{quantity} x {item.name} transferred from {from_shop.name} to {to_shop.name}'
-                    for u in User.objects.filter(
-                        Q(user_profile__role='admin') |
-                        Q(user_profile__assigned_shop=to_shop)
-                    ).distinct():
-                        create_notification(u, msg, f'/inventory/{to_shop.slug}/')
                 else:
                     messages.success(request, f'Processed {transaction_type}: {quantity}x {item.name} from {from_shop.name}')
 
@@ -1413,13 +1401,6 @@ def shop_dashboard(request, shop_slug):
                 transaction_type='transfer',
                 reason=f'Warehouse transfer to {target_shop.name}',
             )
-
-            msg = f'{qty} x {source_item.name} transferred from warehouse to {target_shop.name}'
-            for u in User.objects.filter(
-                Q(user_profile__role='admin') |
-                Q(user_profile__assigned_shop=target_shop)
-            ).distinct():
-                create_notification(u, msg, f'/inventory/{target_shop.slug}/')
 
             messages.success(request, f'Transferred {qty}x {source_item.name} to {target_shop.name}')
             return redirect('shop_dashboard', shop_slug=shop_slug)
