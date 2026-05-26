@@ -142,7 +142,7 @@
             <div id="paymentSection" style="display:none;">
                 <div class="mb-2 mt-2">
                     <label class="form-label small text-muted" for="amountReceived">Amount Received (MWK)</label>
-                    <input type="number" id="amountReceived" min="0" step="100" placeholder="Enter amount" oninput="calcChange()">
+                    <input type="number" id="amountReceived" min="0" step="100" placeholder="Enter amount" oninput="calcChange()" onfocus="if(this.value==='0'||this.value==='') this.value=''">
                 </div>
                 <div class="row-line"><span>Change</span><span id="changeDisplay" class="text-success">MWK 0.00</span></div>
             </div>

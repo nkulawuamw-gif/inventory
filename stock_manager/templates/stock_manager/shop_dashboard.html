@@ -308,7 +308,7 @@
             <div class="r t"><span>Total</span><span id="shopTotal">MWK 0.00</span></div>
             <div class="mt-2 mb-1">
                 <label class="small text-muted" for="shopAmountReceived">Amount Received</label>
-                <input type="number" id="shopAmountReceived" min="0" step="100" value="0" oninput="shopCalcChange()">
+                <input type="number" id="shopAmountReceived" min="0" step="100" placeholder="Enter amount" oninput="shopCalcChange()" onfocus="if(this.value==='0'||this.value==='') this.value=''">
             </div>
             <div class="r"><span>Change</span><span id="shopChange" class="text-success">MWK 0.00</span></div>
             <button class="go-btn mt-2" id="shopCompleteBtn" onclick="shopCompleteSale()" disabled><i class="bi bi-check-lg"></i> Complete Sale</button>
@@ -395,7 +395,7 @@ async function shopCompleteSale() {
 }
 function shopNewSale() {
     shopCart = []; document.getElementById('shopReceiptOverlay').classList.remove('active');
-    document.getElementById('shopAmountReceived').value = 0; document.getElementById('shopCustomerName').value = '';
+    document.getElementById('shopAmountReceived').value = ''; document.getElementById('shopCustomerName').value = '';
     shopRender(); document.getElementById('shopCompleteBtn').disabled = true;
     document.getElementById('shopCompleteBtn').innerHTML = '<i class="bi bi-check-lg"></i> Complete Sale';
 }
