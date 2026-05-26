@@ -160,7 +160,7 @@
         <div class="rcp-num" id="receiptNum"></div>
         <div class="actions">
             <a href="#" class="btn-print" id="printReceiptBtn" data-print-url="{% url 'print_receipt' 0 %}"><i class="bi bi-printer"></i> Print Receipt</a>
-            <button class="btn-save" onclick="dismissReceipt()"><i class="bi bi-check-lg"></i> Save Receipt</button>
+            <button class="btn-save" id="saveReceiptBtn" onclick="saveReceipt()"><i class="bi bi-check-lg"></i> Save Receipt</button>
             <button class="btn-new" onclick="newSale()"><i class="bi bi-plus-lg"></i> New Sale</button>
         </div>
     </div>
@@ -316,6 +316,7 @@ async function completeSale() {
             const printBase = document.getElementById('printReceiptBtn').getAttribute('data-print-url');
             document.getElementById('printReceiptBtn').href = printBase.replace('/0/', `/${data.receipt_id}/`);
             document.getElementById('shareReceiptBtn').href = '/receipt/' + data.receipt_id + '/';
+            if (data.pdf_url) document.getElementById('saveReceiptBtn').dataset.pdfUrl = data.pdf_url;
             showToast(`Sale complete! Receipt: ${data.receipt_number}`, 'success');
         } else {
             console.error('Sale error:', data);
@@ -338,6 +339,20 @@ function newSale() {
     document.getElementById('amountReceived').value = '';
     document.getElementById('customerName').value = '';
     renderCart();
+}
+
+function saveReceipt() {
+    const btn = document.getElementById('saveReceiptBtn');
+    const url = btn.dataset.pdfUrl;
+    if (url) {
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = '';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+    }
+    document.getElementById('receiptOverlay').classList.remove('active');
 }
 
 function dismissReceipt() {
