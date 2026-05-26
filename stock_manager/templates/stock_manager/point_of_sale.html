@@ -156,10 +156,9 @@
 <div class="receipt-overlay" id="receiptOverlay">
     <div class="receipt-card">
         <div class="check"><i class="bi bi-check-lg"></i></div>
-        <h3>Sale Complete!</h3>
+        <h3>Save Receipt</h3>
         <div class="rcp-num" id="receiptNum"></div>
         <div class="actions">
-            <button class="btn-save" onclick="dismissReceipt()"><i class="bi bi-check-lg"></i> Save Receipt</button>
             <a href="#" class="btn-print" id="printReceiptBtn" data-print-url="{% url 'print_receipt' 0 %}"><i class="bi bi-printer"></i> Print Receipt</a>
             <button class="btn-new" onclick="newSale()"><i class="bi bi-plus-lg"></i> New Sale</button>
         </div>
