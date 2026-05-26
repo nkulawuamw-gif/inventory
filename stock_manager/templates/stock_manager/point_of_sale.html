@@ -332,8 +332,13 @@ async function completeSale() {
 
 function resetCompleteBtn() {
     const btn = document.getElementById('completeBtn');
-    btn.disabled = false;
-    btn.innerHTML = '<i class="bi bi-check-lg"></i> Complete Sale';
+    if (cart.length === 0) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="bi bi-cart-plus"></i> Add items to start';
+    } else {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-check-lg"></i> Complete Sale';
+    }
 }
 
 function newSale() {
@@ -347,7 +352,12 @@ function newSale() {
 }
 
 function saveReceipt() {
+    cart = [];
+    lastReceiptId = null;
     document.getElementById('receiptOverlay').classList.remove('active');
+    document.getElementById('amountReceived').value = '';
+    document.getElementById('customerName').value = '';
+    renderCart();
     resetCompleteBtn();
 }
 
