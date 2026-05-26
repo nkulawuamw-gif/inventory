@@ -35,6 +35,10 @@ urlpatterns = [
     path('chat/conversation/<int:user_id>/', comm.get_conversation, name='get_conversation'),
     path('chat/mark-read/', comm.mark_read, name='mark_read'),
 
+    path('notifications/', comm.notification_list, name='notifications'),
+    path('notifications/unread-count/', comm.notification_unread_count, name='notification_unread_count'),
+    path('notifications/mark-read/', comm.notification_mark_read, name='notification_mark_read'),
+    path('notifications/data/', comm.notification_data, name='notification_data'),
 
     path('whatsapp/', wa.whatsapp_inbox, name='whatsapp_inbox'),
     path('whatsapp/webhook/', wa.whatsapp_webhook, name='whatsapp_webhook'),

@@ -251,6 +251,10 @@
                     <span id="onlineCount" class="text-light small fw-semibold">0</span>
                 </div>
                 {% endif %}
+                <a class="nav-link position-relative text-light px-2" href="{% url 'notifications' %}" title="Notifications">
+                    <i class="bi bi-bell"></i>
+                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" id="notificationBadge" style="font-size:0.55rem;display:none;">0</span>
+                </a>
                 <button class="navbar-toggler border-0 p-1" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                     <span class="navbar-toggler-icon" style="width:1.2rem;height:1.2rem;"></span>
                 </button>
@@ -1016,6 +1020,25 @@ document.addEventListener('DOMContentLoaded', function() {
             calculator.classList.add('d-none');
         }
     });
+});
+
+// ---------------- NOTIFICATION BADGE ----------------
+function updateNotificationBadge() {
+    fetch('{% url "notification_unread_count" %}')
+        .then(function(r){ return r.json(); })
+        .then(function(d){
+            var badge = document.getElementById('notificationBadge');
+            if (badge) {
+                var count = d.count || 0;
+                badge.textContent = count;
+                badge.style.display = count > 0 ? '' : 'none';
+            }
+        })
+        .catch(function(){});
+}
+document.addEventListener('DOMContentLoaded', function(){
+    updateNotificationBadge();
+    setInterval(updateNotificationBadge, 15000);
 });
 </script>
 <script>

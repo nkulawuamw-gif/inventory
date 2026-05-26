@@ -7,7 +7,7 @@ from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
-from .models import Message, Profile
+from .models import Message, Profile, Notification
 
 
 @csrf_exempt
@@ -163,5 +163,45 @@ def get_conversation(request, user_id):
     })
 
 
+# =========================
+# NOTIFICATIONS
+# =========================
 
+@login_required
+def notification_list(request):
+    notifications = Notification.objects.filter(user=request.user)[:50]
+    return render(request, 'stock_manager/notifications.html', {
+        'notifications': notifications,
+    })
+
+
+@login_required
+def notification_unread_count(request):
+    count = Notification.objects.filter(user=request.user, is_read=False).count()
+    return JsonResponse({'count': count})
+
+
+@login_required
+def notification_mark_read(request):
+    if request.method == 'POST':
+        notif_id = request.POST.get('id')
+        if notif_id:
+            Notification.objects.filter(id=notif_id, user=request.user).update(is_read=True)
+        else:
+            Notification.objects.filter(user=request.user, is_read=False).update(is_read=True)
+    return JsonResponse({'status': 'ok'})
+
+
+@login_required
+def notification_data(request):
+    notes = Notification.objects.filter(user=request.user)[:20]
+    data = [{
+        'id': n.id,
+        'title': n.title,
+        'message': n.message,
+        'link': n.link,
+        'is_read': n.is_read,
+        'created_at': n.created_at.isoformat(),
+    } for n in notes]
+    return JsonResponse({'notifications': data})
 

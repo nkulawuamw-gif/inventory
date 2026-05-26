@@ -1,4 +1,5 @@
 from django.db import models
+from django.db.models import Q
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 
@@ -184,6 +185,37 @@ class Message(models.Model):
 
     def __str__(self):
         return f"{self.sender} -> {self.receiver}"
+
+
+class Notification(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
+    title = models.CharField(max_length=200)
+    message = models.TextField()
+    link = models.CharField(max_length=500, blank=True, default='')
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.user.username} - {self.title}"
+
+
+def create_notification(user, title, message, link=''):
+    """Helper to create a notification and return it."""
+    return Notification.objects.create(user=user, title=title, message=message, link=link)
+
+
+def notify_shop_users(shop, title, message, link=''):
+    """Notify all users assigned to a shop and all admins."""
+    from django.contrib.auth.models import User
+    users = User.objects.filter(
+        Q(user_profile__role='admin') |
+        Q(user_profile__assigned_shop=shop)
+    ).distinct()
+    for u in users:
+        create_notification(u, title, message, link)
 
 
 class BusinessPeriod(models.Model):
