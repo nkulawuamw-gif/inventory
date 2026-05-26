@@ -1103,7 +1103,7 @@ def admin_manage(request):
                     reason=reason,
                 )
                 if transaction_type == 'transfer':
-                    messages.success(request, f'Transferred {quantity}x {item.name} from {from_shop.name} to {to_shop.name}')
+                    messages.success(request, f'Transfer successfully done to {to_shop.name}')
                 else:
                     messages.success(request, f'Processed {transaction_type}: {quantity}x {item.name} from {from_shop.name}')
 
@@ -1402,7 +1402,7 @@ def shop_dashboard(request, shop_slug):
                 reason=f'Warehouse transfer to {target_shop.name}',
             )
 
-            messages.success(request, f'Transferred {qty}x {source_item.name} to {target_shop.name}')
+            messages.success(request, f'Transfer successfully done to {target_shop.name}')
             return redirect('shop_dashboard', shop_slug=shop_slug)
 
     # ---- GET: Build context ----
