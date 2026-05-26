@@ -366,12 +366,13 @@ function filterShopItems(v) {
     document.querySelectorAll('#shopItemTable tbody tr').forEach(el => el.style.display = el.dataset.name.includes(q)?'':'none');
 }
 async function shopCompleteSale() {
+    let btn = document.getElementById('shopCompleteBtn');
     try {
         if (!shopCart.length) return;
         let r = parseFloat(document.getElementById('shopAmountReceived').value)||0;
         let t = shopCart.reduce((s,x)=>s+x.price*x.qty,0);
         if (r<t) { showToast(`Received MWK ${r.toFixed(2)} is less than total MWK ${t.toFixed(2)}`, 'error'); return; }
-        let btn = document.getElementById('shopCompleteBtn'); btn.disabled = true; btn.textContent = 'Processing...';
+        btn.disabled = true; btn.textContent = 'Processing...';
         let ac = new AbortController();
         setTimeout(() => ac.abort(), 30000);
         let resp = await fetch('{% url "point_of_sale" shop.slug %}', {
