@@ -568,6 +568,7 @@
         if (typeof chatSocket !== 'undefined' && chatSocket && chatSocket.readyState === WebSocket.OPEN) {
             chatSocket.send(JSON.stringify({ type: 'mark_read', sender_id: userId }));
         }
+        if (typeof updateUnreadBadge !== 'undefined') updateUnreadBadge();
     }
 
     function showModalUserList() {

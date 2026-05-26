@@ -116,6 +116,7 @@ function openChat(userId, userName) {
     if (chatSocket && chatSocket.readyState === WebSocket.OPEN) {
         chatSocket.send(JSON.stringify({ type: 'mark_read', sender_id: userId }));
     }
+    updateUnreadBadge();
 
     fetch('{% url "get_conversation" 0 %}'.replace('/0/', '/' + userId + '/'))
         .then(r => r.json())
