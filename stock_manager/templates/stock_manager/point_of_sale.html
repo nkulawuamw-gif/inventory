@@ -107,7 +107,7 @@
                 </thead>
                 <tbody>
                     {% for item in items %}
-                    <tr data-name="{{ item.name|lower }}" class="{% if item.is_low_stock %}low-stock{% endif %}" onclick="addToCart({{ item.id }}, '{{ item.name|escapejs }}', {{ item.unit_price }}, {{ item.quantity }})">
+                    <tr data-id="{{ item.id }}" data-name="{{ item.name|lower }}" class="{% if item.is_low_stock %}low-stock{% endif %}" onclick="addToCart({{ item.id }}, '{{ item.name|escapejs }}', {{ item.unit_price }}, {{ item.quantity }})">
                         <td><span class="num">{{ forloop.counter }}</span></td>
                         <td><span class="name">{{ item.name }}</span></td>
                         <td><span class="price">MWK {{ item.unit_price|floatformat:0 }}</span></td>
@@ -315,6 +315,17 @@ async function completeSale() {
             document.getElementById('receiptOverlay').classList.add('active');
             const printBase = document.getElementById('printReceiptBtn').getAttribute('data-print-url');
             document.getElementById('printReceiptBtn').href = printBase.replace('/0/', `/${data.receipt_id}/`);
+            cart.forEach(x => {
+                const row = document.querySelector(`tr[data-id="${x.id}"]`);
+                if (row) {
+                    const badge = row.querySelector('.stock-badge');
+                    const newQty = parseInt(badge.textContent) - x.qty;
+                    badge.textContent = newQty;
+                    badge.className = 'stock-badge' + (newQty < 5 ? ' low' : '');
+                    if (newQty < 5) row.classList.add('low-stock');
+                    else row.classList.remove('low-stock');
+                }
+            });
             showToast(`Sale complete! Receipt: ${data.receipt_number}`, 'success');
         } else {
             console.error('Sale error:', data);
