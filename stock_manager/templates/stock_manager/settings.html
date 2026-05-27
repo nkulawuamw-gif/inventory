@@ -114,7 +114,10 @@
 </div>
 <div class="col-md-4 mb-2">
 <label class="form-label small">Password *</label>
-<input class="form-control" name="password" type="password" required>
+<div class="position-relative">
+<input class="form-control" name="password" id="settingsAddUserPassword" type="password" required>
+<span class="pw-toggle" onclick="togglePw('settingsAddUserPassword')"><i class="bi bi-eye" id="ico_settingsAddUserPassword"></i></span>
+</div>
 </div>
 </div>
 <div class="row">
@@ -276,7 +279,10 @@
 <div class="modal-body">
 <div class="mb-2">
 <label class="form-label small">New Password</label>
-<input class="form-control" name="new_password" type="password" required minlength="4">
+<div class="position-relative">
+<input class="form-control" name="new_password" id="resetPassword{{ u.id }}" type="password" required minlength="4">
+<span class="pw-toggle" onclick="togglePw('resetPassword{{ u.id }}')"><i class="bi bi-eye" id="ico_resetPassword{{ u.id }}"></i></span>
+</div>
 </div>
 </div>
 <div class="modal-footer">
