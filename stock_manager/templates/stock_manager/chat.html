@@ -176,62 +176,53 @@ function formatTime(iso) {
     return d.toLocaleDateString([], { day: 'numeric', month: 'short' }) + ' ' + time;
 }
 
-// Real-time message handler
-if (typeof chatSocket !== 'undefined') {
-    const orig = chatSocket.onmessage;
-    chatSocket.onmessage = function(e) {
-        let data;
-        try { data = JSON.parse(e.data); } catch (err) { return; }
+// Real-time message handler (via custom events from global-chat.js)
+document.addEventListener('chat-message', function(e) {
+    var data = e.detail;
+    if (currentChatUserId && data.sender_id === currentChatUserId) {
+        const container = document.getElementById('chatMessages');
+        const div = document.createElement('div');
+        div.className = 'd-flex mb-2 justify-content-start';
+        div.dataset.msgId = data.message_id;
+        div.innerHTML = '<div class="bg-white border rounded-3 px-3 py-2" style="max-width:75%;"><small class="fw-bold d-block">' + escapeHtml(data.sender) + '</small>' + escapeHtml(data.message) + '<br><small class="text-muted" style="font-size:0.7rem;">' + formatTime(data.timestamp) + '</small></div>';
+        container.appendChild(div);
+        container.scrollTop = container.scrollHeight;
+    }
+    updateBadge();
+});
 
-        if (data.type === 'chat_message') {
-            if (currentChatUserId && data.sender_id === currentChatUserId) {
-                const container = document.getElementById('chatMessages');
-                const div = document.createElement('div');
-                div.className = 'd-flex mb-2 justify-content-start';
-                div.dataset.msgId = data.message_id;
-                div.innerHTML = '<div class="bg-white border rounded-3 px-3 py-2" style="max-width:75%;"><small class="fw-bold d-block">' + escapeHtml(data.sender) + '</small>' + escapeHtml(data.message) + '<br><small class="text-muted" style="font-size:0.7rem;">' + formatTime(data.timestamp) + '</small></div>';
-                container.appendChild(div);
-                container.scrollTop = container.scrollHeight;
-            }
-            updateBadge();
-        }
-
-        if (data.type === 'message_status') {
-            if (data.message_id) {
-                var el = document.querySelector('[data-msg-id="' + data.message_id + '"]');
-                if (!el) {
-                    // find by temp-id (first pending message)
-                    el = document.querySelector('[data-temp-id]');
-                    if (el) {
-                        el.removeAttribute('data-temp-id');
-                        el.dataset.msgId = data.message_id;
-                    }
-                }
-                if (el) {
-                    var small = el.querySelector('small.text-muted');
-                    if (small) {
-                        var timeText = small.childNodes[0] ? (small.childNodes[0].textContent || '') : '';
-                        small.innerHTML = timeText + renderTicks(data.status);
-                    }
-                }
-            }
-            if (data.message_ids) {
-                data.message_ids.forEach(function(id) {
-                    var el = document.querySelector('[data-msg-id="' + id + '"]');
-                    if (el) {
-                        var small = el.querySelector('small.text-muted');
-                        if (small) {
-                            var timeText = small.childNodes[0] ? (small.childNodes[0].textContent || '') : '';
-                            small.innerHTML = timeText + renderTicks(data.status);
-                        }
-                    }
-                });
+document.addEventListener('chat-status', function(e) {
+    var data = e.detail;
+    if (data.message_id) {
+        var el = document.querySelector('[data-msg-id="' + data.message_id + '"]');
+        if (!el) {
+            el = document.querySelector('[data-temp-id]');
+            if (el) {
+                el.removeAttribute('data-temp-id');
+                el.dataset.msgId = data.message_id;
             }
         }
-
-        if (orig) orig.call(this, e);
-    };
-}
+        if (el) {
+            var small = el.querySelector('small.text-muted');
+            if (small) {
+                var timeText = small.childNodes[0] ? (small.childNodes[0].textContent || '') : '';
+                small.innerHTML = timeText + renderTicks(data.status);
+            }
+        }
+    }
+    if (data.message_ids) {
+        data.message_ids.forEach(function(id) {
+            var el = document.querySelector('[data-msg-id="' + id + '"]');
+            if (el) {
+                var small = el.querySelector('small.text-muted');
+                if (small) {
+                    var timeText = small.childNodes[0] ? (small.childNodes[0].textContent || '') : '';
+                    small.innerHTML = timeText + renderTicks(data.status);
+                }
+            }
+        });
+    }
+});
 
 function updateBadge() {
     fetch('{% url "unread_count" %}')

@@ -92,6 +92,66 @@ if ('serviceWorker' in navigator && 'Notification' in window) {
     });
 })();
 
+// ---------------- NOTIFICATION SOUND ----------------
+var audioCtx = null;
+
+function playNotificationSound() {
+    try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        var osc = audioCtx.createOscillator();
+        var gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.frequency.value = 880;
+        osc.type = 'sine';
+        gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
+        osc.start(audioCtx.currentTime);
+        osc.stop(audioCtx.currentTime + 0.3);
+    } catch (e) {}
+}
+
+// ---------------- TOAST NOTIFICATION ----------------
+function showToastNotification(sender, message) {
+    var container = document.getElementById('toastContainer');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'toastContainer';
+        container.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px;max-width:350px;';
+        document.body.appendChild(container);
+    }
+    var toast = document.createElement('div');
+    toast.style.cssText = 'background:#2c3e50;color:#fff;padding:12px 16px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.3);cursor:pointer;animation:fadeInUp 0.3s ease;font-size:0.9rem;';
+    toast.innerHTML = '<strong style="display:block;margin-bottom:4px;">' + escapeHtml(sender) + '</strong><span style="color:#ccc;">' + escapeHtml(message) + '</span>';
+    toast.onclick = function() { window.location.href = '/chat/'; };
+    container.appendChild(toast);
+    setTimeout(function() {
+        toast.style.opacity = '0';
+        toast.style.transition = 'opacity 0.3s';
+        setTimeout(function() { if (toast.parentNode) toast.parentNode.removeChild(toast); }, 300);
+    }, 5000);
+}
+
+var styleAdded = false;
+function addToastAnimation() {
+    if (styleAdded) return;
+    styleAdded = true;
+    var s = document.createElement('style');
+    s.textContent = '@keyframes fadeInUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}';
+    document.head.appendChild(s);
+}
+
+// ---------------- PAGE TITLE HELPER ----------------
+var originalTitle = document.title;
+
+function updatePageTitle(count) {
+    if (count > 0) {
+        document.title = '(' + count + ') ' + originalTitle.replace(/^\(\d+\) /, '');
+    } else {
+        document.title = originalTitle.replace(/^\(\d+\) /, '');
+    }
+}
+
 // ---------------- UNREAD BADGE HELPER ----------------
 function updateUnreadBadge() {
     fetch('/chat/unread/')
@@ -108,6 +168,7 @@ function updateUnreadBadge() {
                 navbarBadge.textContent = count;
                 navbarBadge.style.display = count > 0 ? '' : 'none';
             }
+            updatePageTitle(count);
         })
         .catch(function() {});
 }
@@ -126,8 +187,16 @@ function connectChat() {
             var inModalChat = typeof modalChatUserId !== 'undefined' && modalChatUserId && data.sender_id === modalChatUserId;
             if (data.sender_id && data.sender_id !== currentChatUserId && !inModalChat) {
                 showBrowserNotification(data.sender, data.message, '/chat/');
+                showToastNotification(data.sender, data.message);
+                playNotificationSound();
+                addToastAnimation();
             }
             updateUnreadBadge();
+            document.dispatchEvent(new CustomEvent('chat-message', { detail: data }));
+        }
+
+        if (data.type === 'message_status') {
+            document.dispatchEvent(new CustomEvent('chat-status', { detail: data }));
         }
 
         if (data.type === 'unread_update') {
@@ -142,6 +211,7 @@ function connectChat() {
                 navbarBadge.textContent = count;
                 navbarBadge.style.display = count > 0 ? '' : 'none';
             }
+            updatePageTitle(count);
         }
     };
 
@@ -150,4 +220,5 @@ function connectChat() {
 }
 
 // ---------------- POLL UNREAD BADGE ----------------
-setInterval(updateUnreadBadge, 30000);
+updateUnreadBadge();
+setInterval(updateUnreadBadge, 15000);
