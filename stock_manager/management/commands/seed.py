@@ -4,8 +4,6 @@ User = get_user_model()
 from django.utils import timezone
 from stock_manager.models import (
     Shop, Item, Sale, StockTransaction, UserProfile,
-    BusinessPeriod, PeriodOpeningStock, Receipt, ReceiptItem,
-    CompanyProfile, WhatsAppSetting
 )
 from datetime import date, timedelta
 import random
@@ -18,23 +16,7 @@ class Command(BaseCommand):
         self.stdout.write('Seeding database...')
 
         # ========================
-        # 1. COMPANY PROFILE
-        # ========================
-        company, _ = CompanyProfile.objects.get_or_create(
-            company_name='Varnishiela Beauty Palour',
-            defaults={
-                'address': 'Blantyre, Malawi',
-                'phone': '+265 888 888 888',
-                'email': 'info@varnishiela.com',
-                'receipt_footer': 'Thank you for your patronage!',
-                'hero_title': 'Welcome to Varnishiela Beauty Palour',
-                'hero_tagline': 'Your trusted destination for authentic beauty products.',
-            }
-        )
-        self.stdout.write(f'  Company: {company.company_name}')
-
-        # ========================
-        # 2. SHOPS
+        # 1. SHOPS
         # ========================
         shop_names = ['Warehouse', 'Zomba', 'Blantyre 1', 'Blantyre 2', 'Lilongwe', 'Mzuzu']
         shops = {}
@@ -44,7 +26,7 @@ class Command(BaseCommand):
             self.stdout.write(f'  Shop: {s.name}')
 
         # ========================
-        # 3. SUPERUSER
+        # 2. SUPERUSER
         # ========================
         if not User.objects.filter(username='sheila').exists():
             sheila = User.objects.create_superuser(
@@ -60,7 +42,7 @@ class Command(BaseCommand):
             self.stdout.write(f'  Superuser: sheila (already exists)')
 
         # ========================
-        # 4. EXTRA USERS
+        # 3. EXTRA USERS
         # ========================
         users_data = [
             ('john', 'John', 'Banda', 'shop_user', 'Blantyre 1'),
@@ -93,7 +75,7 @@ class Command(BaseCommand):
         warehouse = shops['Warehouse']
 
         # ========================
-        # 5. ITEMS
+        # 4. ITEMS
         # ========================
         items_data = [
             ('Sugar', 'Food', 1500.00),
@@ -149,110 +131,30 @@ class Command(BaseCommand):
         self.stdout.write(f'  Items created: {item_count}')
 
         # ========================
-        # 6. BUSINESS PERIOD
+        # 5. SAMPLE SALES
         # ========================
-        today = date.today()
-        period_start = today.replace(day=1)
-        if period_start.month == 12:
-            period_end = period_start.replace(year=period_start.year + 1, month=1, day=1) - timedelta(days=1)
-        else:
-            period_end = period_start.replace(month=period_start.month + 1, day=1) - timedelta(days=1)
-
-        period, created = BusinessPeriod.objects.get_or_create(
-            name=f'{period_start.strftime("%B %Y")}',
-            defaults={
-                'period_type': 'monthly',
-                'start_date': period_start,
-                'end_date': period_end,
-                'is_closed': False,
-            }
-        )
-        if created:
-            self.stdout.write(f'  Period: {period.name}')
-
-            for item in Item.objects.select_related('shop').all():
-                PeriodOpeningStock.objects.create(
-                    period=period,
-                    item_name=item.name,
-                    category=item.category,
-                    shop=item.shop,
-                    quantity=item.quantity,
-                    unit_price=item.unit_price,
-                )
-            self.stdout.write(f'  Opening stock records created')
-        else:
-            self.stdout.write(f'  Period: {period.name} (already exists)')
-
-        # ========================
-        # 7. SAMPLE SALES & RECEIPTS
-        # ========================
-        if not Receipt.objects.exists():
-            receipt_count = 0
-            for shop in shop_list:
-                shop_items = Item.objects.filter(shop=shop).order_by('?')
-                for _ in range(random.randint(2, 5)):
-                    items_in_receipt = shop_items[:random.randint(1, 4)]
-                    if not items_in_receipt:
-                        continue
-
-                    subtotal = 0
-                    line_data = []
-                    for item in items_in_receipt:
-                        qty = random.randint(1, min(3, item.quantity))
-                        line_total = float(item.unit_price) * qty
-                        subtotal += line_total
-                        line_data.append((item, qty, line_total))
-
-                    today_dt = timezone.now()
-                    receipt = Receipt.objects.create(
-                        receipt_number=f'SEED-{shop.id}-{_}-{today_dt.strftime("%Y%m%d")}',
-                        shop=shop,
-                        customer_name=random.choice(['', 'Mary K.', 'John B.', 'Grace P.', 'Peter M.', 'Chifundo N.']),
-                        subtotal=subtotal,
-                        total=subtotal,
-                        amount_received=subtotal + random.choice([0, 100, 200, 500]),
-                        change=0,
-                        created_at=today_dt - timedelta(days=random.randint(0, 7), hours=random.randint(0, 12)),
-                        created_by=random.choice(all_users),
+        sale_count = 0
+        for shop in shop_list:
+            shop_items = Item.objects.filter(shop=shop).order_by('?')
+            for _ in range(random.randint(2, 5)):
+                items_in_sale = shop_items[:random.randint(1, 3)]
+                if not items_in_sale:
+                    continue
+                for item in items_in_sale:
+                    qty = random.randint(1, min(3, item.quantity))
+                    total = float(item.unit_price) * qty
+                    Sale.objects.create(
+                        item=item,
+                        quantity_sold=qty,
+                        unit_price=item.unit_price,
+                        total_amount=total,
+                        sold_at=timezone.now() - timedelta(days=random.randint(0, 7), hours=random.randint(0, 12)),
                     )
-                    receipt.change = float(receipt.amount_received) - float(receipt.total)
-                    receipt.save()
+                    item.quantity -= qty
+                    item.save()
+                    sale_count += 1
 
-                    for item, qty, total in line_data:
-                        ReceiptItem.objects.create(
-                            receipt=receipt,
-                            item=item,
-                            item_name=item.name,
-                            quantity=qty,
-                            unit_price=item.unit_price,
-                            total=total,
-                        )
-                        Sale.objects.create(
-                            item=item,
-                            quantity_sold=qty,
-                            unit_price=item.unit_price,
-                            total_amount=total,
-                            receipt=receipt,
-                            sold_at=receipt.created_at,
-                        )
-                        item.quantity -= qty
-                        item.save()
-
-                    receipt_count += 1
-            self.stdout.write(f'  Sample receipts & sales: {receipt_count}')
-
-        # ========================
-        # 8. WHATSAPP SETTINGS
-        # ========================
-        WhatsAppSetting.objects.get_or_create(
-            phone_number='+265888888888',
-            defaults={
-                'business_name': company.company_name,
-                'greeting_message': 'Hello! Welcome to Varnishiela Beauty Palour. How can we assist you today?',
-                'is_active': True,
-            }
-        )
-        self.stdout.write('  WhatsApp settings configured')
+        self.stdout.write(f'  Sample sales: {sale_count}')
 
         # ========================
         # SUMMARY
@@ -262,7 +164,5 @@ class Command(BaseCommand):
             f'  Shops: {Shop.objects.count()}\n'
             f'  Items: {Item.objects.count()}\n'
             f'  Users: {User.objects.count()} (superusers: {User.objects.filter(is_superuser=True).count()})\n'
-            f'  Receipts: {Receipt.objects.count()}\n'
-            f'  Sales: {Sale.objects.count()}\n'
-            f'  Period: {BusinessPeriod.objects.filter(is_closed=False).count()} open'
+            f'  Sales: {Sale.objects.count()}'
         ))

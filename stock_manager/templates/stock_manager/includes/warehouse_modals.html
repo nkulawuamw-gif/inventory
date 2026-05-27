@@ -1,0 +1,318 @@
+<!-- Add Warehouse Item Modal -->
+<div class="modal fade" id="addWarehouseItemModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title"><i class="bi bi-box-seam"></i> Add Item to Warehouse</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="" data-confirm data-confirm-type="success" data-confirm-title="Add to Warehouse?" data-confirm-message="This will add or update stock in the Warehouse." data-confirm-text="Yes, Add Stock" data-confirm-submessage="">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="add_warehouse_item">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label" for="addItemName">Item Name *</label>
+                        <input type="text" name="item_name" id="addItemName" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="addCategory">Category</label>
+                        <input type="text" name="category" id="addCategory" class="form-control">
+                    </div>
+                    <div class="row">
+                        <div class="col-6 mb-3">
+                            <label class="form-label" for="addQty">Quantity *</label>
+                            <input type="number" name="quantity" id="addQty" class="form-control" min="0" required>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <label class="form-label" for="addUnitPrice">Unit Price (MWK) *</label>
+                            <input type="number" name="unit_price" id="addUnitPrice" class="form-control" step="0.01" min="0" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Add to Warehouse</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Bulk Import Modal -->
+<div class="modal fade" id="bulkImportModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="bi bi-file-earmark-arrow-up"></i> Bulk Import Items</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{% url 'dashboard_bulk_import' %}" enctype="multipart/form-data" data-confirm data-confirm-type="warning" data-confirm-title="Bulk Import Items?" data-confirm-message="This will import items from the CSV file into the Warehouse." data-confirm-text="Yes, Import" data-confirm-submessage="">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="alert alert-info mb-3">
+                        <strong>Expected columns:</strong> Item, Category, Stocked In, Stocked Out, Balance, Avg Unit Cost, Total Cost
+                        <br><small>Only "Item", "Category", "Stocked In", and "Avg Unit Cost" are required. Items will be added to Warehouse automatically.</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="importCsv">CSV File *</label>
+                        <input type="file" name="csv_file" id="importCsv" class="form-control" accept=".csv" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success"><i class="bi bi-upload"></i> Import Items</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Bulk Transfer Modal -->
+<div class="modal fade" id="bulkTransferModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title"><i class="bi bi-truck"></i> Bulk Transfer to Shops</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="" enctype="multipart/form-data">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="bulk_transfer">
+                <div class="modal-body">
+                    <div class="alert alert-info mb-3">
+                        <strong>Instructions:</strong>
+                        <ol class="mb-0 ps-3">
+                            <li>Download the CSV template below</li>
+                            <li>Fill in <strong>Item Name</strong>, <strong>Target Shop</strong> (exact shop name), and <strong>Quantity</strong></li>
+                            <li>Upload the filled CSV file here</li>
+                        </ol>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="transferCsv">CSV File *</label>
+                        <input type="file" name="csv_file" id="transferCsv" class="form-control" accept=".csv" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <a href="{% url 'download_bulk_transfer_template' %}" class="btn btn-outline-secondary"><i class="bi bi-download"></i> Download Template</a>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-warning"><i class="bi bi-truck"></i> Transfer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Bulk Delete Warehouse Items Modal -->
+<div class="modal fade" id="whBulkDeleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="bi bi-trash3"></i> Delete Selected Items</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete <strong id="whBulkDeleteCount">0</strong> selected items from Warehouse?</p>
+                <p class="text-muted small">This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="whConfirmBulkDelete">Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Transfer Selected to Shop Modal -->
+<div class="modal fade" id="whBulkTransferModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title"><i class="bi bi-truck"></i> Transfer Selected to Shop</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="" id="whBulkTransferForm">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="transfer_selected">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label" for="transferTargetShop">Target Shop *</label>
+                        <select name="target_shop" id="transferTargetShop" class="form-select" required>
+                            <option value="">— Select Shop —</option>
+                            {% for shop in all_shops %}
+                            {% if not shop.is_warehouse %}
+                            <option value="{{ shop.id }}">{{ shop.name }}</option>
+                            {% endif %}
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="transferSelectedQty">Quantity to Transfer (per item) *</label>
+                        <input type="number" name="transfer_qty" id="transferSelectedQty" class="form-control" min="1" step="any" required>
+                        <div class="form-text">Same quantity will be transferred for each selected item.</div>
+                    </div>
+                    <p>You are about to transfer stock for <strong id="whTransferCountModal">0</strong> item(s).</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-warning"><i class="bi bi-truck"></i> Transfer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% if request.session.wh_duplicate %}
+<!-- Duplicate Item Detected Modal -->
+<div class="modal fade" id="whDuplicateModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title"><i class="bi bi-exclamation-triangle"></i> Duplicate Detected</h5>
+            </div>
+            <div class="modal-body">
+                <p>Item <strong>{{ request.session.wh_duplicate.item_name }}</strong> already exists in Warehouse.</p>
+                <div class="table-responsive"><table class="table table-sm mb-3">
+                    <tr><th></th><th>Current</th><th>New</th></tr>
+                    <tr>
+                        <td>Quantity</td>
+                        <td>{{ request.session.wh_duplicate.existing_qty }}</td>
+                        <td>{{ request.session.wh_duplicate.quantity }}</td>
+                    </tr>
+                    <tr>
+                        <td>Unit Price</td>
+                        <td>MWK {{ request.session.wh_duplicate.existing_price|floatformat:2 }}</td>
+                        <td>MWK {{ request.session.wh_duplicate.unit_price|floatformat:2 }}</td>
+                    </tr>
+                </table></div>
+                <p class="mb-1"><strong>What would you like to do?</strong></p>
+            </div>
+            <div class="modal-footer d-flex justify-content-between">
+                <form method="POST" action="" class="d-inline">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="add_warehouse_item">
+                    <input type="hidden" name="item_name" value="{{ request.session.wh_duplicate.item_name }}">
+                    <input type="hidden" name="category" value="{{ request.session.wh_duplicate.category }}">
+                    <input type="hidden" name="quantity" value="{{ request.session.wh_duplicate.quantity }}">
+                    <input type="hidden" name="unit_price" value="{{ request.session.wh_duplicate.unit_price }}">
+                    <input type="hidden" name="confirm_duplicate" value="1">
+                    <button type="submit" class="btn btn-warning"><i class="bi bi-check-lg"></i> Save Anyway</button>
+                </form>
+                <button type="button" class="btn btn-primary" onclick="whEditDuplicate({{ request.session.wh_duplicate.existing_id }})"><i class="bi bi-pencil"></i> Edit Existing</button>
+                <form method="POST" action="" class="d-inline">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="dismiss_duplicate">
+                    <button type="submit" class="btn btn-secondary"><i class="bi bi-x-lg"></i> Don't Save</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+<script>document.addEventListener('DOMContentLoaded',function(){new bootstrap.Modal(document.getElementById('whDuplicateModal')).show()});</script>
+{% endif %}
+
+<script>
+// Warehouse Inventory bulk actions
+const whSelectAll = document.getElementById('whSelectAll');
+const whCheckboxes = document.querySelectorAll('.wh-item-checkbox');
+const whBulkDeleteBtn = document.getElementById('whBulkDeleteBtn');
+const whBulkTransferBtn = document.getElementById('whBulkTransferBtn');
+const whSelectedCount = document.getElementById('whSelectedCount');
+const whTransferCount = document.getElementById('whTransferCount');
+const whTransferCountModal = document.getElementById('whTransferCountModal');
+const whBulkDeleteCount = document.getElementById('whBulkDeleteCount');
+const whConfirmBulkDelete = document.getElementById('whConfirmBulkDelete');
+const whSelectedItemIds = document.getElementById('whSelectedItemIds');
+const whBulkTransferForm = document.getElementById('whBulkTransferForm');
+
+function whUpdateSelected() {
+    const checked = document.querySelectorAll('.wh-item-checkbox:checked');
+    const count = checked.length;
+    whSelectedCount.textContent = count;
+    whBulkDeleteCount.textContent = count;
+    whBulkDeleteBtn.classList.toggle('d-none', count === 0);
+    if (whBulkTransferBtn) {
+        whTransferCount.textContent = count;
+        whBulkTransferBtn.classList.toggle('d-none', count === 0);
+    }
+}
+
+if (whSelectAll) {
+    whSelectAll.addEventListener('change', function() {
+        whCheckboxes.forEach(cb => cb.checked = this.checked);
+        whUpdateSelected();
+    });
+}
+
+whCheckboxes.forEach(cb => {
+    cb.addEventListener('change', whUpdateSelected);
+});
+
+if (whConfirmBulkDelete) {
+    whConfirmBulkDelete.addEventListener('click', function() {
+        const checked = document.querySelectorAll('.wh-item-checkbox:checked');
+        whSelectedItemIds.innerHTML = '';
+        checked.forEach(cb => {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'item_ids';
+            input.value = cb.value;
+            whSelectedItemIds.appendChild(input);
+        });
+        document.getElementById('whBulkActionForm').submit();
+    });
+}
+
+if (whBulkTransferForm) {
+    document.getElementById('whBulkTransferModal').addEventListener('show.bs.modal', function() {
+        const count = document.querySelectorAll('.wh-item-checkbox:checked').length;
+        whTransferCountModal.textContent = count;
+    });
+    whBulkTransferForm.addEventListener('submit', function(e) {
+        const checked = document.querySelectorAll('.wh-item-checkbox:checked');
+        if (checked.length === 0) {
+            e.preventDefault();
+            return;
+        }
+        const existing = this.querySelectorAll('input[name="item_ids"]');
+        existing.forEach(el => el.remove());
+        checked.forEach(cb => {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'item_ids';
+            input.value = cb.value;
+            whBulkTransferForm.appendChild(input);
+        });
+    });
+}
+
+function toggleWHStock() {
+    var el = document.getElementById('whStockViewAll');
+    var rows = document.querySelectorAll('.wh-stock-row');
+    var hidden = document.querySelectorAll('.wh-stock-row.d-none');
+    if (hidden.length) {
+        for (var i = 0; i < hidden.length; i++) hidden[i].classList.remove('d-none');
+        el.textContent = 'Show Less';
+    } else {
+        for (var i = 0; i < rows.length; i++) { if (i >= 10) rows[i].classList.add('d-none'); }
+        el.textContent = 'View All';
+    }
+}
+function toggleWHInv() {
+    var el = document.getElementById('whInvViewAll');
+    var rows = document.querySelectorAll('.wh-inv-row');
+    var hidden = document.querySelectorAll('.wh-inv-row.d-none');
+    if (hidden.length) {
+        for (var i = 0; i < hidden.length; i++) hidden[i].classList.remove('d-none');
+        el.textContent = 'Show Less';
+    } else {
+        for (var i = 0; i < rows.length; i++) { if (i >= 10) rows[i].classList.add('d-none'); }
+        el.textContent = 'View All';
+    }
+}
+function whEditDuplicate(itemId) {
+    const dupModal = bootstrap.Modal.getInstance(document.getElementById('whDuplicateModal'));
+    if (dupModal) dupModal.hide();
+    const editModal = new bootstrap.Modal(document.getElementById('editWHModal' + itemId));
+    editModal.show();
+}
+</script>

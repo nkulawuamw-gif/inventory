@@ -9,12 +9,7 @@ urlpatterns = [
     path('pos/<slug:shop_slug>/', views.point_of_sale, name='point_of_sale'),
     path('inventory/<slug:shop_slug>/', views.shop_inventory, name='shop_inventory'),
     path('sales-history/', views.sales_history, name='sales_history'),
-    path('receipt/<int:receipt_id>/print/', views.print_receipt, name='print_receipt'),
-    path('receipt/<int:receipt_id>/', views.receipt_detail, name='receipt_detail'),
-    path('receipt/<int:receipt_id>/pdf/', views.download_receipt_pdf, name='receipt_pdf'),
-    path('receipt/<int:receipt_id>/email/', views.email_receipt, name='email_receipt'),
-    path('receipt/<int:receipt_id>/delete/', views.delete_receipt, name='delete_receipt'),
-    path('sales-export-csv/', views.export_sales_csv, name='export_sales_csv'),
+    path('sale/<int:sale_id>/', views.sale_detail, name='sale_detail'),
     path('manage/', views.admin_manage, name='admin_manage'),
     path('financial-report/', views.financial_report, name='financial_report'),
     path('settings/', views.settings_view, name='settings'),
@@ -32,21 +27,13 @@ urlpatterns = [
 
     path('chat/', comm.chat_view, name='chat'),
     path('chat/unread/', comm.unread_count, name='unread_count'),
-    path('chat/conversation/<int:user_id>/', comm.get_conversation, name='get_conversation'),
+
     path('chat/mark-read/', comm.mark_read, name='mark_read'),
 
     path('notifications/', comm.notification_list, name='notification_list'),
     path('notifications/unread/', comm.unread_notification_count, name='unread_notification_count'),
     path('notifications/<int:notification_id>/mark-read/', comm.mark_notification_read, name='mark_notification_read'),
     path('notifications/mark-all-read/', comm.mark_all_notifications_read, name='mark_all_notifications_read'),
-
-    path('transfers/', comm.transfer_history, name='transfer_history'),
-    path('transfers/create/', comm.create_transfer, name='create_transfer'),
-    path('transfers/<int:transfer_id>/', comm.transfer_detail, name='transfer_detail'),
-    path('transfers/<int:transfer_id>/update-status/', comm.update_transfer_status, name='update_transfer_status'),
-
-    path('whatsapp/', wa.whatsapp_inbox, name='whatsapp_inbox'),
-    path('whatsapp/webhook/', wa.whatsapp_webhook, name='whatsapp_webhook'),
 
     path('logout/', views.logout_view, name='logout'),
     path('change-password/', views.change_password, name='change_password'),

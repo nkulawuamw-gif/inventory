@@ -1,0 +1,95 @@
+<!-- All Stock Transitions Modal -->
+<div class="modal fade" id="txModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title"><i class="bi bi-arrow-left-right"></i> All Stock Transitions - {{ shop.name }}</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead class="table-light sticky-top">
+                            <tr>
+                                <th class="text-center" style="width:36px">#</th>
+                                <th>Date</th>
+                                <th>Item</th>
+                                <th>Type</th>
+                                <th class="text-center">Qty</th>
+                                <th>From</th>
+                                <th>To</th>
+                                <th>Reason</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for tx in stock_transactions %}
+                            <tr>
+                                <td class="text-center text-muted">{{ forloop.counter }}</td>
+                                <td>{{ tx.created_at|date:"d/m/y H:i" }}</td>
+                                <td><strong>{{ tx.item.name }}</strong></td>
+                                <td><span class="badge bg-secondary">{{ tx.get_transaction_type_display }}</span></td>
+                                <td class="text-center">{{ tx.quantity }}</td>
+                                <td>{{ tx.source_shop.name|default:"-" }}</td>
+                                <td>{{ tx.target_shop.name|default:"-" }}</td>
+                                <td>{{ tx.reason|default:"-" }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="8" class="text-center text-muted py-3">No stock transactions yet</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- All Recent Sales Modal -->
+<div class="modal fade" id="shopSalesModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title"><i class="bi bi-clock-history"></i> All Recent Sales - {{ shop.name }}</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead class="table-light sticky-top">
+                            <tr>
+                                <th>Item</th>
+                                <th class="text-center">Qty Sold</th>
+                                <th class="text-end">Price per Unit</th>
+                                <th class="text-end">Total Sales</th>
+                                <th class="text-end">Date & Time</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for sale in shop_sales %}
+                            <tr>
+                                <td><strong>{{ sale.item.name }}</strong></td>
+                                <td class="text-center">{{ sale.quantity_sold }}</td>
+                                <td class="text-end">MWK {{ sale.unit_price|floatformat:2 }}</td>
+                                <td class="text-end">MWK {{ sale.total_amount|floatformat:2 }}</td>
+                                <td class="text-end">{{ sale.sold_at|date:"d/m/y H:i" }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-3">No sales recorded yet</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>

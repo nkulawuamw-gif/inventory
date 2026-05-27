@@ -1,9 +1,17 @@
 from django.contrib import admin
 from django.contrib.auth import get_user_model
-User = get_user_model()
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from .models import Shop, Item, Sale, Receipt, ReceiptItem, StockTransaction, UserProfile, Profile, Message, BusinessPeriod, CompanyProfile, WhatsAppSetting, WhatsAppMessage, Notification, Transfer, TransferItem
 
+from .models import (
+    Shop, Item, Sale, StockTransaction,
+    UserProfile, Profile, Message,
+    Notification, Transfer
+)
+
+User = get_user_model()
+
+
+# ---------------- USER ADMIN ----------------
 
 class UserProfileInline(admin.StackedInline):
     model = UserProfile
@@ -14,7 +22,11 @@ class UserProfileInline(admin.StackedInline):
 
 class CustomUserAdmin(BaseUserAdmin):
     inlines = [UserProfileInline]
-    list_display = ['username', 'email', 'first_name', 'last_name', 'is_staff', 'get_shop_role']
+
+    list_display = [
+        'username', 'email', 'first_name', 'last_name',
+        'is_staff', 'get_shop_role'
+    ]
 
     @admin.display(description='Role / Shop')
     def get_shop_role(self, obj):
@@ -27,10 +39,17 @@ class CustomUserAdmin(BaseUserAdmin):
             return 'Not configured'
 
 
-admin.site.unregister(User)
+# Safe unregister (prevents crash if already unregistered)
+try:
+    admin.site.unregister(User)
+except admin.sites.NotRegistered:
+    pass
+
 admin.site.register(User, CustomUserAdmin)
 admin.site.register(Profile)
 
+
+# ---------------- SHOP + ITEMS ----------------
 
 class ItemInline(admin.TabularInline):
     model = Item
@@ -44,34 +63,36 @@ class ShopAdmin(admin.ModelAdmin):
     search_fields = ['name']
     inlines = [ItemInline]
 
+    @admin.display(description="Total Items")
     def item_count(self, obj):
         return obj.items.count()
 
-    item_count.short_description = 'Total Items'
-
+    @admin.display(description="Assigned Users")
     def assigned_user_count(self, obj):
         return obj.assigned_users.count()
-
-    assigned_user_count.short_description = 'Assigned Users'
 
 
 @admin.register(Item)
 class ItemAdmin(admin.ModelAdmin):
-    list_display = ['name', 'shop', 'category', 'quantity', 'unit_price', 'total_value', 'is_low_stock']
+    list_display = [
+        'name', 'shop', 'category', 'quantity',
+        'unit_price', 'total_value_display', 'low_stock'
+    ]
     list_filter = ['shop', 'category']
     search_fields = ['name', 'shop__name']
     list_editable = ['quantity', 'unit_price']
     autocomplete_fields = ['shop']
 
-    def total_value(self, obj):
+    @admin.display(description="Total Value")
+    def total_value_display(self, obj):
         return f"MWK {obj.total_value:,.2f}"
 
-    def is_low_stock(self, obj):
+    @admin.display(boolean=True, description="Low Stock")
+    def low_stock(self, obj):
         return obj.quantity < 5
 
-    is_low_stock.boolean = True
-    is_low_stock.short_description = 'Low Stock'
 
+# ---------------- SALES ----------------
 
 @admin.register(Sale)
 class SaleAdmin(admin.ModelAdmin):
@@ -79,93 +100,53 @@ class SaleAdmin(admin.ModelAdmin):
     list_filter = ['item__shop', 'sold_at']
     search_fields = ['item__name', 'item__shop__name']
 
+    @admin.display(description="Shop")
     def shop_name(self, obj):
         return obj.item.shop.name
 
-    shop_name.short_description = 'Shop'
 
+# ---------------- STOCK ----------------
 
 @admin.register(StockTransaction)
 class StockTransactionAdmin(admin.ModelAdmin):
-    list_display = ['item', 'source_shop', 'target_shop', 'quantity', 'transaction_type', 'created_at']
+    list_display = [
+        'item', 'source_shop', 'target_shop',
+        'quantity', 'transaction_type', 'created_at'
+    ]
     list_filter = ['transaction_type', 'source_shop', 'target_shop']
     search_fields = ['item__name', 'source_shop__name']
 
 
+# ---------------- MESSAGES ----------------
+
 @admin.register(Message)
 class MessageAdmin(admin.ModelAdmin):
-    list_display = ['sender', 'receiver', 'content_short', 'is_read', 'timestamp']
+    list_display = ['sender', 'receiver', 'short_content', 'is_read', 'timestamp']
     list_filter = ['is_read', 'timestamp']
     search_fields = ['sender__username', 'receiver__username', 'content']
 
-    def content_short(self, obj):
+    @admin.display(description="Message")
+    def short_content(self, obj):
         return obj.content[:50]
-    content_short.short_description = 'Message'
 
 
-@admin.register(BusinessPeriod)
-class BusinessPeriodAdmin(admin.ModelAdmin):
-    list_display = ['name', 'period_type', 'start_date', 'end_date', 'is_closed', 'closed_at', 'closed_by']
-    list_filter = ['period_type', 'is_closed']
-    search_fields = ['name']
-    date_hierarchy = 'start_date'
-
-
-@admin.register(Receipt)
-class ReceiptAdmin(admin.ModelAdmin):
-    list_display = ['receipt_number', 'shop', 'customer_name', 'total', 'created_at', 'created_by']
-    list_filter = ['shop', 'created_at']
-    search_fields = ['receipt_number', 'customer_name']
-    date_hierarchy = 'created_at'
-
-
-@admin.register(ReceiptItem)
-class ReceiptItemAdmin(admin.ModelAdmin):
-    list_display = ['receipt', 'item_name', 'quantity', 'unit_price', 'total']
-    search_fields = ['item_name', 'receipt__receipt_number']
-
-
-@admin.register(CompanyProfile)
-class CompanyProfileAdmin(admin.ModelAdmin):
-    list_display = ['company_name', 'phone', 'email']
-
-
-@admin.register(WhatsAppSetting)
-class WhatsAppSettingAdmin(admin.ModelAdmin):
-    list_display = ['phone_number', 'business_name', 'is_active']
-
-
-@admin.register(WhatsAppMessage)
-class WhatsAppMessageAdmin(admin.ModelAdmin):
-    list_display = ['customer_number', 'customer_name', 'body', 'is_from_customer', 'is_read', 'created_at']
-    list_filter = ['is_from_customer', 'is_read']
-    search_fields = ['customer_number', 'customer_name', 'body']
-    date_hierarchy = 'created_at'
-
-
-class TransferItemInline(admin.TabularInline):
-    model = TransferItem
-    extra = 1
-    fields = ['item_name', 'quantity']
-
+# ---------------- TRANSFERS ----------------
 
 @admin.register(Transfer)
 class TransferAdmin(admin.ModelAdmin):
-    list_display = ['transfer_code', 'sender_shop', 'receiver_shop', 'created_by', 'status', 'created_at']
+    list_display = [
+        'transfer_code', 'sender_shop', 'receiver_shop',
+        'created_by', 'status', 'created_at'
+    ]
     list_filter = ['status', 'sender_shop', 'receiver_shop']
     search_fields = ['transfer_code', 'sender_shop__name', 'receiver_shop__name']
-    inlines = [TransferItemInline]
-    readonly_fields = ['transfer_code', 'created_at', 'updated_at']
+    readonly_fields = ['transfer_code', 'created_at']
 
 
-@admin.register(TransferItem)
-class TransferItemAdmin(admin.ModelAdmin):
-    list_display = ['transfer', 'item_name', 'quantity']
-    search_fields = ['item_name', 'transfer__transfer_code']
-
+# ---------------- NOTIFICATIONS ----------------
 
 @admin.register(Notification)
 class NotificationAdmin(admin.ModelAdmin):
-    list_display = ['title', 'user', 'type', 'is_read', 'created_at']
-    list_filter = ['type', 'is_read', 'created_at']
+    list_display = ['title', 'user', 'is_read', 'created_at']
+    list_filter = ['is_read', 'created_at']
     search_fields = ['title', 'message', 'user__username']

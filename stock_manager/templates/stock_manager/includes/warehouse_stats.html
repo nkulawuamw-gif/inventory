@@ -1,0 +1,93 @@
+<div class="row mb-4">
+    <div class="col-md-2">
+        <div class="card stat-card bg-primary text-white">
+            <div class="card-body d-flex align-items-center">
+                <div class="flex-grow-1">
+                    <h6 class="card-subtitle mb-1">Total Items</h6>
+                    <h2 class="mb-0">{{ total_items }}</h2>
+                </div>
+                <i class="bi bi-box icon"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card stat-card bg-success text-white">
+            <div class="card-body d-flex align-items-center">
+                <div class="flex-grow-1">
+                    <h6 class="card-subtitle mb-1">Total Qty</h6>
+                    <h2 class="mb-0">{{ total_qty }}</h2>
+                </div>
+                <i class="bi bi-layers icon"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card stat-card bg-info text-white">
+            <div class="card-body d-flex align-items-center">
+                <div class="flex-grow-1">
+                    <h6 class="card-subtitle mb-1">Stock Value</h6>
+                    <h2 class="mb-0">MWK {{ total_value|floatformat:2 }}</h2>
+                </div>
+                <i class="bi bi-currency-dollar icon"></i>
+            </div>
+        </div>
+    </div>
+    {% if not is_warehouse %}
+    <div class="col-md-2">
+        <div class="card stat-card bg-danger text-white">
+            <div class="card-body d-flex align-items-center">
+                <div class="flex-grow-1">
+                    <h6 class="card-subtitle mb-1">Today's Sales</h6>
+                    <h2 class="mb-0">MWK {{ today_total|floatformat:2 }}</h2>
+                </div>
+                <i class="bi bi-cart-check icon"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card stat-card bg-warning text-dark">
+            <div class="card-body d-flex align-items-center">
+                <div class="flex-grow-1">
+                    <h6 class="card-subtitle mb-1">Low Stock</h6>
+                    <h2 class="mb-0">{{ low_stock_items.count }}</h2>
+                </div>
+                <i class="bi bi-exclamation-triangle icon"></i>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="col-md-2">
+        <div class="card stat-card bg-success text-white">
+            <div class="card-body d-flex align-items-center">
+                <div class="flex-grow-1">
+                    <h6 class="card-subtitle mb-1">Stocked In</h6>
+                    <h2 class="mb-0">{{ warehouse_stocked_in }}</h2>
+                </div>
+                <i class="bi bi-box-arrow-in-down icon"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card stat-card bg-danger text-white">
+            <div class="card-body d-flex align-items-center">
+                <div class="flex-grow-1">
+                    <h6 class="card-subtitle mb-1">Stocked Out</h6>
+                    <h2 class="mb-0">{{ warehouse_stocked_out }}</h2>
+                </div>
+                <i class="bi bi-box-arrow-up icon"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card stat-card bg-warning text-dark">
+            <div class="card-body d-flex align-items-center">
+                <div class="flex-grow-1">
+                    <h6 class="card-subtitle mb-1">Low Stock</h6>
+                    <h2 class="mb-0">{{ low_stock_items.count }}</h2>
+                </div>
+                <i class="bi bi-exclamation-triangle icon"></i>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>

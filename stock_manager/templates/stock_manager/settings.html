@@ -3,1128 +3,160 @@
 
 <h2 class="mb-3"><i class="bi bi-gear-wide-connected"></i> Settings</h2>
 
+<!-- Tabs -->
 <div class="d-flex gap-2 mb-4 flex-wrap">
-    <button type="button" class="btn btn-primary rounded-pill px-3" id="tabCompany" onclick="showSection('company')"><i class="bi bi-building"></i> Company Profile</button>
-    <button type="button" class="btn btn-outline-primary rounded-pill px-3" id="tabWhatsapp" onclick="showSection('whatsapp')"><i class="bi bi-whatsapp"></i> WhatsApp</button>
-    <button type="button" class="btn btn-outline-primary rounded-pill px-3" id="tabPeriods" onclick="showSection('periods')"><i class="bi bi-calendar-range"></i> Manage Business Period</button>
-    <button type="button" class="btn btn-outline-primary rounded-pill px-3" id="tabShops" onclick="showSection('shops')"><i class="bi bi-shop"></i> Manage Shops</button>
-    <button type="button" class="btn btn-outline-primary rounded-pill px-3" id="tabSalesmen" onclick="showSection('salesmen')"><i class="bi bi-people"></i> Manage Sales Person</button>
-    <button type="button" class="btn btn-outline-primary rounded-pill px-3" id="tabLanding" onclick="showSection('landing')"><i class="bi bi-house-door"></i> Landing Page</button>
+    <button class="btn btn-primary rounded-pill px-3" onclick="showSection('company')">Company</button>
+    <button class="btn btn-outline-primary rounded-pill px-3" onclick="showSection('whatsapp')">WhatsApp</button>
+    <button class="btn btn-outline-primary rounded-pill px-3" onclick="showSection('periods')">Business Period</button>
+    <button class="btn btn-outline-primary rounded-pill px-3" onclick="showSection('shops')">Shops</button>
+    <button class="btn btn-outline-primary rounded-pill px-3" onclick="showSection('salesmen')">Salesmen</button>
+    <button class="btn btn-outline-primary rounded-pill px-3" onclick="showSection('landing')">Landing</button>
 </div>
 
-<div id="settingsPage" class="settings-pb">
+<div id="settingsPage">
 
+<!-- COMPANY -->
 <div class="settings-section" id="section-company">
+<div class="card">
+<div class="card-header bg-dark text-white">Company Profile</div>
+<div class="card-body">
+<form method="post">
+{% csrf_token %}
+<input type="hidden" name="action" value="save_company">
+
+<input class="form-control mb-2" name="company_name" value="{{ company.company_name }}" placeholder="Company Name">
+<textarea class="form-control mb-2" name="address">{{ company.address }}</textarea>
+
 <div class="row">
-  <div class="col-md-6 mx-auto">
-    <div class="card">
-      <div class="card-header bg-dark text-white">
-        <h5 class="mb-0"><i class="bi bi-building"></i> Company Profile</h5>
-      </div>
-      <div class="card-body">
-        <form method="post">
-          {% csrf_token %}
-          <input type="hidden" name="action" value="save_company">
-          <div class="mb-3">
-            <label class="form-label" for="company_name">Company Name *</label>
-            <input type="text" name="company_name" id="company_name" class="form-control" value="{{ company.company_name }}" required>
-          </div>
-          <div class="mb-3">
-            <label class="form-label" for="address">Address</label>
-            <textarea name="address" id="address" class="form-control" rows="2">{{ company.address }}</textarea>
-          </div>
-          <div class="row mb-3">
-            <div class="col-6">
-              <label class="form-label" for="phone">Phone</label>
-              <input type="text" name="phone" id="phone" class="form-control" value="{{ company.phone }}">
-            </div>
-            <div class="col-6">
-              <label class="form-label" for="company_email">Email</label>
-              <input type="email" name="email" id="company_email" class="form-control" value="{{ company.email }}">
-            </div>
-          </div>
-          <div class="mb-3">
-            <label class="form-label" for="tax_id">Tax ID</label>
-            <input type="text" name="tax_id" id="tax_id" class="form-control" value="{{ company.tax_id }}">
-          </div>
-          <div class="mb-3">
-            <label class="form-label" for="receipt_footer">Receipt Footer</label>
-            <input type="text" name="receipt_footer" id="receipt_footer" class="form-control" value="{{ company.receipt_footer }}">
-          </div>
-          <button type="submit" class="btn btn-dark w-100">
-            <i class="bi bi-check-lg"></i> Save
-          </button>
-        </form>
-      </div>
-    </div>
-  </div>
+<div class="col"><input class="form-control" name="phone" value="{{ company.phone }}" placeholder="Phone"></div>
+<div class="col"><input class="form-control" name="email" value="{{ company.email }}" placeholder="Email"></div>
+</div>
+
+<button class="btn btn-dark w-100 mt-3">Save</button>
+</form>
+</div>
 </div>
 </div>
 
+<!-- WHATSAPP -->
 <div class="settings-section" id="section-whatsapp" style="display:none">
-<div class="row">
-  <div class="col-md-6 mx-auto">
-    <div class="card">
-      <div class="card-header bg-success text-white">
-        <h5 class="mb-0"><i class="bi bi-whatsapp"></i> WhatsApp Settings</h5>
-      </div>
-      <div class="card-body">
-        <form method="post">
-          {% csrf_token %}
-          <input type="hidden" name="action" value="save_whatsapp">
-          <div class="mb-3">
-            <label class="form-label" for="wa_phone_number">WhatsApp Business Phone Number</label>
-            <input type="text" name="phone_number" id="wa_phone_number" class="form-control" value="{{ whatsapp.phone_number }}" placeholder="e.g. 265999000000">
-            <div class="form-text">Include country code. No + or spaces.</div>
-          </div>
-          <div class="mb-3">
-            <label class="form-label" for="wa_business_name">Business Name</label>
-            <input type="text" name="business_name" id="wa_business_name" class="form-control" value="{{ whatsapp.business_name }}">
-          </div>
-          <div class="mb-3">
-            <label class="form-label" for="wa_greeting_message">Greeting Message</label>
-            <textarea name="greeting_message" id="wa_greeting_message" class="form-control" rows="2">{{ whatsapp.greeting_message }}</textarea>
-            <div class="form-text">Auto-reply sent when a customer messages for the first time.</div>
-          </div>
-          <div class="mb-3">
-            <label class="form-label" for="wa_webhook_secret">Webhook Secret</label>
-            <input type="text" name="webhook_secret" id="wa_webhook_secret" class="form-control" value="{{ whatsapp.webhook_secret }}">
-            <div class="form-text">Used to verify incoming webhook requests from WhatsApp API.</div>
-          </div>
-          <div class="mb-3 position-relative">
-            <label class="form-label" for="wa_api_key">API Key (for WhatsApp Business API)</label>
-            <input type="password" name="api_key" id="wa_api_key" class="form-control" value="{{ whatsapp.api_key }}">
-            <span class="pw-toggle" onclick="togglePw('wa_api_key')"><i class="bi bi-eye" id="ico_wa_api_key"></i></span>
-            <div class="form-text">Optional. Required for sending replies via WhatsApp Business API.</div>
-          </div>
-          {% if whatsapp.phone_number %}
-          <div class="alert alert-info">
-            <strong><i class="bi bi-link-45deg"></i> WhatsApp Link:</strong>
-            <a href="https://wa.me/{{ whatsapp.phone_number }}" target="_blank">https://wa.me/{{ whatsapp.phone_number }}</a>
-            <br>
-            <strong><i class="bi bi-webhook"></i> Webhook URL:</strong>
-            <code>{% url 'whatsapp_webhook' %}</code>
-          </div>
-          {% endif %}
-          <div class="form-check mb-3">
-            <input type="checkbox" name="is_active" class="form-check-input" id="waActive" value="1" {% if whatsapp.is_active %}checked{% endif %}>
-            <label class="form-check-label" for="waActive">Enable WhatsApp integration</label>
-          </div>
-          <button type="submit" class="btn btn-success w-100">
-            <i class="bi bi-check-lg"></i> Save WhatsApp Settings
-          </button>
-        </form>
-      </div>
-    </div>
-  </div>
+<div class="card">
+<div class="card-header bg-success text-white">WhatsApp Settings</div>
+<div class="card-body">
+<form method="post">
+{% csrf_token %}
+<input type="hidden" name="action" value="save_whatsapp">
+
+<input class="form-control mb-2" name="phone_number" value="{{ whatsapp.phone_number }}">
+<input class="form-control mb-2" name="business_name" value="{{ whatsapp.business_name }}">
+<textarea class="form-control mb-2" name="greeting_message">{{ whatsapp.greeting_message }}</textarea>
+
+<button class="btn btn-success w-100">Save</button>
+</form>
+</div>
 </div>
 </div>
 
+<!-- PERIODS -->
 <div class="settings-section" id="section-periods" style="display:none">
-<div class="row" id="businessPeriods">
-  <div class="col-md-5">
-    <div class="card mb-4">
-      <div class="card-header bg-primary text-white">
-        <h5 class="mb-0"><i class="bi bi-calendar-plus"></i> Open New Business Period</h5>
-      </div>
-      <div class="card-body">
-        <form method="post" data-confirm data-confirm-type="success" data-confirm-title="Open New Period?" data-confirm-message="This will start a new business period and carry forward current stock as opening stock." data-confirm-text="Yes, Open Period" data-confirm-submessage="">
-          {% csrf_token %}
-          <input type="hidden" name="action" value="open_period">
-          <div class="mb-3">
-            <label class="form-label" for="period_name">Period Name *</label>
-            <input type="text" name="name" id="period_name" class="form-control" placeholder="e.g. June 2026, Q3 2026" required>
-          </div>
-          <div class="mb-3">
-            <label class="form-label" for="period_type">Period Type</label>
-            <select name="period_type" id="period_type" class="form-select">
-              <option value="monthly">Monthly</option>
-              <option value="quarterly">Quarterly</option>
-              <option value="yearly">Yearly</option>
-              <option value="custom">Custom</option>
-            </select>
-          </div>
-          <div class="row mb-3">
-            <div class="col-6">
-              <label class="form-label" for="start_date">Start Date *</label>
-              <input type="date" name="start_date" id="start_date" class="form-control" required>
-            </div>
-            <div class="col-6">
-              <label class="form-label" for="end_date">End Date *</label>
-              <input type="date" name="end_date" id="end_date" class="form-control" required>
-            </div>
-          </div>
-          <div class="mb-3">
-            <label class="form-label" for="period_notes">Notes</label>
-            <textarea name="notes" id="period_notes" class="form-control" rows="2" placeholder="Optional notes about this period"></textarea>
-          </div>
-          <button type="submit" class="btn btn-primary w-100">
-            <i class="bi bi-check-lg"></i> Open Period
-          </button>
-        </form>
-      </div>
-    </div>
-  </div>
+<div class="card">
+<div class="card-header bg-primary text-white">Business Period</div>
+<div class="card-body">
+<form method="post">
+{% csrf_token %}
+<input type="hidden" name="action" value="open_period">
 
-  <div class="col-md-7">
-    {% if active_period %}
-    <div class="alert alert-success d-flex justify-content-between align-items-center">
-      <div>
-        <strong><i class="bi bi-clock"></i> Active Period:</strong>
-        {{ active_period.name }}
-        ({{ active_period.start_date|date:"d/m/y" }} - {{ active_period.end_date|date:"d/m/y" }})
-        <br><small class="text-muted">{{ opening_count }} items carried forward as opening stock</small>
-      </div>
-      <form method="post" class="mb-0" data-confirm data-confirm-type="danger" data-confirm-title="Close Period?" data-confirm-message="This will close &quot;{{ active_period.name }}&quot;. Future transactions will be recorded in a new period." data-confirm-text="Yes, Close Period" data-confirm-submessage="">
-        {% csrf_token %}
-        <input type="hidden" name="action" value="close_period">
-        <input type="hidden" name="period_id" value="{{ active_period.id }}">
-        <button type="submit" class="btn btn-sm btn-danger">
-          <i class="bi bi-x-circle"></i> Close Period
-        </button>
-      </form>
-    </div>
-    {% else %}
-    <div class="alert alert-info">No active business period. Open one to start tracking.</div>
-    {% endif %}
+<input class="form-control mb-2" name="name" placeholder="Period Name">
+<input type="date" class="form-control mb-2" name="start_date">
+<input type="date" class="form-control mb-2" name="end_date">
 
-    <div class="card">
-      <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
-        <h5 class="mb-0"><i class="bi bi-clock-history"></i> Business Periods</h5>
-        <button class="btn btn-sm btn-outline-light" data-bs-toggle="modal" data-bs-target="#periodsModal">View All</button>
-      </div>
-      <div class="card-body p-0">
-        <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
-          <table class="table table-hover mb-0">
-            <thead class="table-light sticky-top">
-              <tr>
-                <th>Name</th>
-                <th>Type</th>
-                <th>Start</th>
-                <th>End</th>
-                <th>Status</th>
-                <th>Closed</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for period in periods %}
-              <tr class="period-row{% if forloop.counter > 10 %} d-none{% endif %}">
-                <td><strong>{{ period.name }}</strong></td>
-                <td><span class="badge bg-secondary">{{ period.get_period_type_display }}</span></td>
-                <td>{{ period.start_date|date:"d/m/y" }}</td>
-                <td>{{ period.end_date|date:"d/m/y" }}</td>
-                <td>
-                  {% if period.is_closed %}
-                  <span class="badge bg-danger">Closed</span>
-                  {% else %}
-                  <span class="badge bg-success">Open</span>
-                  {% endif %}
-                </td>
-                <td>
-                  {% if period.closed_at %}
-                  <small class="text-muted">{{ period.closed_at|date:"d/m/y H:i" }}</small>
-                  {% else %}
-                  <small class="text-muted">-</small>
-                  {% endif %}
-                </td>
-              </tr>
-              {% empty %}
-              <tr>
-                <td colspan="6" class="text-center text-muted py-3">No business periods created yet</td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  </div>
+<button class="btn btn-primary w-100">Open Period</button>
+</form>
+</div>
 </div>
 </div>
 
+<!-- SHOPS -->
 <div class="settings-section" id="section-shops" style="display:none">
-<div class="row" id="shops">
-  <div class="col-md-5">
-    <div class="card mb-4">
-      <div class="card-header bg-success text-white">
-        <h5 class="mb-0"><i class="bi bi-shop"></i> Add Shop</h5>
-      </div>
-      <div class="card-body">
-        <form method="post">
-          {% csrf_token %}
-          <input type="hidden" name="action" value="add_shop">
-          <div class="mb-3">
-            <label class="form-label" for="shop_name">Shop Name *</label>
-            <input type="text" name="name" id="shop_name" class="form-control" placeholder="e.g. New Shop" required>
-          </div>
-          <button type="submit" class="btn btn-success w-100">
-            <i class="bi bi-plus-circle"></i> Add Shop
-          </button>
-        </form>
-      </div>
-    </div>
+<div class="card">
+<div class="card-header bg-success text-white">Shops</div>
+<div class="card-body">
+<form method="post">
+{% csrf_token %}
+<input type="hidden" name="action" value="add_shop">
 
-    <div class="card mb-4">
-      <div class="card-header bg-primary text-white">
-        <h5 class="mb-0"><i class="bi bi-pencil"></i> Edit Shop</h5>
-      </div>
-      <div class="card-body">
-        <form method="post">
-          {% csrf_token %}
-          <input type="hidden" name="action" value="edit_shop">
-          <div class="mb-3">
-            <label class="form-label" for="edit_shop_id">Select Shop *</label>
-            <select name="shop_id" id="edit_shop_id" class="form-select" required>
-              <option value="">-- Choose a shop --</option>
-              {% for shop in all_shops %}
-              <option value="{{ shop.id }}">{{ shop.name }}</option>
-              {% endfor %}
-            </select>
-          </div>
-          <div class="mb-3">
-            <label class="form-label" for="edit_shop_name">New Shop Name *</label>
-            <input type="text" name="name" id="edit_shop_name" class="form-control" placeholder="e.g. Renamed Shop" required>
-          </div>
-          <button type="submit" class="btn btn-primary w-100">
-            <i class="bi bi-pencil"></i> Edit Shop
-          </button>
-        </form>
-      </div>
-    </div>
+<input class="form-control mb-2" name="name" placeholder="Shop Name">
 
-    <div class="card mb-4">
-      <div class="card-header bg-danger text-white">
-        <h5 class="mb-0"><i class="bi bi-trash"></i> Remove Shop</h5>
-      </div>
-      <div class="card-body">
-        <form method="post" data-confirm data-confirm-type="danger" data-confirm-title="Delete Shop?" data-confirm-message="Are you sure you want to delete this shop?" data-confirm-text="Yes, Delete">
-          {% csrf_token %}
-          <input type="hidden" name="action" value="delete_shop">
-          <div class="mb-3">
-            <label class="form-label" for="delete_shop_id">Select Shop *</label>
-            <select name="shop_id" id="delete_shop_id" class="form-select" required>
-              <option value="">-- Choose a shop --</option>
-              {% for shop in all_shops %}
-              <option value="{{ shop.id }}">{{ shop.name }}</option>
-              {% endfor %}
-            </select>
-          </div>
-          <button type="submit" class="btn btn-danger w-100">
-            <i class="bi bi-x-circle"></i> Delete Shop
-          </button>
-        </form>
-      </div>
-    </div>
-  </div>
-
-  <div class="col-md-7">
-    <div class="card">
-      <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
-        <h5 class="mb-0"><i class="bi bi-shop"></i> All Shops</h5>
-        <button class="btn btn-sm btn-outline-light" data-bs-toggle="modal" data-bs-target="#shopsModal">View All</button>
-      </div>
-      <div class="card-body p-0">
-        <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
-          <table class="table table-hover mb-0">
-            <thead class="table-light sticky-top">
-              <tr>
-                <th>#</th>
-                <th>Shop Name</th>
-                <th>Assigned People</th>
-                <th>Sales Person</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for shop in all_shops %}
-              <tr class="shop-row{% if forloop.counter > 10 %} d-none{% endif %}">
-                <td>{{ forloop.counter }}</td>
-                <td><strong>{{ shop.name }}</strong></td>
-                <td>{{ shop.assigned_users.count }}</td>
-                <td>
-                  {% with users=shop.assigned_users.all %}
-                  {% if users %}
-                  {% for u in users %}{{ u.user.get_full_name|default:u.user.username }}{% if not forloop.last %}, {% endif %}{% endfor %}
-                  {% else %}
-                  <span class="text-muted">—</span>
-                  {% endif %}
-                  {% endwith %}
-                </td>
-              </tr>
-              {% empty %}
-              <tr>
-                <td colspan="4" class="text-center text-muted py-3">No shops created yet</td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  </div>
+<button class="btn btn-success w-100">Add Shop</button>
+</form>
+</div>
 </div>
 </div>
 
+<!-- SALESMEN -->
 <div class="settings-section" id="section-salesmen" style="display:none">
-<div class="row" id="salesmen">
-  <div class="col-md-5">
-    <div class="card mb-4">
-      <div class="card-header bg-info text-white">
-        <h5 class="mb-0"><i class="bi bi-person-plus"></i> Add Salesman</h5>
-      </div>
-      <div class="card-body">
-        <form method="post">
-          {% csrf_token %}
-          <input type="hidden" name="action" value="add_user">
-          <div class="mb-3">
-            <label class="form-label" for="username">Username *</label>
-            <input type="text" name="username" id="username" class="form-control" placeholder="e.g. johndoe" required>
-          </div>
-          <div class="mb-3">
-            <label class="form-label" for="user_email">Email</label>
-            <input type="email" name="email" id="user_email" class="form-control" placeholder="e.g. john@example.com">
-          </div>
-          <div class="row mb-3">
-            <div class="col-6">
-              <label class="form-label" for="first_name">First Name</label>
-              <input type="text" name="first_name" id="first_name" class="form-control" placeholder="John">
-            </div>
-            <div class="col-6">
-              <label class="form-label" for="last_name">Last Name</label>
-              <input type="text" name="last_name" id="last_name" class="form-control" placeholder="Doe">
-            </div>
-          </div>
-          <div class="mb-3 position-relative">
-            <label class="form-label" for="user_password">Password *</label>
-            <input type="password" name="password" id="user_password" class="form-control" placeholder="Enter password" required>
-            <span class="pw-toggle" onclick="togglePw('user_password')"><i class="bi bi-eye" id="ico_user_password"></i></span>
-          </div>
-          <div class="mb-3">
-            <label class="form-label" for="user_role">Role</label>
-            <select name="role" id="user_role" class="form-select">
-              <option value="shop_user">Shop User</option>
-              <option value="admin">Admin (All Shops)</option>
-            </select>
-          </div>
-          <div class="mb-3">
-            <label class="form-label" for="assigned_shop">Assigned Shop</label>
-            <select name="shop_id" id="assigned_shop" class="form-select">
-              <option value="">-- No shop (admin) --</option>
-              {% for shop in all_shops %}
-              <option value="{{ shop.id }}">{{ shop.name }}</option>
-              {% endfor %}
-            </select>
-          </div>
-          <button type="submit" class="btn btn-info w-100 text-white">
-            <i class="bi bi-person-plus"></i> Add Salesman
-          </button>
-        </form>
-      </div>
-    </div>
-  </div>
+<div class="card">
+<div class="card-header bg-info text-white">Salesmen</div>
+<div class="card-body">
+<form method="post">
+{% csrf_token %}
+<input type="hidden" name="action" value="add_user">
 
-  <div class="col-md-7">
-    <div class="card" style="margin-bottom: 1px;">
-      <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
-        <h5 class="mb-0"><i class="bi bi-people"></i> All Salesmen</h5>
-        <button class="btn btn-sm btn-outline-light" data-bs-toggle="modal" data-bs-target="#salesmenModal">View All</button>
-      </div>
-      <div class="card-body p-0">
-        <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
-          <table class="table table-hover mb-0">
-            <thead class="table-light sticky-top">
-              <tr>
-                <th>#</th>
-                <th>Username</th>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Role</th>
-                <th>Shop</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for u in users %}
-              <tr class="salesman-row{% if forloop.counter > 10 %} d-none{% endif %}">
-                <td>{{ forloop.counter }}</td>
-                <td><strong>{{ u.username }}</strong></td>
-                <td>{{ u.get_full_name|default:"-" }}</td>
-                <td>{{ u.email|default:"-" }}</td>
-                <td>
-                  {% if u.user_profile.is_admin %}
-                  <span class="badge bg-warning text-dark">Admin</span>
-                  {% else %}
-                  <span class="badge bg-info text-white">Shop User</span>
-                  {% endif %}
-                </td>
-                <td>{{ u.user_profile.assigned_shop.name|default:"All Shops" }}</td>
-              </tr>
-              {% empty %}
-              <tr>
-                <td colspan="6" class="text-center text-muted py-3">No users created yet</td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
+<input class="form-control mb-2" name="username" placeholder="Username">
+<input class="form-control mb-2" name="email" placeholder="Email">
+<input class="form-control mb-2" name="password" placeholder="Password">
 
-    <div class="card" style="margin-bottom: 1px;">
-      <div class="card-header bg-warning text-dark">
-        <h5 class="mb-0"><i class="bi bi-key"></i> Reset Password</h5>
-      </div>
-      <div class="card-body">
-        <form method="post" data-confirm data-confirm-type="warning" data-confirm-title="Reset Password?" data-confirm-message="This will change the user's password immediately." data-confirm-text="Yes, Reset">
-          {% csrf_token %}
-          <input type="hidden" name="action" value="reset_password">
-          <div class="mb-3">
-            <label class="form-label" for="reset_user_id">Select User *</label>
-            <select name="user_id" id="reset_user_id" class="form-select" required>
-              <option value="">-- Choose a user --</option>
-              {% for u in users %}
-              <option value="{{ u.id }}">{{ u.get_full_name|default:u.username }} ({{ u.username }})</option>
-              {% endfor %}
-            </select>
-          </div>
-          <div class="mb-3">
-            <label class="form-label" for="new_password">New Password *</label>
-            <input type="text" name="new_password" id="new_password" class="form-control" placeholder="Enter new password" required minlength="4">
-          </div>
-          <button type="submit" class="btn btn-warning w-100 text-dark">
-            <i class="bi bi-key"></i> Reset Password
-          </button>
-        </form>
-      </div>
-    </div>
-
-    <div class="card" style="margin-bottom: 1px;">
-      <div class="card-header bg-primary text-white">
-        <h5 class="mb-0"><i class="bi bi-pencil"></i> Edit Salesman</h5>
-      </div>
-      <div class="card-body">
-        <form method="post">
-          {% csrf_token %}
-          <input type="hidden" name="action" value="edit_user">
-          <div class="mb-3">
-            <label class="form-label" for="edit_user_id">Select User *</label>
-            <select name="user_id" id="edit_user_id" class="form-select" required>
-              <option value="">-- Choose a user --</option>
-              {% for u in users %}
-              <option value="{{ u.id }}"
-                data-username="{{ u.username }}"
-                data-email="{{ u.email|default:'' }}"
-                data-first-name="{{ u.first_name|default:'' }}"
-                data-last-name="{{ u.last_name|default:'' }}"
-                data-role="{{ u.user_profile.role }}"
-                data-shop-id="{{ u.user_profile.assigned_shop.id|default:'' }}"
-                data-permissions="{{ u.user_profile.permissions|default:'' }}">
-                {{ u.get_full_name|default:u.username }} ({{ u.username }})
-              </option>
-              {% endfor %}
-            </select>
-          </div>
-          <div class="mb-3">
-            <label class="form-label" for="edit_username">Username *</label>
-            <input type="text" name="username" id="edit_username" class="form-control" placeholder="e.g. johndoe" required>
-          </div>
-          <div class="mb-3">
-            <label class="form-label" for="edit_user_email">Email</label>
-            <input type="email" name="email" id="edit_user_email" class="form-control" placeholder="e.g. john@example.com">
-          </div>
-          <div class="row mb-3">
-            <div class="col-6">
-              <label class="form-label" for="edit_first_name">First Name</label>
-              <input type="text" name="first_name" id="edit_first_name" class="form-control" placeholder="John">
-            </div>
-            <div class="col-6">
-              <label class="form-label" for="edit_last_name">Last Name</label>
-              <input type="text" name="last_name" id="edit_last_name" class="form-control" placeholder="Doe">
-            </div>
-          </div>
-          <div class="mb-3">
-            <label class="form-label" for="edit_user_role">Role</label>
-            <select name="role" id="edit_user_role" class="form-select">
-              <option value="shop_user">Shop User</option>
-              <option value="admin">Admin (All Shops)</option>
-            </select>
-          </div>
-          <div class="mb-3">
-            <label class="form-label" for="edit_assigned_shop">Assigned Shop</label>
-            <select name="shop_id" id="edit_assigned_shop" class="form-select">
-              <option value="">-- No shop (admin) --</option>
-              {% for shop in all_shops %}
-              <option value="{{ shop.id }}">{{ shop.name }}</option>
-              {% endfor %}
-            </select>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Access Permissions</label>
-            <div id="permissionsCheckboxes" class="row g-2">
-              {% for key, label in permission_choices %}
-              <div class="col-6 col-md-4">
-                <div class="form-check">
-                  <input class="form-check-input permission-checkbox" type="checkbox" name="permissions" value="{{ key }}" id="perm_{{ key }}">
-                  <label class="form-check-label" for="perm_{{ key }}">{{ label }}</label>
-                </div>
-              </div>
-              {% endfor %}
-            </div>
-            <small class="text-muted">Grant specific access to this user. Admin users automatically have all access.</small>
-          </div>
-          <button type="submit" class="btn btn-primary w-100">
-            <i class="bi bi-pencil"></i> Edit Salesman
-          </button>
-        </form>
-      </div>
-    </div>
-
-    <div class="card" style="margin-bottom: 0;">
-      <div class="card-header bg-danger text-white">
-        <h5 class="mb-0"><i class="bi bi-person-x"></i> Remove Salesman</h5>
-      </div>
-      <div class="card-body">
-        <form method="post" data-confirm data-confirm-type="danger" data-confirm-title="Delete User?" data-confirm-message="Are you sure you want to delete this user?" data-confirm-text="Yes, Delete">
-          {% csrf_token %}
-          <input type="hidden" name="action" value="delete_user">
-          <div class="mb-3">
-            <label class="form-label" for="delete_user_id">Select User *</label>
-            <select name="user_id" id="delete_user_id" class="form-select" required>
-              <option value="">-- Choose a user --</option>
-              {% for u in users %}
-              <option value="{{ u.id }}">{{ u.get_full_name|default:u.username }} ({{ u.username }})</option>
-              {% endfor %}
-            </select>
-          </div>
-          <button type="submit" class="btn btn-danger w-100">
-            <i class="bi bi-person-x"></i> Delete User
-          </button>
-        </form>
-      </div>
-    </div>
-  </div>
+<button class="btn btn-info w-100">Add User</button>
+</form>
+</div>
 </div>
 </div>
 
+<!-- LANDING -->
 <div class="settings-section" id="section-landing" style="display:none">
+<div class="card">
+<div class="card-header bg-dark text-white">Landing Page</div>
+<div class="card-body">
 
-<div class="d-flex gap-2 mb-3 flex-wrap">
-  <button type="button" class="btn btn-dark rounded-pill px-3" id="landingTabHero" onclick="showLandingSection('hero')"><i class="bi bi-megaphone"></i> Hero</button>
-  <button type="button" class="btn btn-outline-dark rounded-pill px-3" id="landingTabAbout" onclick="showLandingSection('about')"><i class="bi bi-info-circle"></i> About</button>
-  <button type="button" class="btn btn-outline-dark rounded-pill px-3" id="landingTabProducts" onclick="showLandingSection('products')"><i class="bi bi-box"></i> Products</button>
-  <button type="button" class="btn btn-outline-dark rounded-pill px-3" id="landingTabWhy" onclick="showLandingSection('why')"><i class="bi bi-question-circle"></i> Why Us</button>
-  <button type="button" class="btn btn-outline-dark rounded-pill px-3" id="landingTabContact" onclick="showLandingSection('contact')"><i class="bi bi-telephone"></i> Contact</button>
-  <button type="button" class="btn btn-outline-dark rounded-pill px-3" id="landingTabFooter" onclick="showLandingSection('footer')"><i class="bi bi-layout-three-columns"></i> Footer</button>
-  <a href="{% url 'landing' %}" target="_blank" class="btn btn-outline-secondary rounded-pill px-3 ms-auto"><i class="bi bi-box-arrow-up-right"></i> Preview</a>
-</div>
+<form method="post">
+{% csrf_token %}
+<input type="hidden" name="action" value="save_landing_hero">
 
-<div id="landingPageSettings">
+<input class="form-control mb-2" name="hero_title" value="{{ landing_data.hero.title }}">
+<textarea class="form-control mb-2" name="hero_subtitle">{{ landing_data.hero.subtitle }}</textarea>
 
-<div class="landing-sub-section" id="lsec-hero">
-<div class="row">
-  <div class="col-md-8 mx-auto">
-    <div class="card">
-      <div class="card-header bg-dark text-white"><h5 class="mb-0"><i class="bi bi-megaphone"></i> Hero Section</h5></div>
-      <div class="card-body">
-        <form method="post">
-          {% csrf_token %}
-          <input type="hidden" name="action" value="save_landing_hero">
-          <div class="mb-3">
-            <label class="form-label" for="hero_title">Hero Title</label>
-            <input type="text" name="hero_title" id="hero_title" class="form-control" value="{{ landing_data.hero.title|default:'Welcome to VARNISHIELA BEAUTY PALOUR' }}">
-          </div>
-          <div class="mb-3">
-            <label class="form-label" for="hero_subtitle">Hero Subtitle</label>
-            <textarea name="hero_subtitle" id="hero_subtitle" class="form-control" rows="3">{{ landing_data.hero.subtitle|default:'Your trusted destination for authentic hygiene and beauty products. Feel fresh, smell amazing, and shine every day.' }}</textarea>
-          </div>
-          <button type="submit" class="btn btn-dark w-100"><i class="bi bi-check-lg"></i> Save Hero</button>
-        </form>
-      </div>
-    </div>
-  </div>
-</div>
-</div>
+<button class="btn btn-dark w-100">Save Hero</button>
+</form>
 
-<div class="landing-sub-section" id="lsec-about" style="display:none">
-<div class="row">
-  <div class="col-md-8 mx-auto">
-    <div class="card">
-      <div class="card-header bg-dark text-white"><h5 class="mb-0"><i class="bi bi-info-circle"></i> About Section</h5></div>
-      <div class="card-body">
-        <form method="post">
-          {% csrf_token %}
-          <input type="hidden" name="action" value="save_landing_about">
-          <div class="mb-3">
-            <label class="form-label" for="about_tag">Section Tag</label>
-            <input type="text" name="about_tag" id="about_tag" class="form-control" value="{{ landing_data.about.tag|default:'About Us' }}">
-          </div>
-          <div class="mb-3">
-            <label class="form-label" for="about_heading">Heading</label>
-            <input type="text" name="about_heading" id="about_heading" class="form-control" value="{{ landing_data.about.heading|default:'Who We Are' }}">
-          </div>
-          <div class="mb-3">
-            <label class="form-label" for="about_text_1">Paragraph 1</label>
-            <textarea name="about_text_1" id="about_text_1" class="form-control" rows="3">{{ landing_data.about.text_1|default:'VARNISHIELA BEAUTY PALOUR is a trusted name in personal care and beauty products. We are passionate about helping you look and feel your best with high-quality hygiene essentials at affordable prices.' }}</textarea>
-          </div>
-          <div class="mb-3">
-            <label class="form-label" for="about_text_2">Paragraph 2</label>
-            <textarea name="about_text_2" id="about_text_2" class="form-control" rows="3">{{ landing_data.about.text_2|default:'From body lotions to premium perfumes, every product in our collection is carefully selected to meet the highest standards of quality and safety. Your confidence is our craft.' }}</textarea>
-          </div>
-          <div class="mb-3">
-            <label class="form-label" for="about_features">Features (one per line)</label>
-            <textarea name="about_features" id="about_features" class="form-control" rows="4">{% if landing_data.about.features %}{% for f in landing_data.about.features %}{{ f }}
-{% endfor %}{% else %}100% Authentic Products
-Affordable Prices
-Fast & Reliable Delivery
-Customer Happiness Guaranteed{% endif %}</textarea>
-          </div>
-          <button type="submit" class="btn btn-dark w-100"><i class="bi bi-check-lg"></i> Save About</button>
-        </form>
-      </div>
-    </div>
-  </div>
 </div>
-</div>
-
-<div class="landing-sub-section" id="lsec-products" style="display:none">
-<div class="row">
-  <div class="col-md-8 mx-auto">
-    <div class="card">
-      <div class="card-header bg-dark text-white"><h5 class="mb-0"><i class="bi bi-box"></i> Products Section</h5></div>
-      <div class="card-body">
-        <form method="post">
-          {% csrf_token %}
-          <input type="hidden" name="action" value="save_landing_products">
-          <div class="mb-3">
-            <label class="form-label" for="products_tag">Section Tag</label>
-            <input type="text" name="products_tag" id="products_tag" class="form-control" value="{{ landing_data.products.tag|default:'Our Collection' }}">
-          </div>
-          <div class="mb-3">
-            <label class="form-label" for="products_heading">Heading</label>
-            <input type="text" name="products_heading" id="products_heading" class="form-control" value="{{ landing_data.products.heading|default:'Shop by Category' }}">
-          </div>
-          <div class="mb-3">
-            <label class="form-label" for="products_subtitle">Subtitle</label>
-            <textarea name="products_subtitle" id="products_subtitle" class="form-control" rows="2">{{ landing_data.products.subtitle|default:'Explore our range of premium hygiene and beauty products' }}</textarea>
-          </div>
-          <button type="submit" class="btn btn-dark w-100"><i class="bi bi-check-lg"></i> Save Products</button>
-        </form>
-      </div>
-    </div>
-  </div>
-</div>
-</div>
-
-<div class="landing-sub-section" id="lsec-why" style="display:none">
-<div class="row">
-  <div class="col-md-8 mx-auto">
-    <div class="card">
-      <div class="card-header bg-dark text-white"><h5 class="mb-0"><i class="bi bi-question-circle"></i> Why Us Section</h5></div>
-      <div class="card-body">
-        <form method="post">
-          {% csrf_token %}
-          <input type="hidden" name="action" value="save_landing_why">
-          <div class="mb-3">
-            <label class="form-label" for="why_tag">Section Tag</label>
-            <input type="text" name="why_tag" id="why_tag" class="form-control" value="{{ landing_data.why.tag|default:'Why Choose Us' }}">
-          </div>
-          <div class="mb-3">
-            <label class="form-label" for="why_heading">Heading</label>
-            <input type="text" name="why_heading" id="why_heading" class="form-control" value="{{ landing_data.why.heading|default:'We Care About Your Confidence' }}">
-          </div>
-          <div class="mb-3">
-            <label class="form-label" for="why_subtitle">Subtitle</label>
-            <textarea name="why_subtitle" id="why_subtitle" class="form-control" rows="2">{{ landing_data.why.subtitle|default:'Here is why our customers trust us' }}</textarea>
-          </div>
-          <div class="mb-3">
-            <label class="form-label" for="why_cards">Cards (one per line, format: icon_name | Title | Description)</label>
-            <textarea name="why_cards" id="why_cards" class="form-control" rows="5">{% if landing_data.why.cards %}{% for c in landing_data.why.cards %}{{ c.icon }} | {{ c.title }} | {{ c.text }}
-{% endfor %}{% else %}fa-medal | High Quality | Every product meets strict quality standards.
-fa-wallet | Affordable Prices | Premium care doesn&apos;t have to break the bank.
-fa-handshake | Trusted Shop | Established reputation for honesty and reliability.
-fa-rocket | Fast Service | Quick processing and timely delivery every time.
-fa-heart | Customer Satisfaction | Your happiness is our top priority.{% endif %}</textarea>
-          </div>
-          <button type="submit" class="btn btn-dark w-100"><i class="bi bi-check-lg"></i> Save Why Us</button>
-        </form>
-      </div>
-    </div>
-  </div>
-</div>
-</div>
-
-<div class="landing-sub-section" id="lsec-contact" style="display:none">
-<div class="row">
-  <div class="col-md-8 mx-auto">
-    <div class="card">
-      <div class="card-header bg-dark text-white"><h5 class="mb-0"><i class="bi bi-telephone"></i> Contact Section</h5></div>
-      <div class="card-body">
-        <form method="post">
-          {% csrf_token %}
-          <input type="hidden" name="action" value="save_landing_contact">
-          <div class="mb-3">
-            <label class="form-label" for="contact_tag">Section Tag</label>
-            <input type="text" name="contact_tag" id="contact_tag" class="form-control" value="{{ landing_data.contact.tag|default:'Get In Touch' }}">
-          </div>
-          <div class="mb-3">
-            <label class="form-label" for="contact_heading">Heading</label>
-            <input type="text" name="contact_heading" id="contact_heading" class="form-control" value="{{ landing_data.contact.heading|default:'Contact Us' }}">
-          </div>
-          <div class="mb-3">
-            <label class="form-label" for="contact_subtitle">Subtitle</label>
-            <textarea name="contact_subtitle" id="contact_subtitle" class="form-control" rows="2">{{ landing_data.contact.subtitle|default:'We would love to hear from you' }}</textarea>
-          </div>
-          <div class="row mb-3">
-            <div class="col-6">
-              <label class="form-label" for="contact_whatsapp">WhatsApp Number</label>
-              <input type="text" name="contact_whatsapp" id="contact_whatsapp" class="form-control" value="{{ landing_data.contact.whatsapp|default:'+265 883 994 035' }}">
-            </div>
-            <div class="col-6">
-              <label class="form-label" for="contact_phone">Phone Number</label>
-              <input type="text" name="contact_phone" id="contact_phone" class="form-control" value="{{ landing_data.contact.phone|default:'+265 883 994 035' }}">
-            </div>
-          </div>
-          <div class="row mb-3">
-            <div class="col-6">
-              <label class="form-label" for="contact_location">Location</label>
-              <input type="text" name="contact_location" id="contact_location" class="form-control" value="{{ landing_data.contact.location|default:'Blantyre, Malawi' }}">
-            </div>
-            <div class="col-6">
-              <label class="form-label" for="contact_email">Email</label>
-              <input type="text" name="contact_email" id="contact_email" class="form-control" value="{{ landing_data.contact.email|default:'info@varnishiela.com' }}">
-            </div>
-          </div>
-          <hr>
-          <h6>Call to Action Box</h6>
-          <div class="mb-3">
-            <label class="form-label" for="cta_heading">CTA Heading</label>
-            <input type="text" name="cta_heading" id="cta_heading" class="form-control" value="{{ landing_data.contact.cta_heading|default:'Ready to Glow?' }}">
-          </div>
-          <div class="mb-3">
-            <label class="form-label" for="cta_text">CTA Text</label>
-            <textarea name="cta_text" id="cta_text" class="form-control" rows="2">{{ landing_data.contact.cta_text|default:'Place your order today and experience the VARNISHIELA difference. Fast delivery across Malawi.' }}</textarea>
-          </div>
-          <button type="submit" class="btn btn-dark w-100"><i class="bi bi-check-lg"></i> Save Contact</button>
-        </form>
-      </div>
-    </div>
-  </div>
-</div>
-</div>
-
-<div class="landing-sub-section" id="lsec-footer" style="display:none">
-<div class="row">
-  <div class="col-md-8 mx-auto">
-    <div class="card">
-      <div class="card-header bg-dark text-white"><h5 class="mb-0"><i class="bi bi-layout-three-columns"></i> Footer Section</h5></div>
-      <div class="card-body">
-        <form method="post">
-          {% csrf_token %}
-          <input type="hidden" name="action" value="save_landing_footer">
-          <div class="mb-3">
-            <label class="form-label" for="footer_brand">Brand Name</label>
-            <input type="text" name="footer_brand" id="footer_brand" class="form-control" value="{{ landing_data.footer.brand|default:'VARNISHIELA' }}">
-          </div>
-          <div class="mb-3">
-            <label class="form-label" for="footer_description">Description</label>
-            <textarea name="footer_description" id="footer_description" class="form-control" rows="3">{{ landing_data.footer.description|default:'Your trusted beauty &amp; hygiene store. Quality products for a confident you.' }}</textarea>
-          </div>
-          <button type="submit" class="btn btn-dark w-100"><i class="bi bi-check-lg"></i> Save Footer</button>
-        </form>
-      </div>
-    </div>
-  </div>
 </div>
 </div>
 
 </div>
 
-<style>
-.landing-sub-section .card { border: 1px solid #dee2e6; }
-.landing-sub-section .card-header { border-radius: calc(0.375rem - 1px) calc(0.375rem - 1px) 0 0; }
-</style>
+<!-- SAVE BAR -->
+<div class="settings-save-bar">
+<button class="btn btn-success w-100" onclick="saveAllSettings()">Save All Changes</button>
+</div>
 
+<!-- SCRIPT -->
 <script>
-function showLandingSection(name) {
-    document.querySelectorAll('.landing-sub-section').forEach(function(s) { s.style.display = 'none'; });
-    document.getElementById('lsec-' + name).style.display = '';
-    document.querySelectorAll('#section-landing .d-flex.gap-2 button').forEach(function(b) {
-        b.className = b.className.replace('btn-dark', 'btn-outline-dark');
-    });
-    var btn = document.getElementById('landingTab' + name.charAt(0).toUpperCase() + name.slice(1));
-    if (btn) btn.className = btn.className.replace('btn-outline-dark', 'btn-dark');
+function showSection(name){
+document.querySelectorAll('.settings-section').forEach(e=>e.style.display='none');
+document.getElementById('section-'+name).style.display='';
+}
+
+function saveAllSettings(){
+const forms=document.querySelectorAll('#settingsPage form');
+forms.forEach(f=>f.submit());
 }
 </script>
 
-</div>
-
-<div class="settings-save-bar" id="settingsSaveBar">
-    <div class="d-flex justify-content-between align-items-center">
-        <small class="text-muted">Fill in the fields above and click Save to apply</small>
-        <button type="button" class="btn btn-success btn-lg px-5" id="saveAllBtn" onclick="saveAllSettings()">
-            <i class="bi bi-check-lg"></i> Save Changes
-        </button>
-    </div>
-</div>
-
 <style>
-.settings-save-bar {
-    position: fixed; bottom: 0; left: 0; right: 0;
-    background: white; border-top: 2px solid #2ecc71;
-    padding: 12px 24px; z-index: 9999;
-    box-shadow: 0 -4px 20px rgba(0,0,0,0.1);
-    margin-left: 16.666%;
-}
-@media (max-width: 768px) {
-    .settings-save-bar { margin-left: 0; padding: 8px 12px; }
-    .settings-save-bar .btn-lg { font-size: 0.9rem; padding: 10px 24px; }
-    .settings-save-bar .d-flex { flex-direction: column; gap: 6px; }
-    .settings-save-bar .d-flex small { text-align: center; }
-    .settings-container { padding: 10px; }
-    .settings-form { width: 100%; }
-    .settings-tabs { flex-direction: column; }
-    .settings-tabs button { width: 100%; }
-    .d-flex.gap-2.mb-4.flex-wrap { flex-direction: column; gap: 4px !important; }
-    .d-flex.gap-2.mb-4.flex-wrap button { font-size: 0.75rem; padding: 6px 12px; white-space: nowrap; width: 100%; }
-    #settingsPage .row .col-6 { width: 100%; }
-    #settingsPage { padding-bottom: 100px !important; }
-    #settingsPage .card-body { padding: 0.8rem; }
-    #settingsPage h2 { font-size: 1.1rem; }
+.settings-save-bar{
+position:fixed;bottom:0;left:0;right:0;
+background:#fff;padding:10px;border-top:1px solid #ccc;
 }
 </style>
 
-<script>
-function showSection(name) {
-    document.querySelectorAll('.settings-section').forEach(function(s) { s.style.display = 'none'; });
-    document.getElementById('section-' + name).style.display = '';
-    document.querySelectorAll('.d-flex.gap-2.mb-4 button').forEach(function(b) {
-        b.className = b.className.replace('btn-primary', 'btn-outline-primary').replace('btn-outline-primary', 'btn-outline-primary');
-    });
-    var btn = document.getElementById('tab' + name.charAt(0).toUpperCase() + name.slice(1));
-    btn.className = btn.className.replace('btn-outline-primary', 'btn-primary');
-}
-function saveAllSettings() {
-    const forms = document.querySelectorAll('#settingsPage .settings-section:not([style*="display:none"]) form');
-    let hasChanges = false;
-    let submitted = 0;
-    const totalForms = forms.length;
-    if (totalForms === 0) { alert('No forms to save.'); return; }
-    forms.forEach(function(form) {
-        const inputs = form.querySelectorAll('input:not([type=hidden]), select, textarea');
-        let formHasData = false;
-        inputs.forEach(function(input) {
-            if (input.value.trim()) { formHasData = true; hasChanges = true; }
-        });
-        if (!formHasData) { submitted++; return; }
-        var formData = new FormData(form);
-        fetch(window.location.href, {
-            method: 'POST',
-            body: formData,
-            headers: { 'X-CSRFToken': formData.get('csrfmiddlewaretoken') }
-        }).then(function(r) { return r.text(); }).then(function() {
-            submitted++;
-            if (submitted >= totalForms) {
-                if (hasChanges) { window.location.reload(); }
-                else { alert('No changes to save.'); }
-            }
-        });
-    });
-}
-</script>
-
-<!-- All Business Periods Modal -->
-<div class="modal fade" id="periodsModal" tabindex="-1">
-    <div class="modal-dialog modal-lg modal-dialog-scrollable">
-        <div class="modal-content">
-            <div class="modal-header bg-dark text-white">
-                <h5 class="modal-title"><i class="bi bi-clock-history"></i> All Business Periods</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-hover mb-0">
-                        <thead class="table-light sticky-top">
-                            <tr>
-                                <th>Name</th>
-                                <th>Type</th>
-                                <th>Start</th>
-                                <th>End</th>
-                                <th>Status</th>
-                                <th>Closed</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for period in periods %}
-                            <tr>
-                                <td><strong>{{ period.name }}</strong></td>
-                                <td><span class="badge bg-secondary">{{ period.get_period_type_display }}</span></td>
-                                <td>{{ period.start_date|date:"d/m/y" }}</td>
-                                <td>{{ period.end_date|date:"d/m/y" }}</td>
-                                <td>
-                                    {% if period.is_closed %}
-                                    <span class="badge bg-danger">Closed</span>
-                                    {% else %}
-                                    <span class="badge bg-success">Open</span>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if period.closed_at %}
-                                    <small class="text-muted">{{ period.closed_at|date:"d/m/y H:i" }}</small>
-                                    {% else %}
-                                    <small class="text-muted">-</small>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            {% empty %}
-                            <tr>
-                                <td colspan="6" class="text-center text-muted py-3">No business periods created yet</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- All Shops Modal -->
-<div class="modal fade" id="shopsModal" tabindex="-1">
-    <div class="modal-dialog modal-lg modal-dialog-scrollable">
-        <div class="modal-content">
-            <div class="modal-header bg-dark text-white">
-                <h5 class="modal-title"><i class="bi bi-shop"></i> All Shops</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-hover mb-0">
-                        <thead class="table-light sticky-top">
-                            <tr>
-                                <th>#</th>
-                                <th>Shop Name</th>
-                                <th>Assigned People</th>
-                                <th>Sales Person</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for shop in all_shops %}
-                            <tr>
-                                <td>{{ forloop.counter }}</td>
-                                <td><strong>{{ shop.name }}</strong></td>
-                                <td>{{ shop.assigned_users.count }}</td>
-                                <td>
-                                    {% with users=shop.assigned_users.all %}
-                                    {% if users %}
-                                    {% for u in users %}{{ u.user.get_full_name|default:u.user.username }}{% if not forloop.last %}, {% endif %}{% endfor %}
-                                    {% else %}
-                                    <span class="text-muted">—</span>
-                                    {% endif %}
-                                    {% endwith %}
-                                </td>
-                            </tr>
-                            {% empty %}
-                            <tr>
-                                <td colspan="4" class="text-center text-muted py-3">No shops created yet</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- All Salesmen Modal -->
-<div class="modal fade" id="salesmenModal" tabindex="-1">
-    <div class="modal-dialog modal-lg modal-dialog-scrollable">
-        <div class="modal-content">
-            <div class="modal-header bg-dark text-white">
-                <h5 class="modal-title"><i class="bi bi-people"></i> All Salesmen</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-hover mb-0">
-                        <thead class="table-light sticky-top">
-                            <tr>
-                                <th>#</th>
-                                <th>Username</th>
-                                <th>Name</th>
-                                <th>Email</th>
-                                <th>Role</th>
-                                <th>Shop</th>
-                                <th>Permissions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for u in users %}
-                            <tr>
-                                <td>{{ forloop.counter }}</td>
-                                <td><strong>{{ u.username }}</strong></td>
-                                <td>{{ u.get_full_name|default:"-" }}</td>
-                                <td>{{ u.email|default:"-" }}</td>
-                                <td>
-                                    {% if u.user_profile.is_admin %}
-                                    <span class="badge bg-warning text-dark">Admin</span>
-                                    {% else %}
-                                    <span class="badge bg-info text-white">Shop User</span>
-                                    {% endif %}
-                                </td>
-                                <td>{{ u.user_profile.assigned_shop.name|default:"All Shops" }}</td>
-                                <td>
-                                    {% if u.user_profile.is_admin %}
-                                    <small class="text-muted">All (admin)</small>
-                                    {% elif u.user_profile.permissions %}
-                                    {% for key, label in permission_choices %}
-                                    {% if key in u.user_profile.permissions %}
-                                    <span class="badge bg-secondary">{{ label }}</span>
-                                    {% endif %}
-                                    {% endfor %}
-                                    {% else %}
-                                    <small class="text-muted">None</small>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            {% empty %}
-                            <tr>
-                                <td colspan="7" class="text-center text-muted py-3">No users created yet</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-            </div>
-        </div>
-    </div>
-</div>
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    var editSelect = document.getElementById('edit_user_id');
-    if (editSelect) {
-        editSelect.addEventListener('change', function() {
-            var opt = this.options[this.selectedIndex];
-            if (!opt || !opt.value) return;
-            document.getElementById('edit_username').value = opt.dataset.username || '';
-            document.getElementById('edit_user_email').value = opt.dataset.email || '';
-            document.getElementById('edit_first_name').value = opt.dataset.firstName || '';
-            document.getElementById('edit_last_name').value = opt.dataset.lastName || '';
-            document.getElementById('edit_user_role').value = opt.dataset.role || 'shop_user';
-            document.getElementById('edit_assigned_shop').value = opt.dataset.shopId || '';
-            var perms = (opt.dataset.permissions || '').replace(/[\[\]']/g, '').split(',').map(function(s) { return s.trim(); }).filter(function(s) { return s; });
-            document.querySelectorAll('.permission-checkbox').forEach(function(cb) {
-                cb.checked = perms.indexOf(cb.value) !== -1;
-            });
-        });
-    }
-});
-</script>
 {% endblock %}

@@ -1,0 +1,96 @@
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card">
+    <div class="card-header bg-warning text-dark">
+        <h5 class="mb-0"><i class="bi bi-arrow-right-circle"></i> Transfer to Shop
+            {% if active_period %}<span class="badge bg-dark ms-2">{{ active_period.name }}</span>{% endif %}
+        </h5>
+    </div>
+            <div class="card-body">
+                <form method="post" data-confirm data-confirm-type="warning" data-confirm-title="Transfer Stock?" data-confirm-message="This will move stock from Warehouse to the selected shop." data-confirm-text="Yes, Transfer" data-confirm-submessage="">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="transfer_item">
+                    <div class="mb-3">
+                        <label class="form-label" for="whItemSelect">Select Warehouse Item</label>
+                        <select name="item_id" id="whItemSelect" class="form-select" required>
+                            <option value="">-- Select Item --</option>
+                            {% for item in items %}
+                            <option value="{{ item.id }}">{{ item.name }} - Open: {{ opening_by_item|lookup:item.id|default:0 }} | Current: {{ item.quantity }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="transferShop">Transfer To Shop</label>
+                        <select name="target_shop" id="transferShop" class="form-select" required>
+                            <option value="">-- Select Shop --</option>
+                            {% for s in other_shops %}
+                            <option value="{{ s.id }}">{{ s.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="transferQty">Quantity to Transfer</label>
+                        <input type="number" name="quantity_transfer" id="transferQty" class="form-control" value="1" min="1" required>
+                    </div>
+                    <button type="submit" class="btn btn-warning w-100"><i class="bi bi-truck"></i> Transfer Stock</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-list-ul"></i> Warehouse Stock Tracking
+                    <span class="badge bg-light text-dark ms-2">{{ total_items }} items / {{ total_qty }} balance</span>
+                </h5>
+                <button class="btn btn-sm btn-outline-light" id="whStockViewAll" onclick="toggleWHStock()">View All</button>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="text-center" style="width:36px">#</th>
+                                <th>Item</th>
+                                <th>Category</th>
+                                <th class="text-center text-info">Opening</th>
+                                <th class="text-center text-success">Stocked In</th>
+                                <th class="text-center text-danger">Stocked Out</th>
+                                <th class="text-center">Balance</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in items %}
+                            <tr class="wh-stock-row{% if forloop.counter > 10 %} d-none{% endif %}{% if item.is_low_stock %} low-stock{% endif %}" style="cursor:pointer;" data-bs-toggle="modal" data-bs-target="#editWHModal{{ item.id }}">
+                                {% with stocked_out=stock_out_by_item|lookup:item.id|default:0 %}
+                                {% with open_qty=opening_by_item|lookup:item.id|default:0 %}
+                                <td class="text-center text-muted">{{ forloop.counter }}</td>
+                                <td><strong class="item-clickable" style="cursor:pointer;">{{ item.name }}</strong></td>
+                                <td><span class="badge bg-secondary">{{ item.category|default:"-" }}</span></td>
+                                <td class="text-center text-info"><strong>{{ open_qty }}</strong></td>
+                                <td class="text-center"><strong>{{ item.quantity|add:stocked_out }}</strong></td>
+                                <td class="text-center text-danger"><strong>{{ stocked_out }}</strong></td>
+                                <td class="text-center"><strong>{{ item.quantity }}</strong></td>
+                                {% endwith %}
+                                {% endwith %}
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        {% if items %}
+                        <tfoot class="table-light">
+                            <tr>
+                                <td colspan="3" class="text-end"><strong>Totals</strong></td>
+                                <td class="text-center text-info"><strong>-</strong></td>
+                                <td class="text-center"><strong>{{ warehouse_stocked_in }}</strong></td>
+                                <td class="text-center text-danger"><strong>{{ warehouse_stocked_out }}</strong></td>
+                                <td class="text-center"><strong>{{ total_qty }}</strong></td>
+                            </tr>
+                        </tfoot>
+                        {% endif %}
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

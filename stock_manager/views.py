@@ -18,9 +18,6 @@ from django.utils import timezone
 
 from .models import (
     Shop, Item, Sale, StockTransaction, UserProfile, PERMISSION_CHOICES,
-    BusinessPeriod, PeriodOpeningStock, Receipt, ReceiptItem,
-    CompanyProfile, WhatsAppSetting, WhatsAppMessage, LandingPageContent,
-
 )
 
 from .middleware import shop_access_required
@@ -166,29 +163,11 @@ def get_shop_inventory_data(opening_stock=None):
 # ========================
 
 def get_active_period():
-    return BusinessPeriod.objects.filter(is_closed=False).first()
+    return None
 
 
 def get_period_opening_stock(period, shop=None):
-    if not period:
-        return {}
-
-    qs = PeriodOpeningStock.objects.filter(period=period)
-
-    if shop:
-        qs = qs.filter(shop=shop)
-
-    opening = {}
-
-    for o in qs:
-        key = o.item_name.lower()
-        opening[key] = {
-            'quantity': o.quantity,
-            'unit_price': float(o.unit_price),
-            'category': o.category,
-        }
-
-    return opening
+    return {}
 
 
 # ========================
@@ -317,29 +296,6 @@ def dashboard_bulk_import(request):
 
 
 # =========================
-# RECEIPT NUMBER GENERATOR
-# =========================
-
-def generate_receipt_number():
-    today = date.today()
-    prefix = today.strftime('RCP-%Y%m%d-')
-
-    last = Receipt.objects.filter(
-        receipt_number__startswith=prefix
-    ).order_by('-receipt_number').first()
-
-    if last:
-        try:
-            num = int(last.receipt_number.split('-')[-1]) + 1
-        except (ValueError, IndexError):
-            num = 1
-    else:
-        num = 1
-
-    return f'{prefix}{num:04d}'
-
-
-# =========================
 # POINT OF SALE (POS)
 # =========================
 
@@ -443,62 +399,26 @@ def point_of_sale(request, shop_slug):
                 change = amount_received - total
 
                 # =========================
-                # CREATE RECEIPT
-                # =========================
-                receipt = Receipt.objects.create(
-                    receipt_number=generate_receipt_number(),
-                    shop=shop,
-                    customer_name=customer_name,
-                    subtotal=subtotal,
-                    total=total,
-                    amount_received=amount_received,
-                    change=change,
-                    created_by=request.user if request.user.is_authenticated else None,
-                )
-
-                # =========================
-                # SAVE SALES + RECEIPT ITEMS + UPDATE STOCK
+                # SAVE SALES + UPDATE STOCK
                 # =========================
                 for entry in line_items:
                     item = entry['item']
                     qty = entry['qty']
-
-                    ReceiptItem.objects.create(
-                        receipt=receipt,
-                        item=item,
-                        item_name=item.name,
-                        quantity=qty,
-                        unit_price=entry['unit_price'],
-                        total=entry['total'],
-                    )
 
                     Sale.objects.create(
                         item=item,
                         quantity_sold=qty,
                         unit_price=entry['unit_price'],
                         total_amount=entry['total'],
-                        receipt=receipt
                     )
 
                     item.quantity -= qty
                     item.save()
 
-                try:
-                    from django.core.files.base import ContentFile
-                    company = CompanyProfile.objects.first()
-                    pdf_bytes = _generate_pdf_bytes(receipt, company)
-                    receipt.pdf_file.save(f'{receipt.receipt_number}.pdf', ContentFile(pdf_bytes), save=False)
-                    receipt.save(update_fields=['pdf_file'])
-                except Exception:
-                    pass
-
                 return JsonResponse({
                     'success': True,
-                    'receipt_id': receipt.id,
-                    'receipt_number': receipt.receipt_number,
                     'change': float(change),
                     'message': 'Sale completed successfully',
-                    'pdf_url': receipt.pdf_file.url if receipt.pdf_file else None,
                 })
 
         except Exception as e:
@@ -516,91 +436,46 @@ def sales_history(request):
     profile = get_user_profile(request.user)
     user_is_admin = profile is None or profile.is_admin
 
-    receipts = Receipt.objects.select_related(
-        'shop', 'created_by'
-    ).prefetch_related('items')
+    sales = Sale.objects.select_related('item', 'item__shop').order_by('-sold_at')[:100]
 
     if not user_is_admin and profile.assigned_shop:
-        receipts = receipts.filter(shop=profile.assigned_shop)
+        sales = sales.filter(item__shop=profile.assigned_shop)
 
     q = request.GET.get('q', '').strip()
     date_from = request.GET.get('date_from')
     date_to = request.GET.get('date_to')
-    shop_filter = request.GET.get('shop')
 
     if q:
-        receipts = receipts.filter(
-            Q(receipt_number__icontains=q) |
-            Q(customer_name__icontains=q)
-        )
+        sales = sales.filter(Q(item__name__icontains=q))
 
     if date_from:
-        receipts = receipts.filter(created_at__date__gte=date_from)
+        sales = sales.filter(sold_at__date__gte=date_from)
 
     if date_to:
-        receipts = receipts.filter(created_at__date__lte=date_to)
+        sales = sales.filter(sold_at__date__lte=date_to)
 
-    if user_is_admin and shop_filter:
-        receipts = receipts.filter(shop_id=shop_filter)
-
-    receipts = receipts.order_by('-created_at')[:100]
-
-    total_sales = receipts.aggregate(
-        total=Sum('total')
-    )['total'] or 0
+    total_sales = sales.aggregate(total=Sum('total_amount'))['total'] or 0
 
     context = {
-        'receipts': receipts,
+        'sales': sales,
         'total_sales': total_sales,
         'query': q,
         'date_from': date_from,
         'date_to': date_to,
-        'selected_shop': shop_filter,
         'user_is_admin': user_is_admin,
-        'page_title': 'Receipts',
+        'page_title': 'Sales History',
     }
 
     return render(request, 'stock_manager/sales_history.html', context)
 
 
 # =========================
-# PRINT RECEIPT
+# SALE DETAIL
 # =========================
 
 @shop_access_required
-def print_receipt(request, receipt_id):
-    receipt = get_object_or_404(Receipt, id=receipt_id)
-
-    profile = get_user_profile(request.user)
-    user_is_admin = profile is None or profile.is_admin
-
-    if (
-        not user_is_admin and
-        profile.assigned_shop and
-        receipt.shop != profile.assigned_shop
-    ):
-        messages.error(request, 'Access denied.')
-        return redirect('dashboard')
-
-    context = {
-        'receipt': receipt,
-        'page_title': f'Receipt {receipt.receipt_number}',
-        'whatsapp': WhatsAppSetting.get_profile(),
-    }
-
-    return render(request, 'stock_manager/receipt_print.html', context)
-
-
-# =========================
-# RECEIPT DETAIL
-# =========================
-
-@shop_access_required
-def receipt_detail(request, receipt_id):
-    receipt = get_object_or_404(
-        Receipt.objects.select_related('shop', 'created_by').prefetch_related('items'),
-        id=receipt_id
-    )
+def sale_detail(request, sale_id):
+    sale = get_object_or_404(Sale.objects.select_related('item', 'item__shop'), id=sale_id)
 
     profile = get_user_profile(request.user)
     user_is_admin = profile is None or profile.is_admin
@@ -608,254 +483,21 @@ def receipt_detail(request, receipt_id):
     if (
         not user_is_admin and
         profile and profile.assigned_shop and
-        receipt.shop != profile.assigned_shop
+        sale.item.shop != profile.assigned_shop
     ):
         messages.error(request, 'Access denied.')
         return redirect('sales_history')
 
-    return render(request, 'stock_manager/receipt_detail.html', {
-        'receipt': receipt,
-        'page_title': f'Receipt {receipt.receipt_number}',
+    return render(request, 'stock_manager/sale_detail.html', {
+        'sale': sale,
+        'page_title': f'Sale #{sale.id}',
     })
-
-
-# =========================
-# RECEIPT PDF DOWNLOAD
-# =========================
-
-@shop_access_required
-def download_receipt_pdf(request, receipt_id):
-    receipt = get_object_or_404(
-        Receipt.objects.select_related('shop', 'created_by').prefetch_related('items'),
-        id=receipt_id
-    )
-    profile = get_user_profile(request.user)
-    user_is_admin = profile is None or profile.is_admin
-    if not user_is_admin and profile and profile.assigned_shop and receipt.shop != profile.assigned_shop:
-        messages.error(request, 'Access denied.')
-        return redirect('sales_history')
-
-    if receipt.pdf_file and receipt.pdf_file.storage.exists(receipt.pdf_file.name):
-        response = HttpResponse(receipt.pdf_file.read(), content_type='application/pdf')
-        response['Content-Disposition'] = f'attachment; filename="receipt_{receipt.receipt_number}.pdf"'
-        return response
-
-    company = CompanyProfile.objects.first()
-    pdf_bytes = _generate_pdf_bytes(receipt, company)
-
-    from django.core.files.base import ContentFile
-    try:
-        receipt.pdf_file.save(f'{receipt.receipt_number}.pdf', ContentFile(pdf_bytes), save=True)
-    except Exception:
-        pass
-
-    response = HttpResponse(pdf_bytes, content_type='application/pdf')
-    response['Content-Disposition'] = f'attachment; filename="receipt_{receipt.receipt_number}.pdf"'
-    return response
-
-
-# =========================
-# EMAIL RECEIPT PDF
-# =========================
-
-@shop_access_required
-def email_receipt(request, receipt_id):
-    receipt = get_object_or_404(
-        Receipt.objects.select_related('shop', 'created_by').prefetch_related('items'),
-        id=receipt_id
-    )
-    profile = get_user_profile(request.user)
-    user_is_admin = profile is None or profile.is_admin
-    if not user_is_admin and profile and profile.assigned_shop and receipt.shop != profile.assigned_shop:
-        messages.error(request, 'Access denied.')
-        return redirect('sales_history')
-
-    if request.method != 'POST':
-        return redirect('receipt_detail', receipt_id=receipt_id)
-
-    to_email = request.POST.get('email', '').strip()
-    if not to_email:
-        messages.error(request, 'Please enter an email address.')
-        return redirect('receipt_detail', receipt_id=receipt_id)
-
-    company = CompanyProfile.objects.first()
-
-    from django.core.mail import EmailMultiAlternatives
-    from django.template.loader import render_to_string
-    from io import BytesIO
-
-    try:
-        pdf_data = _generate_pdf_bytes(receipt, company)
-    except Exception as e:
-        messages.error(request, f'Failed to generate PDF: {e}')
-        return redirect('receipt_detail', receipt_id=receipt_id)
-
-    subject = f'Receipt {receipt.receipt_number} from {company.company_name if company else "Stock Manager"}'
-    text_body = f'Dear Customer,\n\nPlease find attached your receipt {receipt.receipt_number}.\n\nTotal: MWK {receipt.total:,.2f}\nDate: {receipt.created_at.strftime("%d/%m/%Y %H:%M")}\n\nThank you for your business!'
-    html_body = render_to_string('stock_manager/receipt_email.html', {
-        'receipt': receipt,
-        'company': company,
-    })
-
-    msg = EmailMultiAlternatives(subject, text_body, None, [to_email])
-    msg.attach_alternative(html_body, 'text/html')
-    msg.attach(f'receipt_{receipt.receipt_number}.pdf', pdf_data, 'application/pdf')
-
-    try:
-        msg.send()
-        messages.success(request, f'Receipt sent to {to_email}')
-    except Exception as e:
-        messages.error(request, f'Failed to send email: {e}')
-
-    return redirect('receipt_detail', receipt_id=receipt_id)
 
 
 @shop_access_required
 def delete_receipt(request, receipt_id):
-    if request.method != 'POST':
-        return redirect('sales_history')
-    
-    profile = get_user_profile(request.user)
-    user_is_admin = profile is None or profile.is_admin
-    if not user_is_admin:
-        messages.error(request, 'Only admins can delete receipts.')
-        return redirect('receipt_detail', receipt_id=receipt_id)
-    
-    receipt = get_object_or_404(Receipt, id=receipt_id)
-    receipt_num = receipt.receipt_number
-    receipt.delete()
-    messages.success(request, f'Receipt {receipt_num} deleted.')
+    messages.error(request, 'Receipt management is not available.')
     return redirect('sales_history')
-
-
-def _generate_pdf_bytes(receipt, company):
-    from reportlab.lib.pagesizes import A4
-    from reportlab.lib.units import mm
-    from reportlab.lib import colors
-    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-    from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
-    from io import BytesIO
-
-    buf = BytesIO()
-    doc = SimpleDocTemplate(buf, pagesize=A4, topMargin=20*mm, bottomMargin=15*mm, leftMargin=15*mm, rightMargin=15*mm)
-
-    styles = getSampleStyleSheet()
-    styles.add(ParagraphStyle(name='CenterTitle', parent=styles['Heading2'], alignment=TA_CENTER, spaceAfter=4))
-    styles.add(ParagraphStyle(name='CenterSmall', parent=styles['Normal'], alignment=TA_CENTER, textColor=colors.grey, fontSize=8, spaceAfter=12))
-    styles.add(ParagraphStyle(name='InfoLine', parent=styles['Normal'], fontSize=9, spaceAfter=2))
-    styles.add(ParagraphStyle(name='RightAlign', parent=styles['Normal'], fontSize=9, alignment=TA_RIGHT))
-    styles.add(ParagraphStyle(name='Thanks', parent=styles['Normal'], alignment=TA_CENTER, textColor=colors.grey, fontSize=9, italic=True, spaceBefore=12))
-
-    elements = []
-    name = company.company_name if company and company.company_name else 'STOCK MANAGER'
-    tagline = company.address if company and company.address else 'Inventory Management System'
-    elements.append(Paragraph(name, styles['CenterTitle']))
-    elements.append(Paragraph(tagline, styles['CenterSmall']))
-
-    if company and (company.phone or company.email or company.tax_id):
-        if company.phone: elements.append(Paragraph(f"<b>Phone:</b> {company.phone}", styles['InfoLine']))
-        if company.email: elements.append(Paragraph(f"<b>Email:</b> {company.email}", styles['InfoLine']))
-        if company.tax_id: elements.append(Paragraph(f"<b>Tax ID:</b> {company.tax_id}", styles['InfoLine']))
-        elements.append(Spacer(1, 4))
-
-    elements.append(Paragraph(f"<b>Receipt #:</b> {receipt.receipt_number}", styles['InfoLine']))
-    elements.append(Paragraph(f"<b>Date:</b> {receipt.created_at.strftime('%d/%m/%Y %H:%M')}", styles['InfoLine']))
-    elements.append(Paragraph(f"<b>Shop:</b> {receipt.shop.name}", styles['InfoLine']))
-    if receipt.customer_name:
-        elements.append(Paragraph(f"<b>Customer:</b> {receipt.customer_name}", styles['InfoLine']))
-    elements.append(Spacer(1, 8))
-
-    data = [['Item', 'Qty', 'Price', 'Total']]
-    for li in receipt.items.all():
-        data.append([li.item_name, str(li.quantity), f"MWK {li.unit_price:,.2f}", f"MWK {li.total:,.2f}"])
-    col_widths = [180, 40, 80, 80]
-    table = Table(data, colWidths=col_widths)
-    table.setStyle(TableStyle([
-        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0,0), (-1,-1), 9),
-        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#2c3e50')),
-        ('TEXTCOLOR', (0,0), (-1,0), colors.white),
-        ('ALIGN', (1,0), (-1,-1), 'CENTER'),
-        ('ALIGN', (-1,0), (-1,-1), 'RIGHT'),
-        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#dee2e6')),
-        ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.white, colors.HexColor('#f8f9fa')]),
-        ('TOPPADDING', (0,0), (-1,-1), 4),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 4),
-    ]))
-    elements.append(table)
-    elements.append(Spacer(1, 8))
-
-    elements.append(Paragraph(f"<b>Total:</b> MWK {receipt.total:,.2f}", styles['RightAlign']))
-    elements.append(Paragraph(f"<b>Amount Received:</b> MWK {receipt.amount_received:,.2f}", styles['RightAlign']))
-    elements.append(Paragraph(f"<b>Change:</b> MWK {receipt.change:,.2f}", styles['RightAlign']))
-
-    footer = company.receipt_footer if company and company.receipt_footer else 'Thank you for your business!'
-    elements.append(Paragraph(footer, styles['Thanks']))
-
-    doc.build(elements)
-    pdf = buf.getvalue()
-    buf.close()
-    return pdf
-
-
-# =========================
-# SALES EXPORT CSV
-# =========================
-
-@shop_access_required
-def export_sales_csv(request):
-    import csv
-    from django.db.models import Q
-
-    profile = get_user_profile(request.user)
-    user_is_admin = profile is None or profile.is_admin
-
-    receipts = Receipt.objects.select_related('shop', 'created_by').prefetch_related('items').order_by('-created_at')
-
-    if not user_is_admin and profile and profile.assigned_shop:
-        receipts = receipts.filter(shop=profile.assigned_shop)
-
-    q = request.GET.get('q', '').strip()
-    date_from = request.GET.get('date_from')
-    date_to = request.GET.get('date_to')
-    shop_filter = request.GET.get('shop')
-
-    if q:
-        receipts = receipts.filter(
-            Q(receipt_number__icontains=q) |
-            Q(customer_name__icontains=q)
-        )
-    if date_from:
-        receipts = receipts.filter(created_at__date__gte=date_from)
-    if date_to:
-        receipts = receipts.filter(created_at__date__lte=date_to)
-    if user_is_admin and shop_filter:
-        receipts = receipts.filter(shop_id=shop_filter)
-
-    response = HttpResponse(content_type='text/csv')
-    response['Content-Disposition'] = 'attachment; filename="receipts_export.csv"'
-
-    writer = csv.writer(response)
-    writer.writerow(['Receipt #', 'Date', 'Shop', 'Customer', 'Item', 'Quantity', 'Unit Price', 'Line Total', 'Receipt Total', 'Created By'])
-
-    for r in receipts:
-        for li in r.items.all():
-            writer.writerow([
-                r.receipt_number, r.created_at.strftime('%Y-%m-%d %H:%M'),
-                r.shop.name, r.customer_name or 'Walk-in',
-                li.item_name, li.quantity, li.unit_price, li.total,
-                r.total, r.created_by.get_full_name() or r.created_by.username if r.created_by else '',
-            ])
-        if not r.items.count():
-            writer.writerow([
-                r.receipt_number, r.created_at.strftime('%Y-%m-%d %H:%M'),
-                r.shop.name, r.customer_name or 'Walk-in',
-                '', '', '', '', r.total,
-                r.created_by.get_full_name() or r.created_by.username if r.created_by else '',
-            ])
-
-    return response
 
 
 # =========================
@@ -1559,47 +1201,7 @@ def settings_view(request):
     if request.method == 'POST':
         action = request.POST.get('action')
 
-        if action == 'open_period':
-            name = request.POST.get('name', '').strip()
-            period_type = request.POST.get('period_type', 'monthly')
-            start_date = request.POST.get('start_date', '')
-            end_date = request.POST.get('end_date', '')
-            notes = request.POST.get('notes', '').strip()
-
-            if not name or not start_date or not end_date:
-                messages.error(request, 'Name, start date, and end date are required.')
-            else:
-                period = BusinessPeriod.objects.create(
-                    name=name,
-                    period_type=period_type,
-                    start_date=start_date,
-                    end_date=end_date,
-                    notes=notes,
-                )
-                for item in Item.objects.select_related('shop').all():
-                    PeriodOpeningStock.objects.create(
-                        period=period,
-                        item_name=item.name,
-                        category=item.category,
-                        shop=item.shop,
-                        quantity=item.quantity,
-                        unit_price=item.unit_price,
-                    )
-                messages.success(request, f'Business period "{name}" opened with {Item.objects.count()} items carried forward.')
-
-        elif action == 'close_period':
-            period_id = request.POST.get('period_id')
-            try:
-                period = BusinessPeriod.objects.get(id=period_id, is_closed=False)
-                period.is_closed = True
-                period.closed_at = timezone.now()
-                period.closed_by = request.user
-                period.save()
-                messages.success(request, f'Business period "{period.name}" closed.')
-            except BusinessPeriod.DoesNotExist:
-                messages.error(request, 'Period not found or already closed.')
-
-        elif action == 'add_shop':
+        if action == 'add_shop':
             name = request.POST.get('name', '').strip()
             if not name:
                 messages.error(request, 'Shop name is required.')
@@ -1613,8 +1215,8 @@ def settings_view(request):
             shop_id = request.POST.get('shop_id')
             try:
                 shop = Shop.objects.get(id=shop_id)
-                if shop.items.exists() or shop.receipts.exists():
-                    messages.error(request, f'Cannot delete "{shop.name}" — it has items or receipts linked to it.')
+                if shop.items.exists():
+                    messages.error(request, f'Cannot delete "{shop.name}" — it has items linked to it.')
                 else:
                     shop.delete()
                     messages.success(request, f'Shop "{shop.name}" deleted.')
@@ -1669,18 +1271,21 @@ def settings_view(request):
         elif action == 'reset_password':
             user_id = request.POST.get('user_id')
             new_password = request.POST.get('new_password', '')
-            try:
-                user = User.objects.get(id=user_id)
-                if user.is_superuser:
-                    messages.error(request, 'Cannot reset password for superuser.')
-                elif not new_password or len(new_password) < 4:
-                    messages.error(request, 'Password must be at least 4 characters.')
-                else:
-                    user.set_password(new_password)
-                    user.save()
-                    messages.success(request, f'Password for "{user.username}" has been reset.')
-            except User.DoesNotExist:
-                messages.error(request, 'User not found.')
+            if not user_id or not new_password or len(new_password) < 4:
+                messages.error(request, 'User ID and password (min 4 chars) are required.')
+            else:
+                try:
+                    user = User.objects.get(id=user_id)
+                    if user.is_superuser:
+                        messages.error(request, 'Cannot reset password for superuser.')
+                    elif not new_password or len(new_password) < 4:
+                        messages.error(request, 'Password must be at least 4 characters.')
+                    else:
+                        user.set_password(new_password)
+                        user.save()
+                        messages.success(request, f'Password for "{user.username}" has been reset.')
+                except User.DoesNotExist:
+                    messages.error(request, 'User not found.')
 
         elif action == 'edit_user':
             user_id = request.POST.get('user_id')
@@ -1728,121 +1333,14 @@ def settings_view(request):
             except User.DoesNotExist:
                 messages.error(request, 'User not found.')
 
-        elif action == 'save_company':
-            company_name = request.POST.get('company_name', '').strip()
-            if company_name:
-                profile = CompanyProfile.get_profile()
-                profile.company_name = company_name
-                profile.address = request.POST.get('address', '').strip()
-                profile.phone = request.POST.get('phone', '').strip()
-                profile.email = request.POST.get('email', '').strip()
-                profile.tax_id = request.POST.get('tax_id', '').strip()
-                profile.receipt_footer = request.POST.get('receipt_footer', '').strip()
-                profile.save()
-                messages.success(request, 'Company profile updated.')
-            else:
-                messages.error(request, 'Company name is required.')
-
-        elif action.startswith('save_landing'):
-            content = LandingPageContent.get_content()
-            data = content.data
-
-            if action == 'save_landing_hero':
-                data['hero'] = {
-                    'title': request.POST.get('hero_title', '').strip(),
-                    'subtitle': request.POST.get('hero_subtitle', '').strip(),
-                }
-
-            elif action == 'save_landing_about':
-                features = request.POST.get('about_features', '').strip()
-                data['about'] = {
-                    'tag': request.POST.get('about_tag', '').strip(),
-                    'heading': request.POST.get('about_heading', '').strip(),
-                    'text_1': request.POST.get('about_text_1', '').strip(),
-                    'text_2': request.POST.get('about_text_2', '').strip(),
-                    'features': [f.strip() for f in features.split('\n') if f.strip()],
-                }
-
-            elif action == 'save_landing_products':
-                data['products'] = {
-                    'tag': request.POST.get('products_tag', '').strip(),
-                    'heading': request.POST.get('products_heading', '').strip(),
-                    'subtitle': request.POST.get('products_subtitle', '').strip(),
-                }
-
-            elif action == 'save_landing_why':
-                cards_text = request.POST.get('why_cards', '').strip()
-                cards = []
-                for line in cards_text.split('\n'):
-                    line = line.strip()
-                    if line:
-                        parts = [p.strip() for p in line.split('|')]
-                        if len(parts) >= 3:
-                            cards.append({'icon': parts[0], 'title': parts[1], 'text': parts[2]})
-                data['why'] = {
-                    'tag': request.POST.get('why_tag', '').strip(),
-                    'heading': request.POST.get('why_heading', '').strip(),
-                    'subtitle': request.POST.get('why_subtitle', '').strip(),
-                    'cards': cards,
-                }
-
-            elif action == 'save_landing_contact':
-                data['contact'] = {
-                    'tag': request.POST.get('contact_tag', '').strip(),
-                    'heading': request.POST.get('contact_heading', '').strip(),
-                    'subtitle': request.POST.get('contact_subtitle', '').strip(),
-                    'whatsapp': request.POST.get('contact_whatsapp', '').strip(),
-                    'phone': request.POST.get('contact_phone', '').strip(),
-                    'location': request.POST.get('contact_location', '').strip(),
-                    'email': request.POST.get('contact_email', '').strip(),
-                    'cta_heading': request.POST.get('cta_heading', '').strip(),
-                    'cta_text': request.POST.get('cta_text', '').strip(),
-                }
-
-            elif action == 'save_landing_footer':
-                data['footer'] = {
-                    'brand': request.POST.get('footer_brand', '').strip(),
-                    'description': request.POST.get('footer_description', '').strip(),
-                }
-
-            if request.FILES.get('landing_image'):
-                content.image = request.FILES['landing_image']
-            content.data = data
-            content.save()
-            messages.success(request, 'Landing page settings saved.')
-
-        elif action == 'save_whatsapp':
-            setting = WhatsAppSetting.get_profile()
-            setting.phone_number = request.POST.get('phone_number', '').strip()
-            setting.business_name = request.POST.get('business_name', '').strip()
-            setting.greeting_message = request.POST.get('greeting_message', '').strip()
-            setting.webhook_secret = request.POST.get('webhook_secret', '').strip()
-            api_key = request.POST.get('api_key', '').strip()
-            if api_key:
-                setting.api_key = api_key
-            setting.is_active = request.POST.get('is_active') == '1'
-            setting.save()
-            messages.success(request, 'WhatsApp settings saved.')
-
         return redirect('settings')
 
-    periods = BusinessPeriod.objects.all()
-    active_period = periods.filter(is_closed=False).first()
-    opening_count = PeriodOpeningStock.objects.filter(period=active_period).count() if active_period else 0
     users = User.objects.filter(is_superuser=False).select_related('user_profile__assigned_shop').order_by('username')
 
-    landing_content = LandingPageContent.get_content()
-    landing_data = landing_content.data
-
     context = {
-        'periods': periods,
-        'active_period': active_period,
-        'opening_count': opening_count,
         'users': users,
         'page_title': 'Settings',
-        'landing_data': landing_data,
         'permission_choices': PERMISSION_CHOICES,
-        'whatsapp': WhatsAppSetting.get_profile(),
     }
     return render(request, 'stock_manager/settings.html', context)
 
@@ -1957,8 +1455,6 @@ def financial_report(request):
 
 
 def landing_view(request):
-    company = CompanyProfile.get_profile()
-    landing = LandingPageContent.get_content()
     shops = Shop.objects.exclude(name__iexact='warehouse').order_by('name')
     items = Item.objects.exclude(shop__name__iexact='warehouse').select_related('shop').order_by('shop__name', 'name')
 
@@ -1972,7 +1468,7 @@ def landing_view(request):
         else:
             messages.error(request, 'Invalid username or password.')
 
-    return render(request, 'stock_manager/landing.html', {'company': company, 'landing': landing, 'items': items, 'shops': shops})
+    return render(request, 'stock_manager/landing.html', {'items': items, 'shops': shops})
 
 
 
