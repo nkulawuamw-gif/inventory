@@ -24,11 +24,13 @@ ALLOWED_HOSTS = [
     if host.strip()
 ]
 
+RENDER_EXTERNAL_URL = os.environ.get("RENDER_EXTERNAL_URL", "").rstrip("/")
 CSRF_TRUSTED_ORIGINS = [
     origin.strip()
     for origin in os.environ.get(
         "DJANGO_CSRF_TRUSTED_ORIGINS",
-        "https://shiela.onrender.com"
+        "https://shiela.onrender.com,http://shiela.onrender.com"
+        + (f",{RENDER_EXTERNAL_URL}" if RENDER_EXTERNAL_URL else "")
     ).split(",")
     if origin.strip()
 ]

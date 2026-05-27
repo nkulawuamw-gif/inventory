@@ -1,3 +1,4 @@
+{% load stock_filters %}
 <form method="POST" id="whBulkActionForm" action="">
     {% csrf_token %}
     <input type="hidden" name="action" value="bulk_delete_warehouse">
