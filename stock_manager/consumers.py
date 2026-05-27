@@ -192,8 +192,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 sender=self.user,
                 title=f"New message from {self.user.username}",
                 message=message_text[:200],
-                type="message",
-                link="/chat/",
             )
 
         except Exception as e:
