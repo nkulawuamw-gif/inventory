@@ -1,4 +1,5 @@
 import json
+import logging
 from django.db.models import Q
 from django.contrib.auth import get_user_model
 User = get_user_model()
@@ -8,6 +9,8 @@ from django.contrib.auth.decorators import login_required
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from .models import Message, Profile
+
+logger = logging.getLogger(__name__)
 
 
 @csrf_exempt
@@ -23,6 +26,7 @@ def heartbeat(request):
 
         return JsonResponse({"status": "ok"})
     except Exception as e:
+        logger.exception("heartbeat failed for user %s", request.user)
         return JsonResponse({"error": str(e)}, status=500)
 
 
@@ -69,6 +73,7 @@ def get_online_users(request):
 
         return JsonResponse({"users": data})
     except Exception as e:
+        logger.exception("get_online_users failed")
         return JsonResponse({"error": str(e)}, status=500)
 
 
@@ -110,8 +115,12 @@ def chat_view(request):
 
 @login_required
 def unread_count(request):
-    count = Message.objects.filter(receiver=request.user, is_read=False).count()
-    return JsonResponse({'count': count})
+    try:
+        count = Message.objects.filter(receiver=request.user, is_read=False).count()
+        return JsonResponse({'count': count})
+    except Exception as e:
+        logger.exception("unread_count failed for user %s", request.user)
+        return JsonResponse({"error": str(e)}, status=500)
 
 
 @login_required
