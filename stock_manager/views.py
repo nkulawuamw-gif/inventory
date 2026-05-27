@@ -440,6 +440,7 @@ def sales_history(request):
     q = request.GET.get('q', '').strip()
     date_from = request.GET.get('date_from')
     date_to = request.GET.get('date_to')
+    selected_shop = request.GET.get('shop', '')
 
     if q:
         sales = sales.filter(Q(item__name__icontains=q))
@@ -450,7 +451,11 @@ def sales_history(request):
     if date_to:
         sales = sales.filter(sold_at__date__lte=date_to)
 
+    if selected_shop:
+        sales = sales.filter(item__shop_id=selected_shop)
+
     total_sales = sales.aggregate(total=Sum('total_amount'))['total'] or 0
+    all_shops = Shop.objects.all().order_by('name')
 
     context = {
         'sales': sales,
@@ -458,7 +463,9 @@ def sales_history(request):
         'query': q,
         'date_from': date_from,
         'date_to': date_to,
+        'selected_shop': selected_shop,
         'user_is_admin': user_is_admin,
+        'all_shops': all_shops,
         'page_title': 'Sales History',
     }
 

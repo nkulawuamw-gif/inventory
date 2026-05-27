@@ -14,7 +14,7 @@
 }
 </style>
 
-<h2 class="mb-4"><i class="bi bi-receipt"></i> Receipts</h2>
+<h2 class="mb-4"><i class="bi bi-receipt"></i> Sales History</h2>
 
 <!-- FILTERS -->
 <div class="card mb-4">
@@ -23,7 +23,7 @@
 
             <div class="col-12 col-md-3">
                 <label class="form-label small">Search</label>
-                <input type="text" name="q" class="form-control" value="{{ query }}" placeholder="Receipt # / customer">
+                <input type="text" name="q" class="form-control" value="{{ query }}" placeholder="Item name">
             </div>
 
             {% if user_is_admin %}
@@ -65,7 +65,7 @@
 <div class="table-container">
 
     <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-        <h5 class="mb-0"><i class="bi bi-receipt"></i> All Receipts</h5>
+        <h5 class="mb-0"><i class="bi bi-receipt"></i> All Sales</h5>
         <div class="d-flex gap-2 align-items-center">
             <span class="badge bg-primary fs-6">
                 Total: MWK {{ total_sales|floatformat:2 }}
@@ -78,84 +78,39 @@
 
             <thead class="table-light">
                 <tr>
-                    <th>Receipt #</th>
+                    <th>#</th>
                     <th>Date</th>
                     <th>Shop</th>
-                    <th>Customer</th>
-                    <th>Cashier</th>
-                    <th>Items</th>
+                    <th>Item</th>
+                    <th class="text-center">Qty Sold</th>
+                    <th class="text-end">Unit Price</th>
                     <th class="text-end">Total</th>
                     <th class="text-center">Actions</th>
                 </tr>
             </thead>
 
             <tbody>
-                {% for r in receipts %}
+                {% for s in sales %}
                 <tr>
-
-                    <td><strong>{{ r.receipt_number }}</strong></td>
-                    <td>{{ r.created_at|date:"d/m/y H:i" }}</td>
-                    <td>{{ r.shop.name }}</td>
-                    <td>{{ r.customer_name|default:"Walk-in" }}</td>
-                    <td>
-                        {% firstof r.created_by.get_full_name r.created_by.username "—" %}
-                    </td>
-
-                    <td>
-                        {{ r.items_count|default:r.items.count }}
-                    </td>
-
-                    <td class="text-end">
-                        <strong>MWK {{ r.total|floatformat:2 }}</strong>
-                    </td>
-
+                    <td><strong>{{ s.id }}</strong></td>
+                    <td>{{ s.sold_at|date:"d/m/y H:i" }}</td>
+                    <td>{{ s.item.shop.name }}</td>
+                    <td>{{ s.item.name }}</td>
+                    <td class="text-center">{{ s.quantity_sold }}</td>
+                    <td class="text-end">MWK {{ s.unit_price|floatformat:2 }}</td>
+                    <td class="text-end"><strong>MWK {{ s.total_amount|floatformat:2 }}</strong></td>
                     <td class="text-center">
-                        <div class="d-flex gap-1 justify-content-center flex-nowrap action-btn-group">
-
-                            <a href="{% url 'receipt_detail' r.id %}"
-                               class="btn btn-sm btn-outline-primary"
-                               title="View">
-                                <i class="bi bi-eye"></i>
-                            </a>
-
-                            <a href="{% url 'receipt_pdf' r.id %}"
-                               class="btn btn-sm btn-outline-danger"
-                               title="PDF">
-                                <i class="bi bi-filetype-pdf"></i>
-                            </a>
-
-                            <a href="{% url 'print_receipt' r.id %}"
-                               target="_blank"
-                               class="btn btn-sm btn-outline-secondary"
-                               title="Print">
-                                <i class="bi bi-printer"></i>
-                            </a>
-
-                            <button class="btn btn-sm btn-outline-success"
-                                    onclick="shareReceipt({{ r.id }}, '{{ r.receipt_number|escapejs }}', parseFloat('{{ r.total|floatformat:2 }}'))">
-                                <i class="bi bi-share"></i>
-                            </button>
-
-                            {% if user_is_admin %}
-                            <form method="post"
-                                  action="{% url 'delete_receipt' r.id %}"
-                                  style="display:inline"
-                                  onsubmit="return confirm('Delete {{ r.receipt_number|escapejs }}?')">
-                                {% csrf_token %}
-                                <button class="btn btn-sm btn-outline-danger">
-                                    <i class="bi bi-trash"></i>
-                                </button>
-                            </form>
-                            {% endif %}
-
-                        </div>
+                        <a href="{% url 'sale_detail' s.id %}"
+                           class="btn btn-sm btn-outline-primary"
+                           title="View">
+                            <i class="bi bi-eye"></i>
+                        </a>
                     </td>
-
                 </tr>
                 {% empty %}
                 <tr>
                     <td colspan="8" class="text-center text-muted py-4">
-                        No receipts found
+                        No sales found
                     </td>
                 </tr>
                 {% endfor %}
@@ -165,48 +120,4 @@
     </div>
 
 </div>
-
-<!-- TOAST -->
-<div id="shareToast"
-     class="share-toast"
-     style="position:fixed;bottom:80px;left:50%;transform:translateX(-50%);
-     background:#333;color:white;padding:8px 20px;border-radius:20px;
-     font-size:0.85rem;opacity:0;transition:0.3s;pointer-events:none;">
-</div>
-
-<script>
-function shareReceipt(id, number, total) {
-    const url = `${window.location.origin}/receipt/${id}/pdf/`;
-
-    const text =
-        `Receipt ${number}\n` +
-        `Total: MWK ${total.toFixed(2)}\n` +
-        `Link: ${url}`;
-
-    if (navigator.share) {
-        navigator.share({
-            title: `Receipt ${number}`,
-            text: text,
-            url: url
-        });
-    } else {
-        window.open(
-            'https://wa.me/?text=' + encodeURIComponent(text),
-            '_blank'
-        );
-    }
-}
-
-function showToast(msg) {
-    const el = document.getElementById('shareToast');
-    if (!el) return;
-    el.textContent = msg;
-    el.style.opacity = '1';
-
-    setTimeout(() => {
-        el.style.opacity = '0';
-    }, 2500);
-}
-</script>
-
 {% endblock %}
