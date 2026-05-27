@@ -132,6 +132,10 @@ class Item(models.Model):
     def total_value(self):
         return self.quantity * self.unit_price
 
+    @property
+    def is_low_stock(self):
+        return self.quantity <= 5
+
 
 # =========================
 # SALE

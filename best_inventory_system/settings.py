@@ -206,6 +206,7 @@ LOGIN_REDIRECT_URL = "/"
 # =========================
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+SECURE_SSL_REDIRECT = not DEBUG
 
 if not DEBUG:
     SESSION_COOKIE_SECURE = True
