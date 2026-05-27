@@ -33,7 +33,8 @@
                 <div class="card-header bg-dark text-white d-flex align-items-center gap-2 py-2" id="chatHeader">
                     <i class="bi bi-chat"></i>
                     <span id="chatHeaderTitle">Select a conversation</span>
-                    <span id="chatUserStatus" class="small text-white-50 ms-auto"></span>
+                    <span id="chatUserStatus" class="small text-white-50"></span>
+                    <span id="chatConnectionStatus" class="badge bg-secondary ms-auto" style="font-size:0.6rem;">Offline</span>
                 </div>
                 <div id="chatMessages" class="card-body flex-grow-1" style="overflow-y:auto;background:#e8ded1;position:relative;">
                     <div class="text-center text-muted mt-5" id="chatPlaceholder">
@@ -478,7 +479,9 @@ function getCSRFToken() {
 // ---- Init ----
 document.addEventListener('DOMContentLoaded', function() {
     loadConversations();
+    updateChatStatus();
     setInterval(loadConversations, 10000);
+    setInterval(updateChatStatus, 5000);
 });
 </script>
 {% endblock %}
