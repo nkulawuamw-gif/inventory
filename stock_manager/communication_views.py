@@ -7,12 +7,49 @@ from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
 from django.db.models import Q
+from django.db import transaction
 from django.contrib.auth import get_user_model
 
 from .models import Message, Profile, Notification, Shop, Transfer, UserProfile, Item
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
+
+
+def _format_transfer_items_summary(items_data):
+    """Build a readable summary from transfer items_data JSON."""
+    parts = []
+    for line in items_data or []:
+        name = line.get('name') or line.get('item_name') or 'Item'
+        try:
+            qty = int(line.get('quantity', 0))
+        except (ValueError, TypeError):
+            qty = 0
+        if qty > 0:
+            parts.append(f'{qty}× {name}')
+    return ', '.join(parts) if parts else 'No items listed'
+
+
+def _notify_receiver_shop_transfer_received(transfer, acting_user):
+    """
+    Notify users assigned to the receiver shop (same pattern as warehouse
+    transfer_item in views.shop_dashboard).
+    """
+    summary = _format_transfer_items_summary(transfer.items_data)
+    message = (
+        f'Transfer {transfer.transfer_code} from {transfer.sender_shop.name}: '
+        f'{summary}.'
+    )
+    profiles = UserProfile.objects.filter(
+        assigned_shop=transfer.receiver_shop,
+    ).select_related('user')
+    for profile in profiles:
+        Notification.objects.create(
+            user=profile.user,
+            sender=acting_user,
+            title='Stock Transfer Received',
+            message=message,
+        )
 
 
 # =========================
@@ -460,8 +497,15 @@ def update_transfer_status(request, transfer_id):
         new_status = request.POST.get('status')
         if new_status not in dict(Transfer.STATUS_CHOICES):
             return JsonResponse({'error': f'Invalid status: {new_status}'}, status=400)
-        t.status = new_status
-        t.save()
+
+        old_status = t.status
+        with transaction.atomic():
+            t.status = new_status
+            t.save(update_fields=['status'])
+            # Completion for the receiver is status "received" (pending → sent → received).
+            if new_status == 'received' and old_status != 'received':
+                _notify_receiver_shop_transfer_received(t, request.user)
+
         return JsonResponse({'status': 'ok', 'new_status': new_status})
     except Transfer.DoesNotExist:
         return JsonResponse({'error': 'Transfer not found'}, status=404)
