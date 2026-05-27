@@ -17,8 +17,8 @@ from django.db import connection
 from django.utils import timezone
 
 from .models import (
-    Shop, Item, Sale, StockTransaction, UserProfile, PERMISSION_CHOICES,
-    LandingPageContent, Category,
+    Shop, Item, Sale, StockTransaction, UserProfile, Notification,
+    PERMISSION_CHOICES, LandingPageContent, Category,
 )
 
 from .middleware import shop_access_required
@@ -1048,6 +1048,18 @@ def shop_dashboard(request, shop_slug):
                 transaction_type='transfer',
                 reason=f'Warehouse transfer to {target_shop.name}',
             )
+
+            # Notify users assigned to the target shop
+            target_profiles = UserProfile.objects.filter(
+                assigned_shop=target_shop
+            ).select_related('user')
+            for profile in target_profiles:
+                Notification.objects.create(
+                    user=profile.user,
+                    sender=request.user,
+                    title='Stock Transfer Received',
+                    message=f'You have received {qty} × {source_item.name} from {shop.name}.',
+                )
 
             messages.success(request, f'Transfer successfully done to {target_shop.name}')
             return redirect('shop_dashboard', shop_slug=shop_slug)
