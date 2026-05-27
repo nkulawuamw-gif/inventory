@@ -161,11 +161,11 @@ function renderConversations(convs) {
     items.forEach(function(el) { el.remove(); });
 
     if (!convs || convs.length === 0) {
-        empty.style.display = '';
+        if (empty) empty.style.display = '';
         return;
     }
 
-    empty.style.display = 'none';
+    if (empty) empty.style.display = 'none';
 
     convs.forEach(function(c) {
         var a = document.createElement('a');
@@ -226,10 +226,12 @@ function openChat(userId, userName) {
     currentChatUserName = userName;
 
     var header = document.getElementById('chatHeaderTitle');
-    header.textContent = userName;
+    if (header) header.textContent = userName;
 
-    document.getElementById('chatFooter').style.display = '';
-    document.getElementById('chatPlaceholder').style.display = 'none';
+    var footer = document.getElementById('chatFooter');
+    if (footer) footer.style.display = '';
+    var placeholder = document.getElementById('chatPlaceholder');
+    if (placeholder) placeholder.style.display = 'none';
 
     // update active state
     document.querySelectorAll('.conv-item').forEach(function(el) {
