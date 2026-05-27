@@ -57,13 +57,6 @@
                 </button>
             </div>
 
-            <div class="col-6 col-md-2">
-                <a href="{% url 'export_sales_csv' %}?q={{ query }}&shop={{ selected_shop }}&date_from={{ date_from }}&date_to={{ date_to }}"
-                   class="btn btn-outline-success w-100">
-                    <i class="bi bi-download"></i> CSV
-                </a>
-            </div>
-
         </form>
     </div>
 </div>
@@ -77,10 +70,6 @@
             <span class="badge bg-primary fs-6">
                 Total: MWK {{ total_sales|floatformat:2 }}
             </span>
-            <a href="{% url 'export_sales_csv' %}"
-               class="btn btn-success btn-sm">
-                <i class="bi bi-download"></i> Export All
-            </a>
         </div>
     </div>
 
