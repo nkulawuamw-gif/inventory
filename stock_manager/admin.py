@@ -5,7 +5,7 @@ from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from .models import (
     Shop, Item, Sale, StockTransaction,
     UserProfile, Profile, Message,
-    Notification, Transfer, LandingPageContent
+    Notification, Transfer, LandingPageContent, Category
 )
 
 User = get_user_model()
@@ -158,3 +158,11 @@ class NotificationAdmin(admin.ModelAdmin):
     list_display = ['title', 'user', 'is_read', 'created_at']
     list_filter = ['is_read', 'created_at']
     search_fields = ['title', 'message', 'user__username']
+
+
+# ---------------- CATEGORIES ----------------
+
+@admin.register(Category)
+class CategoryAdmin(admin.ModelAdmin):
+    list_display = ['name', 'created_at']
+    search_fields = ['name']

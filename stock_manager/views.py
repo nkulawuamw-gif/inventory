@@ -18,7 +18,7 @@ from django.utils import timezone
 
 from .models import (
     Shop, Item, Sale, StockTransaction, UserProfile, PERMISSION_CHOICES,
-    LandingPageContent,
+    LandingPageContent, Category,
 )
 
 from .middleware import shop_access_required
@@ -1506,3 +1506,40 @@ def change_password(request):
             return redirect('dashboard')
 
     return redirect('dashboard')
+
+
+# =========================
+# CATEGORY MANAGEMENT
+# =========================
+
+@login_required
+def manage_categories(request):
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        if action == 'add_category':
+            name = request.POST.get('name', '').strip()
+            if name:
+                Category.objects.get_or_create(name=name)
+                if request.GET.get('ajax'):
+                    return JsonResponse({'status': 'ok', 'name': name})
+                messages.success(request, f'Category "{name}" added.')
+            else:
+                if request.GET.get('ajax'):
+                    return JsonResponse({'error': 'Name is required'}, status=400)
+                messages.error(request, 'Category name is required.')
+        elif action == 'delete_category':
+            cat_id = request.POST.get('category_id')
+            try:
+                cat = Category.objects.get(id=cat_id)
+                name = cat.name
+                cat.delete()
+                messages.success(request, f'Category "{name}" deleted.')
+            except Category.DoesNotExist:
+                messages.error(request, 'Category not found.')
+        return redirect('manage_categories')
+
+    categories = Category.objects.all()
+    return render(request, 'stock_manager/manage_categories.html', {
+        'categories': categories,
+        'page_title': 'Manage Categories',
+    })

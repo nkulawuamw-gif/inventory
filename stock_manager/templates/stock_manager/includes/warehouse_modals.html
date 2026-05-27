@@ -16,7 +16,15 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label" for="addCategory">Category</label>
-                        <input type="text" name="category" id="addCategory" class="form-control">
+                        <div class="input-group">
+                            <select name="category" id="addCategory" class="form-control">
+                                <option value="">-- Select Category --</option>
+                                {% for cat in all_categories %}
+                                <option value="{{ cat.name }}">{{ cat.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <button type="button" class="btn btn-outline-primary" onclick="showQuickCategory('addCategory')" title="Add New Category"><i class="bi bi-plus-lg"></i></button>
+                        </div>
                     </div>
                     <div class="row">
                         <div class="col-6 mb-3">

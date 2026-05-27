@@ -100,7 +100,15 @@
                     <p><strong>{{ item.name }}</strong></p>
                     <div class="mb-3">
                         <label class="form-label" for="whEditCat{{ item.id }}">Category</label>
-                        <input type="text" name="category" id="whEditCat{{ item.id }}" class="form-control" value="{{ item.category }}">
+                        <div class="input-group">
+                            <select name="category" id="whEditCat{{ item.id }}" class="form-control">
+                                <option value="">-- Select Category --</option>
+                                {% for cat in all_categories %}
+                                <option value="{{ cat.name }}"{% if item.category == cat.name %} selected{% endif %}>{{ cat.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <button type="button" class="btn btn-outline-primary" onclick="showQuickCategory('whEditCat{{ item.id }}')" title="Add New Category"><i class="bi bi-plus-lg"></i></button>
+                        </div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label" for="whEditQty{{ item.id }}">Quantity</label>
