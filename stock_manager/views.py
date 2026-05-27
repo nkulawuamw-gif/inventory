@@ -1094,14 +1094,99 @@ def settings_view(request):
             except User.DoesNotExist:
                 messages.error(request, 'User not found.')
 
+        elif action == 'save_landing':
+            landing = LandingPageContent.objects.first()
+            if not landing:
+                landing = LandingPageContent.objects.create(data={})
+
+            data = {
+                'hero': {
+                    'title': request.POST.get('hero_title', ''),
+                    'subtitle': request.POST.get('hero_subtitle', ''),
+                },
+                'about': {
+                    'tag': request.POST.get('about_tag', ''),
+                    'heading': request.POST.get('about_heading', ''),
+                    'text_1': request.POST.get('about_text_1', ''),
+                    'text_2': request.POST.get('about_text_2', ''),
+                    'features': [f.strip() for f in request.POST.get('about_features', '').split('\n') if f.strip()],
+                },
+                'products': {
+                    'tag': request.POST.get('products_tag', ''),
+                    'heading': request.POST.get('products_heading', ''),
+                    'subtitle': request.POST.get('products_subtitle', ''),
+                },
+                'why': {
+                    'tag': request.POST.get('why_tag', ''),
+                    'heading': request.POST.get('why_heading', ''),
+                    'subtitle': request.POST.get('why_subtitle', ''),
+                    'cards': [
+                        {'icon': request.POST.get(f'why_icon_{i}', ''), 'title': request.POST.get(f'why_title_{i}', ''), 'text': request.POST.get(f'why_text_{i}', '')}
+                        for i in range(1, 6)
+                        if request.POST.get(f'why_title_{i}', '')
+                    ],
+                },
+                'contact': {
+                    'tag': request.POST.get('contact_tag', ''),
+                    'heading': request.POST.get('contact_heading', ''),
+                    'subtitle': request.POST.get('contact_subtitle', ''),
+                    'whatsapp': request.POST.get('contact_whatsapp', ''),
+                    'phone': request.POST.get('contact_phone', ''),
+                    'location': request.POST.get('contact_location', ''),
+                    'email': request.POST.get('contact_email', ''),
+                    'cta_heading': request.POST.get('contact_cta_heading', ''),
+                    'cta_text': request.POST.get('contact_cta_text', ''),
+                },
+                'footer': {
+                    'brand': request.POST.get('footer_brand', ''),
+                    'description': request.POST.get('footer_description', ''),
+                },
+            }
+
+            landing.data = data
+
+            if request.FILES.get('landing_image'):
+                landing.image = request.FILES['landing_image']
+
+            landing.save()
+            messages.success(request, 'Landing page updated.')
+
         return redirect('settings')
 
     users = User.objects.filter(is_superuser=False).select_related('user_profile__assigned_shop').order_by('username')
+
+    landing = LandingPageContent.objects.first()
+    landing_data = landing.data if landing and landing.data else {}
+
+    defaults = {
+        'hero': {'title': 'Welcome to VARNISHIELA BEAUTY PALOUR', 'subtitle': 'Your trusted destination for authentic hygiene and beauty products.'},
+        'about': {'tag': 'About Us', 'heading': 'Who We Are', 'text_1': 'VARNISHIELA BEAUTY PALOUR is a trusted name in personal care and beauty products. We are passionate about helping you look and feel your best with high-quality hygiene essentials at affordable prices.', 'text_2': 'From body lotions to premium perfumes, every product in our collection is carefully selected to meet the highest standards of quality and safety.', 'features': ['100% Authentic Products', 'Affordable Prices', 'Fast & Reliable Delivery', 'Customer Happiness Guaranteed']},
+        'products': {'tag': 'Our Collection', 'heading': 'Shop by Category', 'subtitle': 'Explore our range of premium hygiene and beauty products.'},
+        'why': {'tag': 'Why Choose Us', 'heading': 'We Care About Your Confidence', 'subtitle': "Here's why our customers trust us", 'cards': [
+            {'icon': 'fa-medal', 'title': 'High Quality', 'text': 'Every product meets strict quality standards.'},
+            {'icon': 'fa-wallet', 'title': 'Affordable Prices', 'text': "Premium care doesn't have to break the bank."},
+            {'icon': 'fa-handshake', 'title': 'Trusted Shop', 'text': 'Established reputation for honesty and reliability.'},
+            {'icon': 'fa-rocket', 'title': 'Fast Service', 'text': 'Quick processing and timely delivery every time.'},
+            {'icon': 'fa-heart', 'title': 'Customer Satisfaction', 'text': 'Your happiness is our top priority.'},
+        ]},
+        'contact': {'tag': 'Get In Touch', 'heading': 'Contact Us', 'subtitle': "We'd love to hear from you", 'whatsapp': '+265883994035', 'phone': '+265883994035', 'location': 'Blantyre, Malawi', 'email': 'info@varnishiela.com', 'cta_heading': 'Ready to Glow?', 'cta_text': 'Place your order today and experience the VARNISHIELA difference. Fast delivery across Malawi.'},
+        'footer': {'brand': 'VARNISHIELA', 'description': 'Your trusted beauty & hygiene store. Quality products for a confident you.'},
+    }
+
+    for section, fields in defaults.items():
+        if section not in landing_data:
+            landing_data[section] = fields
+        else:
+            for key, value in fields.items():
+                if key not in landing_data[section]:
+                    landing_data[section][key] = value
 
     context = {
         'users': users,
         'page_title': 'Settings',
         'permission_choices': PERMISSION_CHOICES,
+        'landing_data': landing_data,
+        'landing_has_image': bool(landing and landing.image),
     }
     return render(request, 'stock_manager/settings.html', context)
 

@@ -114,22 +114,260 @@
 
 <!-- LANDING -->
 <div class="settings-section" id="section-landing" style="display:none">
-<div class="card">
-<div class="card-header bg-dark text-white">Landing Page</div>
-<div class="card-body">
 
-<form method="post">
+<form method="post" enctype="multipart/form-data">
 {% csrf_token %}
-<input type="hidden" name="action" value="save_landing_hero">
+<input type="hidden" name="action" value="save_landing">
 
-<input class="form-control mb-2" name="hero_title" value="{{ landing_data.hero.title }}">
-<textarea class="form-control mb-2" name="hero_subtitle">{{ landing_data.hero.subtitle }}</textarea>
+<!-- Hero -->
+<div class="card mb-3">
+<div class="card-header bg-dark text-white"><i class="bi bi-house-door"></i> Hero Section</div>
+<div class="card-body">
+<div class="mb-2">
+<label class="form-label small">Hero Title</label>
+<input class="form-control" name="hero_title" value="{{ landing_data.hero.title }}">
+</div>
+<div class="mb-2">
+<label class="form-label small">Hero Subtitle</label>
+<textarea class="form-control" name="hero_subtitle" rows="2">{{ landing_data.hero.subtitle }}</textarea>
+</div>
+<div class="mb-2">
+<label class="form-label small">Hero Image</label>
+<input type="file" class="form-control" name="landing_image" accept="image/*">
+{% if landing_has_image %}<small class="text-muted">Image already uploaded. Select a new file to replace it.</small>{% endif %}
+</div>
+</div>
+</div>
 
-<button class="btn btn-dark w-100">Save Hero</button>
+<!-- About -->
+<div class="card mb-3">
+<div class="card-header bg-dark text-white"><i class="bi bi-info-circle"></i> About Section</div>
+<div class="card-body">
+<div class="row">
+<div class="col-md-4 mb-2">
+<label class="form-label small">Tag</label>
+<input class="form-control" name="about_tag" value="{{ landing_data.about.tag }}">
+</div>
+<div class="col-md-8 mb-2">
+<label class="form-label small">Heading</label>
+<input class="form-control" name="about_heading" value="{{ landing_data.about.heading }}">
+</div>
+</div>
+<div class="mb-2">
+<label class="form-label small">Text 1</label>
+<textarea class="form-control" name="about_text_1" rows="2">{{ landing_data.about.text_1 }}</textarea>
+</div>
+<div class="mb-2">
+<label class="form-label small">Text 2</label>
+<textarea class="form-control" name="about_text_2" rows="2">{{ landing_data.about.text_2 }}</textarea>
+</div>
+<div class="mb-2">
+<label class="form-label small">Features (one per line)</label>
+<textarea class="form-control" name="about_features" rows="3">{% for f in landing_data.about.features %}{{ f }}
+{% endfor %}</textarea>
+</div>
+</div>
+</div>
+
+<!-- Products -->
+<div class="card mb-3">
+<div class="card-header bg-dark text-white"><i class="bi bi-box-seam"></i> Products Section</div>
+<div class="card-body">
+<div class="row">
+<div class="col-md-4 mb-2">
+<label class="form-label small">Tag</label>
+<input class="form-control" name="products_tag" value="{{ landing_data.products.tag }}">
+</div>
+<div class="col-md-8 mb-2">
+<label class="form-label small">Heading</label>
+<input class="form-control" name="products_heading" value="{{ landing_data.products.heading }}">
+</div>
+</div>
+<div class="mb-2">
+<label class="form-label small">Subtitle</label>
+<textarea class="form-control" name="products_subtitle" rows="1">{{ landing_data.products.subtitle }}</textarea>
+</div>
+</div>
+</div>
+
+<!-- Why Us -->
+<div class="card mb-3">
+<div class="card-header bg-dark text-white"><i class="bi bi-star"></i> Why Choose Us</div>
+<div class="card-body">
+<div class="row">
+<div class="col-md-4 mb-2">
+<label class="form-label small">Tag</label>
+<input class="form-control" name="why_tag" value="{{ landing_data.why.tag }}">
+</div>
+<div class="col-md-4 mb-2">
+<label class="form-label small">Heading</label>
+<input class="form-control" name="why_heading" value="{{ landing_data.why.heading }}">
+</div>
+<div class="col-md-4 mb-2">
+<label class="form-label small">Subtitle</label>
+<input class="form-control" name="why_subtitle" value="{{ landing_data.why.subtitle }}">
+</div>
+</div>
+<div class="card bg-light mb-2">
+<div class="card-body py-2">
+<div class="row g-1">
+<div class="col-md-2">
+<label class="form-label small">Icon</label>
+<input class="form-control form-control-sm" name="why_icon_1" value="{{ landing_data.why.cards.0.icon|default:'' }}" placeholder="fa-tag">
+</div>
+<div class="col-md-3">
+<label class="form-label small">Title</label>
+<input class="form-control form-control-sm" name="why_title_1" value="{{ landing_data.why.cards.0.title|default:'' }}">
+</div>
+<div class="col-md-7">
+<label class="form-label small">Text</label>
+<input class="form-control form-control-sm" name="why_text_1" value="{{ landing_data.why.cards.0.text|default:'' }}">
+</div>
+</div>
+</div>
+</div>
+<div class="card bg-light mb-2">
+<div class="card-body py-2">
+<div class="row g-1">
+<div class="col-md-2">
+<label class="form-label small">Icon</label>
+<input class="form-control form-control-sm" name="why_icon_2" value="{{ landing_data.why.cards.1.icon|default:'' }}" placeholder="fa-tag">
+</div>
+<div class="col-md-3">
+<label class="form-label small">Title</label>
+<input class="form-control form-control-sm" name="why_title_2" value="{{ landing_data.why.cards.1.title|default:'' }}">
+</div>
+<div class="col-md-7">
+<label class="form-label small">Text</label>
+<input class="form-control form-control-sm" name="why_text_2" value="{{ landing_data.why.cards.1.text|default:'' }}">
+</div>
+</div>
+</div>
+</div>
+<div class="card bg-light mb-2">
+<div class="card-body py-2">
+<div class="row g-1">
+<div class="col-md-2">
+<label class="form-label small">Icon</label>
+<input class="form-control form-control-sm" name="why_icon_3" value="{{ landing_data.why.cards.2.icon|default:'' }}" placeholder="fa-tag">
+</div>
+<div class="col-md-3">
+<label class="form-label small">Title</label>
+<input class="form-control form-control-sm" name="why_title_3" value="{{ landing_data.why.cards.2.title|default:'' }}">
+</div>
+<div class="col-md-7">
+<label class="form-label small">Text</label>
+<input class="form-control form-control-sm" name="why_text_3" value="{{ landing_data.why.cards.2.text|default:'' }}">
+</div>
+</div>
+</div>
+</div>
+<div class="card bg-light mb-2">
+<div class="card-body py-2">
+<div class="row g-1">
+<div class="col-md-2">
+<label class="form-label small">Icon</label>
+<input class="form-control form-control-sm" name="why_icon_4" value="{{ landing_data.why.cards.3.icon|default:'' }}" placeholder="fa-tag">
+</div>
+<div class="col-md-3">
+<label class="form-label small">Title</label>
+<input class="form-control form-control-sm" name="why_title_4" value="{{ landing_data.why.cards.3.title|default:'' }}">
+</div>
+<div class="col-md-7">
+<label class="form-label small">Text</label>
+<input class="form-control form-control-sm" name="why_text_4" value="{{ landing_data.why.cards.3.text|default:'' }}">
+</div>
+</div>
+</div>
+</div>
+<div class="card bg-light mb-2">
+<div class="card-body py-2">
+<div class="row g-1">
+<div class="col-md-2">
+<label class="form-label small">Icon</label>
+<input class="form-control form-control-sm" name="why_icon_5" value="{{ landing_data.why.cards.4.icon|default:'' }}" placeholder="fa-tag">
+</div>
+<div class="col-md-3">
+<label class="form-label small">Title</label>
+<input class="form-control form-control-sm" name="why_title_5" value="{{ landing_data.why.cards.4.title|default:'' }}">
+</div>
+<div class="col-md-7">
+<label class="form-label small">Text</label>
+<input class="form-control form-control-sm" name="why_text_5" value="{{ landing_data.why.cards.4.text|default:'' }}">
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- Contact -->
+<div class="card mb-3">
+<div class="card-header bg-dark text-white"><i class="bi bi-telephone"></i> Contact Section</div>
+<div class="card-body">
+<div class="row">
+<div class="col-md-4 mb-2">
+<label class="form-label small">Tag</label>
+<input class="form-control" name="contact_tag" value="{{ landing_data.contact.tag }}">
+</div>
+<div class="col-md-4 mb-2">
+<label class="form-label small">Heading</label>
+<input class="form-control" name="contact_heading" value="{{ landing_data.contact.heading }}">
+</div>
+<div class="col-md-4 mb-2">
+<label class="form-label small">Subtitle</label>
+<input class="form-control" name="contact_subtitle" value="{{ landing_data.contact.subtitle }}">
+</div>
+</div>
+<div class="row">
+<div class="col-md-6 mb-2">
+<label class="form-label small">WhatsApp Number</label>
+<input class="form-control" name="contact_whatsapp" value="{{ landing_data.contact.whatsapp }}">
+</div>
+<div class="col-md-6 mb-2">
+<label class="form-label small">Phone</label>
+<input class="form-control" name="contact_phone" value="{{ landing_data.contact.phone }}">
+</div>
+</div>
+<div class="row">
+<div class="col-md-6 mb-2">
+<label class="form-label small">Location</label>
+<input class="form-control" name="contact_location" value="{{ landing_data.contact.location }}">
+</div>
+<div class="col-md-6 mb-2">
+<label class="form-label small">Email</label>
+<input class="form-control" name="contact_email" value="{{ landing_data.contact.email }}">
+</div>
+</div>
+<div class="mb-2">
+<label class="form-label small">CTA Heading</label>
+<input class="form-control" name="contact_cta_heading" value="{{ landing_data.contact.cta_heading }}">
+</div>
+<div class="mb-2">
+<label class="form-label small">CTA Text</label>
+<textarea class="form-control" name="contact_cta_text" rows="2">{{ landing_data.contact.cta_text }}</textarea>
+</div>
+</div>
+</div>
+
+<!-- Footer -->
+<div class="card mb-3">
+<div class="card-header bg-dark text-white"><i class="bi bi-layout-text-window"></i> Footer</div>
+<div class="card-body">
+<div class="mb-2">
+<label class="form-label small">Brand Name</label>
+<input class="form-control" name="footer_brand" value="{{ landing_data.footer.brand }}">
+</div>
+<div class="mb-2">
+<label class="form-label small">Description</label>
+<textarea class="form-control" name="footer_description" rows="2">{{ landing_data.footer.description }}</textarea>
+</div>
+</div>
+</div>
+
+<button class="btn btn-dark w-100">Save Landing Page</button>
 </form>
 
-</div>
-</div>
 </div>
 
 </div>
