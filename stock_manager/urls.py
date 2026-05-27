@@ -37,6 +37,7 @@ urlpatterns = [
 
     path('transfers/', comm.transfer_history, name='transfer_history'),
     path('transfers/create/', comm.create_transfer, name='create_transfer'),
+    path('transfers/source-items/', comm.transfer_source_items, name='transfer_source_items'),
     path('transfers/<int:transfer_id>/', comm.transfer_detail, name='transfer_detail'),
     path('transfers/<int:transfer_id>/update-status/', comm.update_transfer_status, name='update_transfer_status'),
     path('whatsapp/', wa.whatsapp_inbox, name='whatsapp_inbox'),

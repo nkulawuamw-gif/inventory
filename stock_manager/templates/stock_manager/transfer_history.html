@@ -148,7 +148,9 @@
                     <div id="transferItemsContainer">
                         <div class="row g-2 mb-2 transfer-item-row">
                             <div class="col-md-8">
-                                <input type="text" name="item_name[]" class="form-control form-control-sm" placeholder="Item name" required>
+                                <select name="item_id[]" class="form-select form-select-sm transfer-item-select" required>
+                                    <option value="">Select item...</option>
+                                </select>
                             </div>
                             <div class="col-md-3">
                                 <input type="number" name="quantity[]" class="form-control form-control-sm" placeholder="Qty" min="1" required>
@@ -173,12 +175,55 @@
 
 {% block extra_js %}
 <script>
+var transferSourceItems = [];
+var transferItemsLoadedForShopId = null;
+
+function setTransferItemOptionsOnAllRows() {
+    var selects = document.querySelectorAll('#transferItemsContainer .transfer-item-select');
+    selects.forEach(function(sel) {
+        var current = sel.value;
+        var html = '<option value="">Select item...</option>';
+        transferSourceItems.forEach(function(it) {
+            var disabled = (parseInt(it.quantity, 10) || 0) <= 0 ? ' disabled' : '';
+            var label = escapeHtml(it.name) + ' (Qty: ' + (it.quantity || 0) + ')';
+            html += '<option value="' + it.id + '"' + disabled + '>' + label + '</option>';
+        });
+        sel.innerHTML = html;
+        // Preserve selection if still present
+        if (current) sel.value = current;
+    });
+}
+
+function loadTransferSourceItems(shopId) {
+    transferSourceItems = [];
+    transferItemsLoadedForShopId = null;
+    setTransferItemOptionsOnAllRows();
+
+    if (!shopId) return;
+
+    fetch('/transfers/source-items/?shop_id=' + encodeURIComponent(shopId))
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+            if (d.status !== 'ok') throw new Error(d.error || 'Failed to load items');
+            transferSourceItems = d.items || [];
+            transferItemsLoadedForShopId = String(shopId);
+            setTransferItemOptionsOnAllRows();
+        })
+        .catch(function() {
+            // keep UI simple: just clear options; server will validate anyway
+            transferSourceItems = [];
+            transferItemsLoadedForShopId = null;
+            setTransferItemOptionsOnAllRows();
+        });
+}
+
 function addTransferItemRow() {
     var container = document.getElementById('transferItemsContainer');
     var row = document.createElement('div');
     row.className = 'row g-2 mb-2 transfer-item-row';
-    row.innerHTML = '<div class="col-md-8"><input type="text" name="item_name[]" class="form-control form-control-sm" placeholder="Item name" required></div><div class="col-md-3"><input type="number" name="quantity[]" class="form-control form-control-sm" placeholder="Qty" min="1" required></div><div class="col-md-1 d-flex align-items-center"><button type="button" class="btn btn-outline-danger btn-sm" onclick="this.closest(\'.transfer-item-row\').remove()"><i class="bi bi-trash"></i></button></div>';
+    row.innerHTML = '<div class="col-md-8"><select name="item_id[]" class="form-select form-select-sm transfer-item-select" required><option value="">Select item...</option></select></div><div class="col-md-3"><input type="number" name="quantity[]" class="form-control form-control-sm" placeholder="Qty" min="1" required></div><div class="col-md-1 d-flex align-items-center"><button type="button" class="btn btn-outline-danger btn-sm" onclick="this.closest(\'.transfer-item-row\').remove()"><i class="bi bi-trash"></i></button></div>';
     container.appendChild(row);
+    setTransferItemOptionsOnAllRows();
 }
 
 function showCreateTransferModal() {
@@ -198,10 +243,12 @@ function submitCreateTransfer(e) {
     var rows = form.querySelectorAll('.transfer-item-row');
     var items = [];
     rows.forEach(function(row) {
-        var name = row.querySelector('[name="item_name[]"]').value.trim();
+        var sel = row.querySelector('[name="item_id[]"]');
+        var itemId = sel ? sel.value : '';
+        var itemName = sel && sel.selectedOptions && sel.selectedOptions.length ? sel.selectedOptions[0].textContent : '';
         var qty = parseInt(row.querySelector('[name="quantity[]"]').value, 10);
-        if (name && qty > 0) {
-            items.push({ name: name, quantity: qty });
+        if (itemId && qty > 0) {
+            items.push({ item_id: itemId, name: itemName, quantity: qty });
         }
     });
 
@@ -314,5 +361,24 @@ function formatTime(iso) {
     var d = new Date(iso);
     return d.toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
+
+document.addEventListener('DOMContentLoaded', function() {
+    var senderSelect = document.querySelector('#createTransferForm [name="sender_shop_id"]');
+    if (senderSelect) {
+        senderSelect.addEventListener('change', function() {
+            // Clear all item selections when source changes
+            document.querySelectorAll('#transferItemsContainer .transfer-item-select').forEach(function(sel) {
+                sel.value = '';
+            });
+            loadTransferSourceItems(this.value);
+        });
+        // Initial state (if a value was pre-selected)
+        if (senderSelect.value) {
+            loadTransferSourceItems(senderSelect.value);
+        } else {
+            setTransferItemOptionsOnAllRows();
+        }
+    }
+});
 </script>
 {% endblock %}

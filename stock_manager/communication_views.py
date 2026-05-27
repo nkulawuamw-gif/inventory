@@ -9,7 +9,7 @@ from django.utils import timezone
 from django.db.models import Q
 from django.contrib.auth import get_user_model
 
-from .models import Message, Profile, Notification, Shop, Transfer, UserProfile
+from .models import Message, Profile, Notification, Shop, Transfer, UserProfile, Item
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -328,12 +328,48 @@ def create_transfer(request):
 
         sender = Shop.objects.get(id=sender_id)
         receiver = Shop.objects.get(id=receiver_id)
+
+        # Validate items against sender stock (server-side, source of truth)
+        validated_items = []
+        errors = []
+        for idx, line in enumerate(items, start=1):
+            item_id = line.get('item_id') or line.get('id')
+            try:
+                qty = int(line.get('quantity', 0))
+            except (ValueError, TypeError):
+                qty = 0
+
+            if not item_id or qty < 1:
+                continue
+
+            try:
+                item = Item.objects.get(id=item_id, shop=sender)
+            except Item.DoesNotExist:
+                errors.append(f'Row {idx}: Item not found in source shop')
+                continue
+
+            if qty > item.quantity:
+                errors.append(f'Row {idx}: Not enough stock for {item.name}. Available: {item.quantity}, Requested: {qty}')
+                continue
+
+            validated_items.append({
+                'item_id': item.id,
+                'name': item.name,
+                'quantity': qty,
+                'available_qty': item.quantity,
+            })
+
+        if not validated_items:
+            return JsonResponse({'error': 'At least one valid item is required'}, status=400)
+        if errors:
+            return JsonResponse({'error': 'Validation failed', 'errors': errors}, status=400)
+
         transfer = Transfer.objects.create(
             sender_shop=sender,
             receiver_shop=receiver,
             created_by=request.user,
             notes=notes,
-            items_data=items,
+            items_data=validated_items,
         )
         return JsonResponse({
             'status': 'ok',
@@ -345,6 +381,39 @@ def create_transfer(request):
         return JsonResponse({'error': 'Shop not found'}, status=400)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+
+
+@login_required
+def transfer_source_items(request):
+    """
+    JSON endpoint used by the Transfer modal to list items
+    available in a selected source shop.
+    """
+    try:
+        shop_id = request.GET.get('shop_id')
+        if not shop_id:
+            return JsonResponse({'error': 'shop_id is required'}, status=400)
+
+        # Restrict non-admin users to their assigned shop (same rule as create_transfer)
+        if not request.user.is_superuser:
+            profile = getattr(request.user, 'user_profile', None)
+            if not profile or not profile.is_admin:
+                if not profile or not profile.assigned_shop or str(profile.assigned_shop.id) != str(shop_id):
+                    return JsonResponse({'error': 'Access denied.'}, status=403)
+
+        shop = Shop.objects.get(id=shop_id)
+        items = Item.objects.filter(shop=shop).order_by('name').values('id', 'name', 'quantity')
+        return JsonResponse({
+            'status': 'ok',
+            'shop_id': shop.id,
+            'shop_name': shop.name,
+            'items': list(items),
+        })
+    except Shop.DoesNotExist:
+        return JsonResponse({'error': 'Shop not found'}, status=404)
+    except Exception as e:
+        logger.exception("transfer_source_items failed")
+        return JsonResponse({'error': 'Failed to load items'}, status=500)
 
 
 @login_required
