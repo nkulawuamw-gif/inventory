@@ -4,6 +4,7 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from django.utils import timezone
 from django.db.models import Q
+from django.db import connection
 from .models import Message, Profile, Notification
 
 logger = logging.getLogger(__name__)
@@ -134,14 +135,20 @@ class NotificationConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def get_unread_notification_count(self):
+        if 'stock_manager_notification' not in connection.introspection.table_names():
+            return 0
         return Notification.objects.filter(user=self.user, is_read=False).count()
 
     @database_sync_to_async
     def mark_notification_read(self, notification_id):
+        if 'stock_manager_notification' not in connection.introspection.table_names():
+            return
         Notification.objects.filter(id=notification_id, user=self.user).update(is_read=True)
 
     @database_sync_to_async
     def mark_all_notifications_read(self):
+        if 'stock_manager_notification' not in connection.introspection.table_names():
+            return
         Notification.objects.filter(user=self.user, is_read=False).update(is_read=True)
 
 
@@ -355,6 +362,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
     @database_sync_to_async
     def create_notification(self, receiver_id, sender, message_text):
         try:
+            if 'stock_manager_notification' not in connection.introspection.table_names():
+                return
             from django.contrib.auth import get_user_model
             User = get_user_model()
             receiver = User.objects.get(id=receiver_id)
