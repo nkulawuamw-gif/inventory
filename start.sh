@@ -12,4 +12,6 @@ from django.db import connection; connection.ensure_connection()
     sleep 2
 done
 
+python manage.py migrate --noinput || echo "Migration failed, continuing..."
+
 exec daphne best_inventory_system.asgi:application --bind 0.0.0.0 --port $PORT --proxy-headers

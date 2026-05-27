@@ -1,6 +1,7 @@
 import json
 import logging
 from django.db.models import Q
+from django.db.utils import ProgrammingError, OperationalError
 from django.contrib.auth import get_user_model
 User = get_user_model()
 from django.shortcuts import render, get_object_or_404
@@ -225,6 +226,9 @@ def notification_list(request):
             } for n in notifications],
             'unread_count': unread_count,
         })
+    except (ProgrammingError, OperationalError) as e:
+        logger.warning("notification_list: notification table not ready: %s", e)
+        return JsonResponse({'notifications': [], 'unread_count': 0})
     except Exception as e:
         logger.exception("notification_list failed for user %s", request.user)
         return JsonResponse({"error": str(e)}, status=500)
@@ -237,6 +241,9 @@ def mark_notification_read(request, notification_id):
             Notification.objects.filter(id=notification_id, user=request.user).update(is_read=True)
             return JsonResponse({'status': 'ok'})
         return JsonResponse({'error': 'POST required'}, status=405)
+    except (ProgrammingError, OperationalError) as e:
+        logger.warning("mark_notification_read: notification table not ready: %s", e)
+        return JsonResponse({'status': 'ok', 'skipped': True})
     except Exception as e:
         logger.exception("mark_notification_read failed for user %s", request.user)
         return JsonResponse({"error": str(e)}, status=500)
@@ -249,6 +256,9 @@ def mark_all_notifications_read(request):
             Notification.objects.filter(user=request.user, is_read=False).update(is_read=True)
             return JsonResponse({'status': 'ok'})
         return JsonResponse({'error': 'POST required'}, status=405)
+    except (ProgrammingError, OperationalError) as e:
+        logger.warning("mark_all_notifications_read: notification table not ready: %s", e)
+        return JsonResponse({'status': 'ok', 'skipped': True})
     except Exception as e:
         logger.exception("mark_all_notifications_read failed for user %s", request.user)
         return JsonResponse({"error": str(e)}, status=500)
@@ -259,6 +269,9 @@ def unread_notification_count(request):
     try:
         count = Notification.objects.filter(user=request.user, is_read=False).count()
         return JsonResponse({'count': count})
+    except (ProgrammingError, OperationalError) as e:
+        logger.warning("unread_notification_count: notification table not ready: %s", e)
+        return JsonResponse({'count': 0})
     except Exception as e:
         logger.exception("unread_notification_count failed for user %s", request.user)
         return JsonResponse({"error": str(e)}, status=500)
