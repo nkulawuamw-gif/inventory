@@ -30,26 +30,90 @@ def _format_transfer_items_summary(items_data):
     return ', '.join(parts) if parts else 'No items listed'
 
 
-def _notify_receiver_shop_transfer_received(transfer, acting_user):
-    """
-    Notify users assigned to the receiver shop (same pattern as warehouse
-    transfer_item in views.shop_dashboard).
-    """
-    summary = _format_transfer_items_summary(transfer.items_data)
-    message = (
-        f'Transfer {transfer.transfer_code} from {transfer.sender_shop.name}: '
-        f'{summary}.'
+def _push_notification_to_user(user_id, payload):
+    """Push real-time notification via WebSocket (no-op if channels unavailable)."""
+    try:
+        from asgiref.sync import async_to_sync
+        from channels.layers import get_channel_layer
+
+        channel_layer = get_channel_layer()
+        if not channel_layer:
+            return
+        async_to_sync(channel_layer.group_send)(
+            f'notifications_{user_id}',
+            {'type': 'new_notification', **payload},
+        )
+    except Exception:
+        logger.exception('WebSocket notification push failed for user %s', user_id)
+
+
+def _notify_shop_users(
+    shop,
+    acting_user,
+    title,
+    message,
+    *,
+    notification_type='transfer',
+    link='/transfers/',
+    transfer_code=None,
+):
+    """Create Notification rows and push to connected clients for a shop."""
+    sender_name = (
+        (acting_user.get_full_name() or acting_user.username)
+        if acting_user
+        else 'System'
     )
     profiles = UserProfile.objects.filter(
-        assigned_shop=transfer.receiver_shop,
+        assigned_shop=shop,
+        user__is_active=True,
     ).select_related('user')
     for profile in profiles:
         Notification.objects.create(
             user=profile.user,
             sender=acting_user,
-            title='Stock Transfer Received',
+            title=title,
             message=message,
         )
+        _push_notification_to_user(profile.user.id, {
+            'title': title,
+            'message': message,
+            'sender_name': sender_name,
+            'notification_type': notification_type,
+            'link': link,
+            'transfer_code': transfer_code,
+        })
+
+
+def _notify_receiver_shop_transfer_sent(transfer, acting_user):
+    """Alert receiver-shop users when a transfer is dispatched (status → sent)."""
+    summary = _format_transfer_items_summary(transfer.items_data)
+    message = (
+        f'Transfer {transfer.transfer_code} from {transfer.sender_shop.name} is on the way: '
+        f'{summary}. Mark it received when stock arrives.'
+    )
+    _notify_shop_users(
+        transfer.receiver_shop,
+        acting_user,
+        'Incoming Stock Transfer',
+        message,
+        transfer_code=transfer.transfer_code,
+    )
+
+
+def _notify_receiver_shop_transfer_received(transfer, acting_user):
+    """Confirm receiver-shop users when a transfer is marked received."""
+    summary = _format_transfer_items_summary(transfer.items_data)
+    message = (
+        f'Transfer {transfer.transfer_code} from {transfer.sender_shop.name} was marked received: '
+        f'{summary}.'
+    )
+    _notify_shop_users(
+        transfer.receiver_shop,
+        acting_user,
+        'Stock Transfer Received',
+        message,
+        transfer_code=transfer.transfer_code,
+    )
 
 
 # =========================
@@ -239,7 +303,9 @@ def mark_read(request):
 @login_required
 def notification_list(request):
     try:
-        notifications = Notification.objects.filter(user=request.user)[:50]
+        notifications = Notification.objects.filter(
+            user=request.user,
+        ).order_by('-created_at')[:50]
 
         return JsonResponse({
             "notifications": [
@@ -502,8 +568,10 @@ def update_transfer_status(request, transfer_id):
         with transaction.atomic():
             t.status = new_status
             t.save(update_fields=['status'])
-            # Completion for the receiver is status "received" (pending → sent → received).
-            if new_status == 'received' and old_status != 'received':
+            # Receiver shop is notified when stock is dispatched (sent) and when received.
+            if new_status == 'sent' and old_status != 'sent':
+                _notify_receiver_shop_transfer_sent(t, request.user)
+            elif new_status == 'received' and old_status != 'received':
                 _notify_receiver_shop_transfer_received(t, request.user)
 
         return JsonResponse({'status': 'ok', 'new_status': new_status})
