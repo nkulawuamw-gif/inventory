@@ -151,7 +151,7 @@ document.addEventListener('DOMContentLoaded', function() {
         options: {
             responsive: true,
             plugins: { legend: { display: false } },
-            scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+                    scales: { y: { beginAtZero: true, ticks: { stepSize: Math.max(1, Math.ceil(Math.max(...shopQuantities, 1) / 20)) } } }
         }
     });
 
@@ -190,10 +190,9 @@ document.addEventListener('DOMContentLoaded', function() {
         options: {
             responsive: true,
             plugins: { legend: { display: false } },
-            scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+                    scales: { y: { beginAtZero: true, ticks: { stepSize: Math.max(1, Math.ceil(Math.max(...categoryValues, 1) / 20)) } } }
         }
     });
-});
 </script>
 
 <div class="table-container mb-4">
