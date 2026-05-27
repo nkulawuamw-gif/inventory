@@ -168,10 +168,6 @@ async function shopCompleteSale() {
             showToast(msg, 'error'); btn.disabled=false; btn.innerHTML='<i class="bi bi-check-lg"></i> Complete Sale'; return;
         }
         let data = await resp.json();
-        document.getElementById('shopReceiptNum').textContent = data.receipt_number;
-        const shopPrintBase = document.getElementById('shopPrintReceipt').getAttribute('data-print-url');
-        document.getElementById('shopPrintReceipt').href = shopPrintBase.replace('/0/', `/${data.receipt_id}/`);
-        document.getElementById('shopReceiptOverlay').classList.add('active');
         shopCart.forEach(x => {
             const row = document.querySelector(`tr[data-id="${x.id}"]`);
             if (row) {
@@ -185,35 +181,18 @@ async function shopCompleteSale() {
                 }
             }
         });
-        showToast(`Sale complete! Receipt: ${data.receipt_number}`, 'success');
+        showToast('Sale complete!', 'success');
+        shopResetSale();
     } catch(e) { showToast('Error: '+e.message, 'error'); btn.disabled=false; btn.innerHTML='<i class="bi bi-check-lg"></i> Complete Sale'; }
 }
-function shopSaveReceipt() {
+function shopResetSale() {
     shopCart = [];
-    document.getElementById('shopReceiptOverlay').classList.remove('active');
     document.getElementById('shopAmountReceived').value = '';
     document.getElementById('shopCustomerName').value = '';
     shopRender();
     document.getElementById('shopCompleteBtn').disabled = true;
     document.getElementById('shopCompleteBtn').innerHTML = '<i class="bi bi-check-lg"></i> Complete Sale';
 }
-function shopNewSale() {
-    shopCart = []; document.getElementById('shopReceiptOverlay').classList.remove('active');
-    document.getElementById('shopAmountReceived').value = ''; document.getElementById('shopCustomerName').value = '';
-    shopRender(); document.getElementById('shopCompleteBtn').disabled = true;
-    document.getElementById('shopCompleteBtn').innerHTML = '<i class="bi bi-check-lg"></i> Complete Sale';
-}
 </script>
 
-<div class="receipt-overlay" id="shopReceiptOverlay">
-    <div class="receipt-card">
-        <div class="check"><i class="bi bi-check-lg"></i></div>
-        <h3>Save Receipt</h3>
-        <div class="rcp-num" id="shopReceiptNum"></div>
-        <div class="actions">
-            <a href="#" class="btn-print" id="shopPrintReceipt" target="_blank" data-print-url="{% url 'print_receipt' 0 %}"><i class="bi bi-printer"></i> Print Receipt</a>
-            <button class="btn-save" id="shopSaveReceiptBtn" onclick="shopSaveReceipt()"><i class="bi bi-check-lg"></i> Save Receipt</button>
-            <button class="btn-new" onclick="shopNewSale()"><i class="bi bi-plus-lg"></i> New Sale</button>
-        </div>
-    </div>
-</div>
+
