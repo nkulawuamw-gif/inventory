@@ -18,7 +18,7 @@ from django.utils import timezone
 
 from .models import (
     Shop, Item, Sale, StockTransaction, UserProfile, Notification,
-    PERMISSION_CHOICES, LandingPageContent, Category,
+    PERMISSION_CHOICES, LandingPageContent, Category, get_company_profile,
 )
 
 from .middleware import shop_access_required
@@ -1102,6 +1102,15 @@ def settings_view(request):
             except User.DoesNotExist:
                 messages.error(request, 'User not found.')
 
+        elif action == 'save_company':
+            company = get_company_profile()
+            company.company_name = request.POST.get('company_name', '').strip() or 'My Store'
+            company.address = request.POST.get('address', '').strip()
+            company.phone = request.POST.get('phone', '').strip()
+            company.email = request.POST.get('email', '').strip()
+            company.save()
+            messages.success(request, 'Company profile saved.')
+
         elif action == 'save_landing':
             landing = LandingPageContent.objects.first()
             if not landing:
@@ -1197,6 +1206,7 @@ def settings_view(request):
         'users': users,
         'page_title': 'Settings',
         'permission_choices': PERMISSION_CHOICES,
+        'company': get_company_profile(),
         'landing_data': landing_data,
         'landing_has_image': bool(landing and landing.image),
     }

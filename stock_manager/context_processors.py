@@ -1,4 +1,4 @@
-from .models import Shop, UserProfile, Category
+from .models import Shop, UserProfile, Category, get_company_profile
 
 
 # =========================
@@ -59,4 +59,5 @@ def global_context(request):
         "user_access": user_access,
         "shop_slug": shop_slug,
         "all_categories": Category.objects.all(),
+        "company": get_company_profile(),
     }

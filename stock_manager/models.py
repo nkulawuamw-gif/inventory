@@ -267,6 +267,37 @@ def ensure_profile_safe(sender, instance, **kwargs):
 
 
 # =========================
+# COMPANY PROFILE (singleton)
+# =========================
+
+class CompanyProfile(models.Model):
+    company_name = models.CharField(max_length=200, default='My Store')
+    address = models.TextField(blank=True, default='')
+    phone = models.CharField(max_length=50, blank=True, default='')
+    email = models.EmailField(blank=True, default='')
+    tax_id = models.CharField(max_length=100, blank=True, default='')
+    receipt_footer = models.CharField(
+        max_length=300, blank=True, default='Thank you for your business!'
+    )
+    hero_title = models.CharField(max_length=300, blank=True, default='')
+    hero_tagline = models.TextField(blank=True, default='')
+
+    class Meta:
+        verbose_name = 'Company Profile'
+        verbose_name_plural = 'Company Profile'
+
+    def __str__(self):
+        return self.company_name or 'Company Profile'
+
+
+def get_company_profile():
+    company = CompanyProfile.objects.first()
+    if not company:
+        company = CompanyProfile.objects.create()
+    return company
+
+
+# =========================
 # LANDING PAGE CONTENT
 # =========================
 
