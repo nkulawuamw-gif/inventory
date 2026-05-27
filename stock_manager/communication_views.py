@@ -8,7 +8,7 @@ from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
-from .models import Message, Profile, Notification
+from .models import Message, Profile, Notification, Transfer, TransferItem, Shop, Item, StockTransaction
 
 logger = logging.getLogger(__name__)
 
@@ -226,6 +226,7 @@ def notification_list(request):
                 'created_at': n.created_at.isoformat(),
                 'link': n.link,
                 'sender': n.sender.username if n.sender else None,
+                'transfer_code': n.transfer.transfer_code if n.transfer else None,
             } for n in notifications],
             'unread_count': unread_count,
         })
@@ -265,6 +266,285 @@ def unread_notification_count(request):
         return JsonResponse({'count': count})
     except Exception as e:
         logger.exception("unread_notification_count failed for user %s", request.user)
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+# ---------------- TRANSFERS ----------------
+
+@login_required
+def transfer_history(request):
+    try:
+        user = request.user
+        profile = Profile.objects.filter(user=user).first()
+        is_admin = user.is_superuser or (profile and profile.is_admin)
+
+        transfers = Transfer.objects.select_related(
+            'sender_shop', 'receiver_shop', 'created_by'
+        ).prefetch_related('items')
+
+        if not is_admin and profile and profile.assigned_shop:
+            transfers = transfers.filter(
+                Q(sender_shop=profile.assigned_shop) | Q(receiver_shop=profile.assigned_shop)
+            )
+
+        status_filter = request.GET.get('status', '')
+        if status_filter:
+            transfers = transfers.filter(status=status_filter)
+
+        user_shops = []
+        if profile and profile.assigned_shop:
+            user_shops = [profile.assigned_shop]
+        elif is_admin:
+            user_shops = list(Shop.objects.all())
+
+        return render(request, 'stock_manager/transfer_history.html', {
+            'transfers': transfers,
+            'status_filter': status_filter,
+            'user_shops': [s.id for s in user_shops],
+            'page_title': 'Transfer History',
+        })
+    except Exception as e:
+        logger.exception("transfer_history failed for user %s", request.user)
+        return render(request, 'stock_manager/transfer_history.html', {
+            'transfers': [],
+            'status_filter': '',
+            'page_title': 'Transfer History',
+            'error': str(e),
+            'user_shops': [],
+        })
+
+
+@login_required
+def transfer_detail(request, transfer_id):
+    try:
+        transfer = get_object_or_404(
+            Transfer.objects.select_related(
+                'sender_shop', 'receiver_shop', 'created_by'
+            ).prefetch_related('items'),
+            id=transfer_id
+        )
+        return JsonResponse({
+            'id': transfer.id,
+            'transfer_code': transfer.transfer_code,
+            'sender_shop': transfer.sender_shop.name,
+            'receiver_shop': transfer.receiver_shop.name,
+            'created_by': transfer.created_by.username,
+            'status': transfer.status,
+            'notes': transfer.notes,
+            'items': [{'item_name': i.item_name, 'quantity': i.quantity} for i in transfer.items.all()],
+            'created_at': transfer.created_at.isoformat(),
+            'updated_at': transfer.updated_at.isoformat(),
+        })
+    except Exception as e:
+        logger.exception("transfer_detail failed")
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+@csrf_exempt
+def create_transfer(request):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+    try:
+        sender_shop_id = request.POST.get('sender_shop_id')
+        receiver_shop_id = request.POST.get('receiver_shop_id')
+        notes = request.POST.get('notes', '')
+        items_json = request.POST.get('items', '[]')
+        items_data = json.loads(items_json)
+
+        if not sender_shop_id or not receiver_shop_id or not items_data:
+            return JsonResponse({'error': 'Missing required fields'}, status=400)
+
+        from_shop = get_object_or_404(Shop, id=sender_shop_id)
+        to_shop = get_object_or_404(Shop, id=receiver_shop_id)
+
+        if from_shop == to_shop:
+            return JsonResponse({'error': 'Source and target shops cannot be the same'}, status=400)
+
+        success_items = []
+        errors = []
+        created_items = []
+
+        for item_data in items_data:
+            item_name = item_data.get('name', '').strip()
+            try:
+                qty = int(item_data.get('quantity', 0))
+            except (ValueError, TypeError):
+                qty = 0
+            if not item_name or qty <= 0:
+                errors.append(f"Invalid item: {item_name}")
+                continue
+
+            source_items = Item.objects.filter(name__iexact=item_name, shop=from_shop)
+            if not source_items.exists():
+                errors.append(f"Item '{item_name}' not found in {from_shop.name}")
+                continue
+
+            source_item = source_items.first()
+            if qty > source_item.quantity:
+                errors.append(f"Not enough {item_name}: available {source_item.quantity}, requested {qty}")
+                continue
+
+            created_items.append({
+                'source_item': source_item,
+                'item_name': item_name,
+                'quantity': qty,
+            })
+
+        if not created_items:
+            return JsonResponse({'error': 'No valid items to transfer', 'errors': errors}, status=400)
+
+        # Create transfer as pending first so TransferItems exist before signal fires
+        transfer = Transfer.objects.create(
+            sender_shop=from_shop,
+            receiver_shop=to_shop,
+            created_by=request.user,
+            status='pending',
+            notes=notes,
+        )
+
+        for ci in created_items:
+            src = ci['source_item']
+            qty = ci['quantity']
+
+            TransferItem.objects.create(
+                transfer=transfer,
+                item_name=ci['item_name'],
+                quantity=qty,
+            )
+
+            src.quantity -= qty
+            src.save()
+
+            target_item, t_created = Item.objects.get_or_create(
+                name=src.name,
+                shop=to_shop,
+                defaults={
+                    'quantity': qty,
+                    'unit_price': src.unit_price,
+                    'category': src.category,
+                }
+            )
+            if not t_created:
+                target_item.quantity += qty
+                target_item.save()
+
+            StockTransaction.objects.create(
+                item=src,
+                source_shop=from_shop,
+                target_shop=to_shop,
+                quantity=qty,
+                transaction_type='transfer',
+                reason=notes or f"Multi-item transfer {transfer.transfer_code}",
+                transfer=transfer,
+            )
+
+            success_items.append(ci['item_name'])
+
+        # Now set status to sent — signal fires with TransferItems present
+        transfer.status = 'sent'
+        transfer.save()
+
+        return JsonResponse({
+            'status': 'ok',
+            'transfer_code': transfer.transfer_code,
+            'transfer_id': transfer.id,
+            'success_items': success_items,
+            'errors': errors,
+            'receiver_shop_name': to_shop.name,
+        })
+    except Exception as e:
+        logger.exception("create_transfer failed for user %s", request.user)
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+@csrf_exempt
+def update_transfer_status(request, transfer_id):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+    try:
+        transfer = get_object_or_404(Transfer, id=transfer_id)
+        new_status = request.POST.get('status', '')
+
+        valid_transitions = {
+            'pending': ['sent', 'rejected'],
+            'sent': ['received', 'rejected'],
+            'received': [],
+            'rejected': [],
+        }
+
+        allowed = valid_transitions.get(transfer.status, [])
+        if new_status not in allowed:
+            return JsonResponse({
+                'error': f"Cannot change status from '{transfer.status}' to '{new_status}'. Allowed: {allowed}"
+            }, status=400)
+
+        if new_status == 'received':
+            transfer.status = 'received'
+            transfer.save()
+
+        elif new_status == 'rejected':
+            for item in transfer.items.all():
+                target_items = Item.objects.filter(
+                    name__iexact=item.item_name,
+                    shop=transfer.receiver_shop
+                )
+                for tgt in target_items:
+                    tgt.quantity -= item.quantity
+                    tgt.save()
+
+                source_items = Item.objects.filter(
+                    name__iexact=item.item_name,
+                    shop=transfer.sender_shop
+                )
+                for src in source_items:
+                    src.quantity += item.quantity
+                    src.save()
+
+            transfer.status = 'rejected'
+            transfer.save()
+
+        elif new_status == 'sent':
+            for item in transfer.items.all():
+                source_items = Item.objects.filter(
+                    name__iexact=item.item_name,
+                    shop=transfer.sender_shop
+                )
+                if source_items.exists():
+                    src = source_items.first()
+                    if src.quantity >= item.quantity:
+                        src.quantity -= item.quantity
+                        src.save()
+
+                        target_item, created = Item.objects.get_or_create(
+                            name=src.name,
+                            shop=transfer.receiver_shop,
+                            defaults={
+                                'quantity': item.quantity,
+                                'unit_price': src.unit_price,
+                                'category': src.category,
+                            }
+                        )
+                        if not created:
+                            target_item.quantity += item.quantity
+                            target_item.save()
+
+                        StockTransaction.objects.create(
+                            item=src,
+                            source_shop=transfer.sender_shop,
+                            target_shop=transfer.receiver_shop,
+                            quantity=item.quantity,
+                            transaction_type='transfer',
+                            reason=f"Transfer {transfer.transfer_code} sent",
+                            transfer=transfer,
+                        )
+            transfer.status = 'sent'
+            transfer.save()
+
+        return JsonResponse({'status': 'ok', 'new_status': transfer.status})
+    except Exception as e:
+        logger.exception("update_transfer_status failed")
         return JsonResponse({"error": str(e)}, status=500)
 
 

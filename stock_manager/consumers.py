@@ -99,6 +99,7 @@ class NotificationConsumer(AsyncWebsocketConsumer):
             "notification_type": event.get("notification_type"),
             "sender_name": event.get("sender_name", ""),
             "link": event.get("link", ""),
+            "transfer_code": event.get("transfer_code", ""),
             "created_at": event.get("created_at"),
         }))
         count = await self.get_unread_notification_count()

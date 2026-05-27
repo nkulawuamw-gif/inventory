@@ -156,6 +156,7 @@ class StockTransaction(models.Model):
     transaction_type = models.CharField(max_length=20, choices=TRANSACTION_TYPES)
     reason = models.TextField(blank=True, default='')
     created_at = models.DateTimeField(default=timezone.now)
+    transfer = models.ForeignKey('Transfer', on_delete=models.SET_NULL, null=True, blank=True, related_name='stock_transactions')
 
     class Meta:
         ordering = ['-created_at']
@@ -389,6 +390,7 @@ class Notification(models.Model):
     is_read = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     link = models.CharField(max_length=500, blank=True, default='')
+    transfer = models.ForeignKey('Transfer', on_delete=models.CASCADE, null=True, blank=True, related_name='notifications')
 
     class Meta:
         ordering = ['-created_at']
@@ -400,7 +402,49 @@ class Notification(models.Model):
         return f"{self.title} - {self.user.username}"
 
 
-from django.db.models.signals import post_save
+class Transfer(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('sent', 'Sent'),
+        ('received', 'Received'),
+        ('rejected', 'Rejected'),
+    ]
+    transfer_code = models.CharField(max_length=20, unique=True)
+    sender_shop = models.ForeignKey(Shop, on_delete=models.CASCADE, related_name='outgoing_transfers')
+    receiver_shop = models.ForeignKey(Shop, on_delete=models.CASCADE, related_name='incoming_transfers')
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='created_transfers')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    notes = models.TextField(blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['status']),
+            models.Index(fields=['transfer_code']),
+        ]
+
+    def __str__(self):
+        return f"{self.transfer_code} ({self.sender_shop} -> {self.receiver_shop})"
+
+    def save(self, *args, **kwargs):
+        if not self.transfer_code:
+            import time
+            self.transfer_code = f"TXN-{int(time.time() * 1000) % 100000:05d}"
+        super().save(*args, **kwargs)
+
+
+class TransferItem(models.Model):
+    transfer = models.ForeignKey(Transfer, on_delete=models.CASCADE, related_name='items')
+    item_name = models.CharField(max_length=200)
+    quantity = models.IntegerField()
+
+    def __str__(self):
+        return f"{self.quantity}x {self.item_name}"
+
+
+from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 
 
@@ -419,4 +463,164 @@ def create_shop_profile(sender, instance, created, **kwargs):
 @receiver(post_save, sender=User)
 def save_shop_profile(sender, instance, **kwargs):
     Profile.objects.get_or_create(user=instance)
+
+
+def push_notification_to_channel_layer(notification):
+    try:
+        from channels.layers import get_channel_layer
+        from asgiref.sync import async_to_sync
+        channel_layer = get_channel_layer()
+        sender_name = notification.sender.get_full_name().strip() or notification.sender.username if notification.sender else ''
+        transfer_code = notification.transfer.transfer_code if notification.transfer else ''
+        async_to_sync(channel_layer.group_send)(
+            f"notifications_{notification.user.id}",
+            {
+                "type": "new_notification",
+                "id": notification.id,
+                "title": notification.title,
+                "message": notification.message,
+                "notification_type": notification.type,
+                "sender_name": sender_name,
+                "link": notification.link,
+                "transfer_code": transfer_code,
+                "created_at": notification.created_at.isoformat(),
+            }
+        )
+    except Exception:
+        pass
+
+
+@receiver(pre_save, sender=Transfer)
+def track_transfer_status_change(sender, instance, **kwargs):
+    if instance.pk:
+        try:
+            old = Transfer.objects.get(pk=instance.pk)
+            instance._old_status = old.status
+        except Transfer.DoesNotExist:
+            instance._old_status = None
+    else:
+        instance._old_status = None
+
+
+@receiver(post_save, sender=Transfer)
+def transfer_notification_handler(sender, instance, created, **kwargs):
+    try:
+        if created and instance.status == 'sent':
+            profiles = Profile.objects.filter(shop=instance.receiver_shop).select_related('user')
+            items_summary = ', '.join([f"{item.quantity}x {item.item_name}" for item in instance.items.all()])
+            for profile in profiles:
+                user = profile.user
+                if user == instance.created_by:
+                    continue
+                notif = Notification.objects.create(
+                    user=user,
+                    sender=instance.created_by,
+                    title=f"Transfer from {instance.sender_shop.name}",
+                    message=f"Transfer {instance.transfer_code}: {items_summary}",
+                    type='transfer',
+                    link='/transfers/',
+                    transfer=instance,
+                )
+                push_notification_to_channel_layer(notif)
+
+        if not created:
+            old_status = None
+            if hasattr(instance, '_old_status'):
+                old_status = instance._old_status
+
+            if old_status != 'sent' and instance.status == 'sent':
+                profiles = Profile.objects.filter(shop=instance.receiver_shop).select_related('user')
+                items_summary = ', '.join([f"{item.quantity}x {item.item_name}" for item in instance.items.all()])
+                for profile in profiles:
+                    user = profile.user
+                    if user == instance.created_by:
+                        continue
+                    notif = Notification.objects.create(
+                        user=user,
+                        sender=instance.created_by,
+                        title=f"Transfer from {instance.sender_shop.name}",
+                        message=f"Transfer {instance.transfer_code}: {items_summary}",
+                        type='transfer',
+                        link='/transfers/',
+                        transfer=instance,
+                    )
+                    push_notification_to_channel_layer(notif)
+
+            if old_status != 'received' and instance.status == 'received':
+                notif = Notification.objects.create(
+                    user=instance.created_by,
+                    sender=None,
+                    title=f"Transfer Received by {instance.receiver_shop.name}",
+                    message=f"Transfer {instance.transfer_code} has been received and confirmed.",
+                    type='transfer',
+                    link='/transfers/',
+                    transfer=instance,
+                )
+                push_notification_to_channel_layer(notif)
+
+            if old_status != 'rejected' and instance.status == 'rejected':
+                notif = Notification.objects.create(
+                    user=instance.created_by,
+                    sender=None,
+                    title=f"Transfer Rejected by {instance.receiver_shop.name}",
+                    message=f"Transfer {instance.transfer_code} has been rejected.",
+                    type='transfer',
+                    link='/transfers/',
+                    transfer=instance,
+                )
+                push_notification_to_channel_layer(notif)
+    except Exception:
+        import logging
+        logging.getLogger(__name__).exception("transfer_notification_handler failed")
+
+
+@receiver(post_save, sender=StockTransaction)
+def stock_transaction_transfer_handler(sender, instance, created, **kwargs):
+    if not created or instance.transaction_type != 'transfer' or not instance.target_shop:
+        return
+    if instance.transfer:
+        return
+    try:
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        creator = User.objects.filter(is_superuser=True).first()
+        if not creator:
+            profile = Profile.objects.filter(shop=instance.source_shop).select_related('user').first()
+            creator = profile.user if profile else User.objects.first()
+        if not creator:
+            return
+
+        transfer = Transfer.objects.create(
+            sender_shop=instance.source_shop,
+            receiver_shop=instance.target_shop,
+            created_by=creator,
+            status='sent',
+            notes=instance.reason or f"Auto-transfer: {instance.item.name}",
+        )
+        TransferItem.objects.create(
+            transfer=transfer,
+            item_name=instance.item.name,
+            quantity=instance.quantity,
+        )
+        instance.transfer = transfer
+        instance.save(update_fields=['transfer'])
+
+        profiles = Profile.objects.filter(shop=instance.target_shop).select_related('user')
+        for profile in profiles:
+            user = profile.user
+            if user == creator:
+                continue
+            notif = Notification.objects.create(
+                user=user,
+                sender=creator,
+                title=f"Transfer from {instance.source_shop.name}",
+                message=f"Transfer {transfer.transfer_code}: {instance.quantity}x {instance.item.name}",
+                type='transfer',
+                link='/transfers/',
+                transfer=transfer,
+            )
+            push_notification_to_channel_layer(notif)
+    except Exception:
+        import logging
+        logging.getLogger(__name__).exception("stock_transaction_transfer_handler failed")
 

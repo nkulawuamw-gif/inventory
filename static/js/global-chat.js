@@ -45,16 +45,25 @@ function playNotificationSound() {
 }
 
 // ---------------- TOAST NOTIFICATION ----------------
-function showNotificationToast(senderName, message) {
+function showNotificationToast(senderName, message, opts) {
+    opts = opts || {};
     var container = document.getElementById('toastContainer');
     if (!container) return;
 
     var toast = document.createElement('div');
-    toast.className = 'toast-notification toast-info';
-    toast.innerHTML = '<span class="toast-icon"><i class="bi bi-bell-fill"></i></span><span class="toast-msg"><strong>' + escapeHtml(senderName) + '</strong><br><span style="font-size:0.85rem;opacity:0.9;">' + escapeHtml(message) + '</span></span><button class="toast-close" onclick="this.closest(\'.toast-notification\').remove()">&times;</button>';
+    var isTransfer = opts.notificationType === 'transfer';
+    var isMessage = opts.notificationType === 'message';
+    var linkUrl = opts.link || (isTransfer ? '/transfers/' : '/chat/');
+    var iconClass = isTransfer ? 'bi-arrow-left-right' : (isMessage ? 'bi-chat-dots-fill' : 'bi-bell-fill');
+    var toastType = opts.notificationType === 'system' ? 'toast-warning' : (isTransfer ? 'toast-success' : 'toast-info');
+
+    toast.className = 'toast-notification ' + toastType;
+    var displayName = isTransfer ? (opts.title || senderName) : senderName;
+    var displayMsg = isTransfer && opts.transferCode ? '[' + escapeHtml(opts.transferCode) + '] ' + escapeHtml(message) : escapeHtml(message);
+    toast.innerHTML = '<span class="toast-icon"><i class="bi ' + iconClass + '"></i></span><span class="toast-msg"><strong>' + escapeHtml(displayName) + '</strong><br><span style="font-size:0.85rem;opacity:0.9;">' + displayMsg + '</span></span><button class="toast-close" onclick="this.closest(\'.toast-notification\').remove()">&times;</button>';
     toast.onclick = function(e) {
         if (e.target.tagName !== 'BUTTON') {
-            window.location.href = '/chat/';
+            window.location.href = linkUrl;
         }
     };
     toast.style.cursor = 'pointer';
@@ -388,7 +397,12 @@ function connectNotifications() {
         try { data = JSON.parse(e.data); } catch (err) { return; }
 
         if (data.type === 'new_notification') {
-            showNotificationToast(data.sender_name || 'System', data.message);
+            showNotificationToast(data.sender_name || data.title || 'System', data.message, {
+                notificationType: data.notification_type,
+                link: data.link,
+                title: data.title,
+                transferCode: data.transfer_code,
+            });
             showBrowserNotification(data.title, data.message, data.link || '/chat/');
             updateNotificationBadge();
         }

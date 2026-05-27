@@ -40,6 +40,11 @@ urlpatterns = [
     path('notifications/<int:notification_id>/mark-read/', comm.mark_notification_read, name='mark_notification_read'),
     path('notifications/mark-all-read/', comm.mark_all_notifications_read, name='mark_all_notifications_read'),
 
+    path('transfers/', comm.transfer_history, name='transfer_history'),
+    path('transfers/create/', comm.create_transfer, name='create_transfer'),
+    path('transfers/<int:transfer_id>/', comm.transfer_detail, name='transfer_detail'),
+    path('transfers/<int:transfer_id>/update-status/', comm.update_transfer_status, name='update_transfer_status'),
+
     path('whatsapp/', wa.whatsapp_inbox, name='whatsapp_inbox'),
     path('whatsapp/webhook/', wa.whatsapp_webhook, name='whatsapp_webhook'),
 

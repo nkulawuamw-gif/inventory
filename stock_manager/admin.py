@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.contrib.auth import get_user_model
 User = get_user_model()
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from .models import Shop, Item, Sale, Receipt, ReceiptItem, StockTransaction, UserProfile, Profile, Message, BusinessPeriod, CompanyProfile, WhatsAppSetting, WhatsAppMessage, Notification
+from .models import Shop, Item, Sale, Receipt, ReceiptItem, StockTransaction, UserProfile, Profile, Message, BusinessPeriod, CompanyProfile, WhatsAppSetting, WhatsAppMessage, Notification, Transfer, TransferItem
 
 
 class UserProfileInline(admin.StackedInline):
@@ -141,6 +141,27 @@ class WhatsAppMessageAdmin(admin.ModelAdmin):
     list_filter = ['is_from_customer', 'is_read']
     search_fields = ['customer_number', 'customer_name', 'body']
     date_hierarchy = 'created_at'
+
+
+class TransferItemInline(admin.TabularInline):
+    model = TransferItem
+    extra = 1
+    fields = ['item_name', 'quantity']
+
+
+@admin.register(Transfer)
+class TransferAdmin(admin.ModelAdmin):
+    list_display = ['transfer_code', 'sender_shop', 'receiver_shop', 'created_by', 'status', 'created_at']
+    list_filter = ['status', 'sender_shop', 'receiver_shop']
+    search_fields = ['transfer_code', 'sender_shop__name', 'receiver_shop__name']
+    inlines = [TransferItemInline]
+    readonly_fields = ['transfer_code', 'created_at', 'updated_at']
+
+
+@admin.register(TransferItem)
+class TransferItemAdmin(admin.ModelAdmin):
+    list_display = ['transfer', 'item_name', 'quantity']
+    search_fields = ['item_name', 'transfer__transfer_code']
 
 
 @admin.register(Notification)
