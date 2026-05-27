@@ -43,8 +43,8 @@
                         <td>{{ t.sender_shop.name }}</td>
                         <td>{{ t.receiver_shop.name }}</td>
                         <td>
-                            {% for item in t.items.all %}
-                            <span class="d-inline-block text-nowrap small">{{ item.quantity }}x {{ item.item_name }}</span>{% if not forloop.last %}, {% endif %}
+                            {% for item in t.items_data %}
+                            <span class="d-inline-block text-nowrap small">{{ item.quantity }}x {{ item.name }}</span>{% if not forloop.last %}, {% endif %}
                             {% empty %}
                             <span class="text-muted">-</span>
                             {% endfor %}

@@ -130,7 +130,7 @@
         .pos-shop-cart { font-size: 0.8rem; }
     </style>
     <style>
-        .toast-container { position: fixed; top: 70px; right: 20px; z-index: 99999; display: flex; flex-direction: column; gap: 8px; max-width: 420px; }
+        .toast-container { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 99999; display: flex; flex-direction: column; gap: 8px; max-width: 420px; }
             .toast-notification { display: flex; align-items: center; gap: 12px; padding: 14px 18px; border-radius: 12px; color: white; font-weight: 500; font-size: 0.9rem; box-shadow: 0 8px 24px rgba(0,0,0,0.15); animation: toastIn 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275); min-width: 300px; }
             .pw-toggle { position:absolute; right:10px; top:38px; cursor:pointer; z-index:5; color:#888; font-size:1.1rem; }
         .toast-notification .toast-icon { font-size: 1.3rem; flex-shrink: 0; }
@@ -141,8 +141,8 @@
         .toast-notification.toast-error { background: linear-gradient(135deg, #e74c3c, #c0392b); }
         .toast-notification.toast-warning { background: linear-gradient(135deg, #f39c12, #e67e22); }
         .toast-notification.toast-info { background: linear-gradient(135deg, #3498db, #2980b9); }
-        @keyframes toastIn { 0% { transform: translateX(120%) scale(0.8); opacity: 0; } 100% { transform: translateX(0) scale(1); opacity: 1; } }
-        @keyframes toastOut { 0% { transform: translateX(0) scale(1); opacity: 1; } 100% { transform: translateX(120%) scale(0.8); opacity: 0; } }
+        @keyframes toastIn { 0% { transform: translate(-50%, -50%) scale(0.7); opacity: 0; } 100% { transform: translate(-50%, -50%) scale(1); opacity: 1; } }
+        @keyframes toastOut { 0% { transform: translate(-50%, -50%) scale(1); opacity: 1; } 100% { transform: translate(-50%, -50%) scale(0.7); opacity: 0; } }
         .toast-notification.removing { animation: toastOut 0.3s ease forwards; }
         .confirm-overlay {
             display: none; position: fixed; inset: 0;

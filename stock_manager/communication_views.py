@@ -9,7 +9,7 @@ from django.utils import timezone
 from django.db.models import Q
 from django.contrib.auth import get_user_model
 
-from .models import Message, Profile, Notification, Shop
+from .models import Message, Profile, Notification, Shop, Transfer
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -282,5 +282,93 @@ def mark_all_notifications_read(request):
 
 @login_required
 def transfer_history(request):
-    messages.error(request, 'Transfer management is not available.')
-    return redirect('dashboard')
+    status_filter = request.GET.get('status', '')
+    qs = Transfer.objects.select_related('sender_shop', 'receiver_shop', 'created_by')
+    if status_filter:
+        qs = qs.filter(status=status_filter)
+    user_shops = []
+    if request.user.is_superuser:
+        user_shops = list(Shop.objects.all())
+    else:
+        profile = getattr(request.user, 'user_profile', None)
+        if profile and profile.assigned_shop:
+            user_shops = [profile.assigned_shop]
+    transfers = qs.order_by('-created_at')
+    return render(request, 'stock_manager/transfer_history.html', {
+        'transfers': transfers,
+        'status_filter': status_filter,
+        'user_shops': user_shops,
+        'page_title': 'Transfer History',
+    })
+
+
+@login_required
+def create_transfer(request):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+    try:
+        sender_id = request.POST.get('sender_shop_id')
+        receiver_id = request.POST.get('receiver_shop_id')
+        notes = request.POST.get('notes', '')
+        items_json = request.POST.get('items', '[]')
+        items = json.loads(items_json) if isinstance(items_json, str) else items_json
+        if not sender_id or not receiver_id:
+            return JsonResponse({'error': 'Sender and receiver shops are required'}, status=400)
+        if sender_id == receiver_id:
+            return JsonResponse({'error': 'Sender and receiver must be different'}, status=400)
+        if not items:
+            return JsonResponse({'error': 'At least one item is required'}, status=400)
+        sender = Shop.objects.get(id=sender_id)
+        receiver = Shop.objects.get(id=receiver_id)
+        transfer = Transfer.objects.create(
+            sender_shop=sender,
+            receiver_shop=receiver,
+            created_by=request.user,
+            notes=notes,
+            items_data=items,
+        )
+        return JsonResponse({
+            'status': 'ok',
+            'transfer_code': transfer.transfer_code,
+            'receiver_shop_name': receiver.name,
+            'transfer_id': transfer.id,
+        })
+    except Shop.DoesNotExist:
+        return JsonResponse({'error': 'Shop not found'}, status=400)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@login_required
+def transfer_detail(request, transfer_id):
+    try:
+        t = Transfer.objects.select_related('sender_shop', 'receiver_shop', 'created_by').get(id=transfer_id)
+        return JsonResponse({
+            'id': t.id,
+            'transfer_code': t.transfer_code,
+            'sender_shop': t.sender_shop.name,
+            'receiver_shop': t.receiver_shop.name,
+            'status': t.status,
+            'created_by': t.created_by.get_full_name() or t.created_by.username,
+            'created_at': t.created_at.isoformat(),
+            'notes': t.notes,
+            'items': t.items_data,
+        })
+    except Transfer.DoesNotExist:
+        return JsonResponse({'error': 'Transfer not found'}, status=404)
+
+
+@login_required
+def update_transfer_status(request, transfer_id):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+    try:
+        t = Transfer.objects.get(id=transfer_id)
+        new_status = request.POST.get('status')
+        if new_status not in dict(Transfer.STATUS_CHOICES):
+            return JsonResponse({'error': f'Invalid status: {new_status}'}, status=400)
+        t.status = new_status
+        t.save()
+        return JsonResponse({'status': 'ok', 'new_status': new_status})
+    except Transfer.DoesNotExist:
+        return JsonResponse({'error': 'Transfer not found'}, status=404)

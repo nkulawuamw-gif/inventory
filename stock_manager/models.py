@@ -223,6 +223,8 @@ class Transfer(models.Model):
     receiver_shop = models.ForeignKey(Shop, on_delete=models.CASCADE, related_name='incoming_transfers')
     created_by = models.ForeignKey(User, on_delete=models.CASCADE)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    notes = models.TextField(blank=True, default='')
+    items_data = models.JSONField(default=list, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def save(self, *args, **kwargs):
