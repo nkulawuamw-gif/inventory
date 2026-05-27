@@ -100,9 +100,46 @@ let pendingMessageIds = {};
 let typingTimeout = null;
 let newChatUsersData = [];
 
+// ---- Connection status ----
+function updateChatStatus() {
+    var el = document.getElementById('chatConnectionStatus');
+    if (!el) return;
+    if (window.chatConnected && chatSocket && chatSocket.readyState === WebSocket.OPEN) {
+        el.textContent = 'Connected';
+        el.className = 'badge bg-success ms-2';
+        el.style.display = '';
+    } else if (chatSocket && chatSocket.readyState === WebSocket.CONNECTING) {
+        el.textContent = 'Connecting...';
+        el.className = 'badge bg-warning text-dark ms-2';
+        el.style.display = '';
+    } else {
+        el.textContent = 'Offline';
+        el.className = 'badge bg-secondary ms-2';
+        el.style.display = '';
+    }
+}
+
+document.addEventListener('chat-connected', updateChatStatus);
+
+// ---- REST API fallback ----
+function sendViaREST(receiverId, message) {
+    return fetch('/chat/conversation/' + receiverId + '/', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCSRFToken(),
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: 'message=' + encodeURIComponent(message),
+    }).then(function(r) { return r.json(); }).catch(function() {});
+}
+
+function isChatConnected() {
+    return window.chatConnected === true && chatSocket && chatSocket.readyState === WebSocket.OPEN;
+}
+
 // ---- Load conversations ----
 function loadConversations() {
-    if (chatSocket && chatSocket.readyState === WebSocket.OPEN) {
+    if (isChatConnected()) {
         chatSocket.send(JSON.stringify({ type: 'get_conversations' }));
     }
 }
@@ -200,7 +237,7 @@ function openChat(userId, userName) {
     });
 
     // mark read via WebSocket
-    if (chatSocket && chatSocket.readyState === WebSocket.OPEN) {
+    if (isChatConnected()) {
         chatSocket.send(JSON.stringify({ type: 'mark_read', sender_id: userId }));
     }
     updateUnreadBadge();
@@ -265,10 +302,7 @@ function addMessageBubble(sender, content, timestamp, isMine, msgId, status) {
 // ---- Send message ----
 function sendMessage(e) {
     e.preventDefault();
-    if (!currentChatUserId || !chatSocket || chatSocket.readyState !== WebSocket.OPEN) {
-        showToast('Chat connection not ready. Please wait...', 'warning');
-        return false;
-    }
+    if (!currentChatUserId) return false;
 
     var input = document.getElementById('messageInput');
     var text = input.value.trim();
@@ -277,7 +311,22 @@ function sendMessage(e) {
     var tempId = 'tmp_' + Date.now();
     pendingMessageIds[tempId] = true;
 
-    chatSocket.send(JSON.stringify({ receiver_id: currentChatUserId, message: text }));
+    if (isChatConnected()) {
+        chatSocket.send(JSON.stringify({ receiver_id: currentChatUserId, message: text }));
+    } else {
+        // fallback: REST API
+        fetch('/chat/conversation/' + currentChatUserId + '/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCSRFToken(),
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: 'message=' + encodeURIComponent(text),
+        }).then(function(r) { return r.json(); }).then(function() {
+            updateChatStatus();
+        }).catch(function() {});
+    }
+
     input.value = '';
     addMessageBubble('You', text, new Date().toISOString(), true, tempId, 'sent');
     return false;
@@ -285,11 +334,11 @@ function sendMessage(e) {
 
 // ---- Typing indicator ----
 function onTyping() {
-    if (!currentChatUserId || !chatSocket || chatSocket.readyState !== WebSocket.OPEN) return;
+    if (!currentChatUserId || !isChatConnected()) return;
     chatSocket.send(JSON.stringify({ type: 'typing', receiver_id: currentChatUserId, is_typing: true }));
     if (typingTimeout) clearTimeout(typingTimeout);
     typingTimeout = setTimeout(function() {
-        if (chatSocket && chatSocket.readyState === WebSocket.OPEN) {
+        if (isChatConnected()) {
             chatSocket.send(JSON.stringify({ type: 'typing', receiver_id: currentChatUserId, is_typing: false }));
         }
     }, 2000);
@@ -313,7 +362,7 @@ document.addEventListener('chat-message', function(e) {
     var data = e.detail;
     if (currentChatUserId && data.sender_id === currentChatUserId) {
         addMessageBubble(data.sender_name || data.sender, data.message, data.timestamp, false, data.message_id, '');
-        if (chatSocket && chatSocket.readyState === WebSocket.OPEN) {
+        if (isChatConnected()) {
             chatSocket.send(JSON.stringify({ type: 'mark_read', sender_id: currentChatUserId }));
         }
     }

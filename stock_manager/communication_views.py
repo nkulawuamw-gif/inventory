@@ -137,6 +137,39 @@ def mark_read(request):
 @login_required
 def get_conversation(request, user_id):
     other = get_object_or_404(User, id=user_id)
+
+    if request.method == 'POST':
+        message_text = request.POST.get('message', '').strip()
+        if message_text:
+            msg = Message.objects.create(sender=request.user, receiver=other, content=message_text)
+            try:
+                from channels.layers import get_channel_layer
+                from asgiref.sync import async_to_sync
+                channel_layer = get_channel_layer()
+                async_to_sync(channel_layer.group_send)(
+                    f"user_{other.id}",
+                    {
+                        "type": "chat_message",
+                        "message_id": msg.id,
+                        "message": message_text,
+                        "sender": request.user.username,
+                        "sender_id": request.user.id,
+                        "sender_name": request.user.get_full_name().strip() or request.user.username,
+                        "timestamp": msg.timestamp.isoformat(),
+                    }
+                )
+                async_to_sync(channel_layer.group_send)(
+                    f"user_{other.id}",
+                    {"type": "unread_update", "count": Message.objects.filter(receiver=other, is_read=False).count()}
+                )
+                async_to_sync(channel_layer.group_send)(
+                    f"user_{request.user.id}",
+                    {"type": "unread_update", "count": Message.objects.filter(receiver=request.user, is_read=False).count()}
+                )
+            except Exception:
+                pass
+        return JsonResponse({'status': 'ok', 'message_id': msg.id if message_text else None})
+
     msgs = Message.objects.filter(
         Q(sender=request.user, receiver=other) | Q(sender=other, receiver=request.user)
     ).select_related('sender').defer('status').order_by('timestamp')

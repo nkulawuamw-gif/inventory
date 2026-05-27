@@ -25,77 +25,6 @@ if ('serviceWorker' in navigator && 'Notification' in window) {
     requestPushPermission();
 }
 
-// ---------------- PRESENCE (REAL-TIME ONLINE/OFFLINE) ----------------
-(function() {
-    var presenceSocket = null;
-
-    function connectPresence() {
-        var protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        try {
-            presenceSocket = new WebSocket(protocol + "//" + window.location.host + "/ws/presence/");
-        } catch (e) { setTimeout(connectPresence, 3000); return; }
-
-        presenceSocket.onmessage = function(e) {
-            try {
-                var d = JSON.parse(e.data);
-                if (d.type === 'presence_update') {
-                    updateOnlineStatus(d);
-                }
-            } catch (err) {}
-        };
-
-        presenceSocket.onclose = function() { setTimeout(connectPresence, 3000); };
-        presenceSocket.onerror = function() { try { presenceSocket.close(); } catch(e) {} };
-    }
-
-    function updateOnlineStatus(d) {
-        var panel = document.getElementById('onlineUsersPanel');
-        var countEl = document.getElementById('onlineCount');
-        var badge = document.getElementById('onlineBadge');
-        if (!countEl) return;
-
-        var current = parseInt(countEl.textContent || '0', 10);
-
-        if (d.is_online) {
-            countEl.textContent = current + 1;
-            if (panel) {
-                var existing = panel.querySelector('[data-uid="' + d.user_id + '"]');
-                if (!existing) {
-                    var div = document.createElement('div');
-                    div.className = 'px-3 py-2 border-bottom border-secondary d-flex align-items-center gap-2';
-                    div.setAttribute('data-uid', d.user_id);
-                    div.innerHTML = '<span class="online-dot"></span><span class="text-light small">' + escapeHtml(d.display_name) + '</span>';
-                    panel.appendChild(div);
-                }
-            }
-        } else {
-            countEl.textContent = Math.max(0, current - 1);
-            if (panel) {
-                var el = panel.querySelector('[data-uid="' + d.user_id + '"]');
-                if (el) el.remove();
-            }
-        }
-
-        if (badge) badge.style.display = (parseInt(countEl.textContent) > 0) ? '' : 'none';
-    }
-
-    function escapeHtml(s) {
-        var d = document.createElement('div');
-        d.textContent = s;
-        return d.innerHTML;
-    }
-
-    document.addEventListener('DOMContentLoaded', function() {
-        if (document.querySelector('[name=csrfmiddlewaretoken]')) {
-            connectPresence();
-            connectChat();
-            connectNotifications();
-            updateUnreadBadge();
-            updateNotificationBadge();
-        }
-    });
-})();
-
 // ---------------- NOTIFICATION SOUND ----------------
 var audioCtx = null;
 
@@ -290,43 +219,6 @@ function markAllNotifRead() {
     }).catch(function() {});
 }
 
-// ---------------- NOTIFICATION WEBSOCKET ----------------
-var notifSocket = null;
-
-function connectNotifications() {
-    var protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    try {
-        notifSocket = new WebSocket(protocol + "//" + window.location.host + "/ws/notifications/");
-    } catch (e) { setTimeout(connectNotifications, 3000); return; }
-
-    notifSocket.onmessage = function(e) {
-        var data;
-        try { data = JSON.parse(e.data); } catch (err) { return; }
-
-        if (data.type === 'new_notification') {
-            showNotificationToast(data.sender_name || 'System', data.message);
-            showBrowserNotification(data.title, data.message, data.link || '/chat/');
-            updateNotificationBadge();
-        }
-
-        if (data.type === 'notification_count') {
-            var badge = document.getElementById('notificationBadge');
-            var count = data.count || 0;
-            if (badge) {
-                if (count > 0) {
-                    badge.textContent = count > 99 ? '99+' : count;
-                    badge.style.display = '';
-                } else {
-                    badge.style.display = 'none';
-                }
-            }
-        }
-    };
-
-    notifSocket.onclose = function() { setTimeout(connectNotifications, 3000); };
-    notifSocket.onerror = function() { try { notifSocket.close(); } catch(e) {} };
-}
-
 function getCSRFToken() {
     var el = document.querySelector('[name=csrfmiddlewaretoken]');
     if (el) return el.value;
@@ -354,20 +246,93 @@ function updateUnreadBadge() {
         .catch(function() {});
 }
 
-// ---------------- CHAT ----------------
+// ---------------- PRESENCE (REAL-TIME ONLINE/OFFLINE) ----------------
+var presenceSocket = null;
 var chatSocket = null;
+var notifSocket = null;
+
+var chatConnected = false;
+
+function connectAll() {
+    connectPresence();
+    connectChat();
+    connectNotifications();
+}
+
+function connectPresence() {
+    var url = (window.location.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + window.location.host + '/ws/presence/';
+    try {
+        presenceSocket = new WebSocket(url);
+    } catch (e) { setTimeout(connectPresence, 3000); return; }
+
+    presenceSocket.onmessage = function(e) {
+        try {
+            var d = JSON.parse(e.data);
+            if (d.type === 'presence_update') {
+                updateOnlineStatus(d);
+            }
+        } catch (err) {}
+    };
+
+    presenceSocket.onclose = function() { setTimeout(connectPresence, 3000); };
+    presenceSocket.onerror = function() { try { presenceSocket.close(); } catch(e) {} };
+}
+
+function updateOnlineStatus(d) {
+    var panel = document.getElementById('onlineUsersPanel');
+    var countEl = document.getElementById('onlineCount');
+    var badge = document.getElementById('onlineBadge');
+    if (!countEl) return;
+
+    var current = parseInt(countEl.textContent || '0', 10);
+
+    if (d.is_online) {
+        countEl.textContent = current + 1;
+        if (panel) {
+            var existing = panel.querySelector('[data-uid="' + d.user_id + '"]');
+            if (!existing) {
+                var div = document.createElement('div');
+                div.className = 'px-3 py-2 border-bottom border-secondary d-flex align-items-center gap-2';
+                div.setAttribute('data-uid', d.user_id);
+                div.innerHTML = '<span class="online-dot"></span><span class="text-light small">' + escapeHtml(d.display_name) + '</span>';
+                panel.appendChild(div);
+            }
+        }
+    } else {
+        countEl.textContent = Math.max(0, current - 1);
+        if (panel) {
+            var el = panel.querySelector('[data-uid="' + d.user_id + '"]');
+            if (el) el.remove();
+        }
+    }
+
+    if (badge) badge.style.display = (parseInt(countEl.textContent) > 0) ? '' : 'none';
+}
 
 function connectChat() {
-    var protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    chatSocket = new WebSocket(protocol + "//" + window.location.host + "/ws/chat/");
+    var url = (window.location.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + window.location.host + '/ws/chat/';
+    try {
+        chatSocket = new WebSocket(url);
+    } catch (e) {
+        chatConnected = false;
+        setTimeout(connectChat, 3000);
+        return;
+    }
+
+    chatSocket.onopen = function() {
+        chatConnected = true;
+        // notify any chat page listeners
+        var evt = document.createEvent('Event');
+        evt.initEvent('chat-connected', true, true);
+        document.dispatchEvent(evt);
+    };
 
     chatSocket.onmessage = function(e) {
         var data;
         try { data = JSON.parse(e.data); } catch (err) { return; }
 
         if (data.type === 'chat_message') {
-            var inModalChat = typeof modalChatUserId !== 'undefined' && modalChatUserId && data.sender_id === modalChatUserId;
-            if (data.sender_id && data.sender_id !== currentChatUserId && !inModalChat) {
+            if (data.sender_id && data.sender_id !== currentChatUserId) {
                 showBrowserNotification(data.sender_name || data.sender, data.message, '/chat/');
                 showNotificationToast(data.sender_name || data.sender, data.message);
                 playNotificationSound();
@@ -405,13 +370,62 @@ function connectChat() {
         }
     };
 
-    chatSocket.onclose = function() { setTimeout(connectChat, 3000); };
+    chatSocket.onclose = function() {
+        chatConnected = false;
+        setTimeout(connectChat, 3000);
+    };
     chatSocket.onerror = function() { try { chatSocket.close(); } catch(e) {} };
 }
 
-// ---------------- POLL UNREAD BADGE ----------------
-updateUnreadBadge();
-updateNotificationBadge();
+function connectNotifications() {
+    var url = (window.location.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + window.location.host + '/ws/notifications/';
+    try {
+        notifSocket = new WebSocket(url);
+    } catch (e) { setTimeout(connectNotifications, 3000); return; }
+
+    notifSocket.onmessage = function(e) {
+        var data;
+        try { data = JSON.parse(e.data); } catch (err) { return; }
+
+        if (data.type === 'new_notification') {
+            showNotificationToast(data.sender_name || 'System', data.message);
+            showBrowserNotification(data.title, data.message, data.link || '/chat/');
+            updateNotificationBadge();
+        }
+
+        if (data.type === 'notification_count') {
+            var badge = document.getElementById('notificationBadge');
+            var count = data.count || 0;
+            if (badge) {
+                if (count > 0) {
+                    badge.textContent = count > 99 ? '99+' : count;
+                    badge.style.display = '';
+                } else {
+                    badge.style.display = 'none';
+                }
+            }
+        }
+    };
+
+    notifSocket.onclose = function() { setTimeout(connectNotifications, 3000); };
+    notifSocket.onerror = function() { try { notifSocket.close(); } catch(e) {} };
+}
+
+// ---------------- INIT ----------------
+function initApp() {
+    if (document.querySelector('[name=csrfmiddlewaretoken]')) {
+        connectAll();
+    }
+    updateUnreadBadge();
+    updateNotificationBadge();
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initApp);
+} else {
+    initApp();
+}
+
 setInterval(updateUnreadBadge, 15000);
 setInterval(updateNotificationBadge, 30000);
 
