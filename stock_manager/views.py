@@ -1153,6 +1153,10 @@ def settings_view(request):
 
         return redirect('settings')
 
+    # Ensure all non-superuser users have a UserProfile to prevent 500 on template access
+    for user in User.objects.filter(is_superuser=False, user_profile__isnull=True):
+        UserProfile.objects.create(user=user)
+
     users = User.objects.filter(is_superuser=False).select_related('user_profile__assigned_shop').order_by('username')
 
     landing = LandingPageContent.objects.first()
