@@ -301,9 +301,6 @@
                     {% if user_access.is_admin or 'dashboard' in user_access.permissions %}
                     <li class="nav-item"><a class="nav-link py-1" href="{% url 'dashboard' %}"><i class="bi bi-grid-3x3-gap"></i> Dashboard</a></li>
                     {% endif %}
-                    {% if user_access.is_admin or 'admin_manage' in user_access.permissions %}
-                    <li class="nav-item"><a class="nav-link py-1" href="{% url 'admin_manage' %}"><i class="bi bi-tools"></i> Manage</a></li>
-                    {% endif %}
                     {% if user_access.is_admin or 'financial_report' in user_access.permissions %}
                     <li class="nav-item"><a class="nav-link py-1" href="{% url 'financial_report' %}"><i class="bi bi-graph-up-arrow"></i> Financial Report</a></li>
                     {% endif %}
@@ -353,17 +350,12 @@
                         <i class="bi bi-grid-3x3-gap"></i> Main Dashboard
                     </a>
                     {% endif %}
-                    {% if user_access.is_admin or 'admin_manage' in user_access.permissions %}
-                    <a href="{% url 'admin_manage' %}" class="{% if request.resolver_match.url_name == 'admin_manage' %}active{% endif %}">
-                        <i class="bi bi-tools"></i> Manage Inventory
-                    </a>
-                    {% endif %}
                     {% if user_access.is_admin or 'financial_report' in user_access.permissions %}
                     <a href="{% url 'financial_report' %}" class="{% if request.resolver_match.url_name == 'financial_report' %}active{% endif %}">
                         <i class="bi bi-graph-up-arrow"></i> Financial Report
                     </a>
                     {% endif %}
-                    {% if user_access.is_admin or 'sales_history' in user_access.permissions or 'dashboard' in user_access.permissions or 'admin_manage' in user_access.permissions or 'financial_report' in user_access.permissions %}
+                    {% if user_access.is_admin or 'sales_history' in user_access.permissions or 'dashboard' in user_access.permissions or 'financial_report' in user_access.permissions %}
                     <hr class="text-secondary mx-3">
                     {% endif %}
                     <a href="{% url 'sales_history' %}" class="{% if request.resolver_match.url_name == 'sales_history' %}active{% endif %}">

@@ -43,7 +43,6 @@ class Shop(models.Model):
 
 PERMISSION_CHOICES = [
     ('dashboard', 'Main Dashboard'),
-    ('admin_manage', 'Manage Inventory'),
     ('financial_report', 'Financial Report'),
     ('sales_history', 'Sales History'),
     ('chat', 'Chat'),

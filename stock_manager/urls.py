@@ -10,7 +10,6 @@ urlpatterns = [
     path('inventory/<slug:shop_slug>/', views.shop_inventory, name='shop_inventory'),
     path('sales-history/', views.sales_history, name='sales_history'),
     path('sale/<int:sale_id>/', views.sale_detail, name='sale_detail'),
-    path('manage/', views.admin_manage, name='admin_manage'),
     path('financial-report/', views.financial_report, name='financial_report'),
     path('settings/', views.settings_view, name='settings'),
     path('manage-categories/', views.manage_categories, name='manage_categories'),
