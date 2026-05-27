@@ -35,6 +35,9 @@ urlpatterns = [
     path('notifications/<int:notification_id>/mark-read/', comm.mark_notification_read, name='mark_notification_read'),
     path('notifications/mark-all-read/', comm.mark_all_notifications_read, name='mark_all_notifications_read'),
 
+    path('transfers/', comm.transfer_history, name='transfer_history'),
+    path('whatsapp/', wa.whatsapp_inbox, name='whatsapp_inbox'),
+
     path('logout/', views.logout_view, name='logout'),
     path('change-password/', views.change_password, name='change_password'),
     path('shop/<slug:shop_slug>/', views.shop_dashboard, name='shop_dashboard'),

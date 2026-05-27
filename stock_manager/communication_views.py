@@ -1,6 +1,7 @@
 import json
 import logging
-from django.shortcuts import render
+from django.shortcuts import render, redirect
+from django.contrib import messages
 from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
@@ -277,3 +278,9 @@ def mark_all_notifications_read(request):
     except Exception as e:
         logger.exception("mark_all_notifications_read failed")
         return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+def transfer_history(request):
+    messages.error(request, 'Transfer management is not available.')
+    return redirect('dashboard')
