@@ -18,6 +18,7 @@ from django.utils import timezone
 
 from .models import (
     Shop, Item, Sale, StockTransaction, UserProfile, PERMISSION_CHOICES,
+    LandingPageContent,
 )
 
 from .middleware import shop_access_required
@@ -1460,6 +1461,7 @@ def financial_report(request):
 def landing_view(request):
     shops = Shop.objects.exclude(name__iexact='warehouse').order_by('name')
     items = Item.objects.exclude(shop__name__iexact='warehouse').select_related('shop').order_by('shop__name', 'name')
+    landing = LandingPageContent.objects.first()
 
     if request.method == 'POST':
         username = request.POST.get('username')
@@ -1471,7 +1473,7 @@ def landing_view(request):
         else:
             messages.error(request, 'Invalid username or password.')
 
-    return render(request, 'stock_manager/landing.html', {'items': items, 'shops': shops})
+    return render(request, 'stock_manager/landing.html', {'items': items, 'shops': shops, 'landing': landing})
 
 
 

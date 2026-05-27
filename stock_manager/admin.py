@@ -5,7 +5,7 @@ from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from .models import (
     Shop, Item, Sale, StockTransaction,
     UserProfile, Profile, Message,
-    Notification, Transfer
+    Notification, Transfer, LandingPageContent
 )
 
 User = get_user_model()
@@ -47,6 +47,14 @@ except admin.sites.NotRegistered:
 
 admin.site.register(User, CustomUserAdmin)
 admin.site.register(Profile)
+
+
+# ---------------- LANDING PAGE ----------------
+
+@admin.register(LandingPageContent)
+class LandingPageContentAdmin(admin.ModelAdmin):
+    list_display = ['__str__']
+    fields = ['data', 'image']
 
 
 # ---------------- SHOP + ITEMS ----------------

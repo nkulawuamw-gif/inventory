@@ -250,6 +250,22 @@ def ensure_profile_safe(sender, instance, **kwargs):
 
 
 # =========================
+# LANDING PAGE CONTENT
+# =========================
+
+class LandingPageContent(models.Model):
+    data = models.JSONField(default=dict, blank=True)
+    image = models.ImageField(upload_to='landing/', blank=True, null=True)
+
+    class Meta:
+        verbose_name = 'Landing Page Content'
+        verbose_name_plural = 'Landing Page Content'
+
+    def __str__(self):
+        return 'Landing Page'
+
+
+# =========================
 # SAFE HEARTBEAT HELPERS (used by views)
 # =========================
 
