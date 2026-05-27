@@ -374,6 +374,32 @@ class WhatsAppMessage(models.Model):
         return f'{who}: {self.body[:50]}'
 
 
+class Notification(models.Model):
+    NOTIFICATION_TYPES = [
+        ('message', 'New Message'),
+        ('system', 'System Alert'),
+        ('transfer', 'Stock Transfer'),
+        ('sale', 'New Sale'),
+    ]
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
+    sender = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='sent_notifications')
+    title = models.CharField(max_length=200)
+    message = models.TextField()
+    type = models.CharField(max_length=20, choices=NOTIFICATION_TYPES, default='message')
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    link = models.CharField(max_length=500, blank=True, default='')
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['user', 'is_read']),
+        ]
+
+    def __str__(self):
+        return f"{self.title} - {self.user.username}"
+
+
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 

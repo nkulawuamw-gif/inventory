@@ -1,6 +1,6 @@
 // ---------------- SERVICE WORKER + PUSH NOTIFICATIONS ----------------
 if ('serviceWorker' in navigator && 'Notification' in window) {
-    navigator.serviceWorker.register('/static/sw.js');
+    navigator.serviceWorker.register('/static/sw.js').catch(function() {});
 
     function requestPushPermission() {
         if (Notification.permission === 'default') {
@@ -30,8 +30,9 @@ if ('serviceWorker' in navigator && 'Notification' in window) {
     var presenceSocket = null;
 
     function connectPresence() {
+        var protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         try {
-            presenceSocket = new WebSocket("wss://" + window.location.host + "/ws/presence/");
+            presenceSocket = new WebSocket(protocol + "//" + window.location.host + "/ws/presence/");
         } catch (e) { setTimeout(connectPresence, 3000); return; }
 
         presenceSocket.onmessage = function(e) {
@@ -88,6 +89,9 @@ if ('serviceWorker' in navigator && 'Notification' in window) {
         if (document.querySelector('[name=csrfmiddlewaretoken]')) {
             connectPresence();
             connectChat();
+            connectNotifications();
+            updateUnreadBadge();
+            updateNotificationBadge();
         }
     });
 })();
@@ -112,23 +116,24 @@ function playNotificationSound() {
 }
 
 // ---------------- TOAST NOTIFICATION ----------------
-function showToastNotification(sender, message) {
+function showNotificationToast(senderName, message) {
     var container = document.getElementById('toastContainer');
-    if (!container) {
-        container = document.createElement('div');
-        container.id = 'toastContainer';
-        container.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px;max-width:350px;';
-        document.body.appendChild(container);
-    }
+    if (!container) return;
+
     var toast = document.createElement('div');
-    toast.style.cssText = 'background:#2c3e50;color:#fff;padding:12px 16px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.3);cursor:pointer;animation:fadeInUp 0.3s ease;font-size:0.9rem;';
-    toast.innerHTML = '<strong style="display:block;margin-bottom:4px;">' + escapeHtml(sender) + '</strong><span style="color:#ccc;">' + escapeHtml(message) + '</span>';
-    toast.onclick = function() { window.location.href = '/chat/'; };
+    toast.className = 'toast-notification toast-info';
+    toast.innerHTML = '<span class="toast-icon"><i class="bi bi-bell-fill"></i></span><span class="toast-msg"><strong>' + escapeHtml(senderName) + '</strong><br><span style="font-size:0.85rem;opacity:0.9;">' + escapeHtml(message) + '</span></span><button class="toast-close" onclick="this.closest(\'.toast-notification\').remove()">&times;</button>';
+    toast.onclick = function(e) {
+        if (e.target.tagName !== 'BUTTON') {
+            window.location.href = '/chat/';
+        }
+    };
+    toast.style.cursor = 'pointer';
     container.appendChild(toast);
+    playNotificationSound();
     setTimeout(function() {
-        toast.style.opacity = '0';
-        toast.style.transition = 'opacity 0.3s';
-        setTimeout(function() { if (toast.parentNode) toast.parentNode.removeChild(toast); }, 300);
+        toast.classList.add('removing');
+        setTimeout(function() { if (toast.parentNode) toast.remove(); }, 300);
     }, 5000);
 }
 
@@ -152,6 +157,183 @@ function updatePageTitle(count) {
     }
 }
 
+// ---------------- NOTIFICATION BADGE (bell) ----------------
+function updateNotificationBadge() {
+    fetch('/notifications/unread/')
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+            var badge = document.getElementById('notificationBadge');
+            var count = d.count || 0;
+            if (badge) {
+                if (count > 0) {
+                    badge.textContent = count > 99 ? '99+' : count;
+                    badge.style.display = '';
+                } else {
+                    badge.style.display = 'none';
+                }
+            }
+            var totalUnread = count;
+            var chatBadge = document.getElementById('sidebarChatBadge');
+            var chatCount = parseInt(chatBadge ? chatBadge.textContent : '0', 10);
+            if (isNaN(chatCount)) chatCount = 0;
+            updatePageTitle(totalUnread + chatCount);
+        })
+        .catch(function() {});
+}
+
+// ---------------- NOTIFICATION DROPDOWN ----------------
+function toggleNotificationPanel() {
+    var panel = document.getElementById('notificationPanel');
+    if (!panel) return;
+    var isVisible = panel.style.display !== 'none';
+    if (isVisible) {
+        panel.style.display = 'none';
+    } else {
+        loadNotifications();
+        panel.style.display = 'block';
+    }
+}
+
+function loadNotifications() {
+    var panel = document.getElementById('notificationPanel');
+    if (!panel) return;
+    panel.innerHTML = '<div class="text-center py-3"><div class="spinner-border spinner-border-sm text-light" role="status"></div> Loading...</div>';
+
+    fetch('/notifications/')
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+            var notifs = d.notifications || [];
+            panel.innerHTML = '';
+            if (notifs.length === 0) {
+                panel.innerHTML = '<div class="text-center py-4 text-white-50"><i class="bi bi-bell-slash" style="font-size:2rem;display:block;margin-bottom:8px;"></i>No notifications</div>';
+                return;
+            }
+            var list = document.createElement('div');
+            list.className = 'notification-list';
+            notifs.forEach(function(n) {
+                var item = document.createElement('div');
+                item.className = 'notification-item' + (n.is_read ? '' : ' unread');
+                item.dataset.id = n.id;
+                item.onclick = function() {
+                    markNotifRead(n.id);
+                    if (n.link) window.location.href = n.link;
+                };
+                var typeIcon = 'bi-bell-fill';
+                if (n.type === 'message') typeIcon = 'bi-chat-dots-fill';
+                else if (n.type === 'system') typeIcon = 'bi-gear-fill';
+                else if (n.type === 'transfer') typeIcon = 'bi-arrow-left-right';
+                else if (n.type === 'sale') typeIcon = 'bi-cart-fill';
+                item.innerHTML = '<div class="notif-icon"><i class="bi ' + typeIcon + '"></i></div><div class="notif-content"><div class="notif-title">' + escapeHtml(n.title) + '</div><div class="notif-message">' + escapeHtml(n.message) + '</div><div class="notif-time">' + formatTimeAgo(n.created_at) + '</div></div>';
+                list.appendChild(item);
+            });
+            panel.appendChild(list);
+            if (d.unread_count > 0) {
+                var markBtn = document.createElement('div');
+                markBtn.className = 'notification-mark-all';
+                markBtn.innerHTML = '<button class="btn btn-sm btn-outline-light w-100" onclick="markAllNotifRead()"><i class="bi bi-check2-all"></i> Mark all as read</button>';
+                panel.appendChild(markBtn);
+            }
+        })
+        .catch(function() {
+            panel.innerHTML = '<div class="text-center py-3 text-danger">Failed to load notifications</div>';
+        });
+}
+
+function escapeHtml(s) {
+    var d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+}
+
+function formatTimeAgo(iso) {
+    if (!iso) return '';
+    var d = new Date(iso);
+    var now = new Date();
+    var diff = Math.floor((now - d) / 1000);
+    if (diff < 60) return 'just now';
+    if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+    if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+    if (diff < 604800) return Math.floor(diff / 86400) + 'd ago';
+    return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+}
+
+function markNotifRead(id) {
+    fetch('/notifications/' + id + '/mark-read/', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCSRFToken(),
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+    }).then(function() {
+        updateNotificationBadge();
+        if (notifSocket && notifSocket.readyState === WebSocket.OPEN) {
+            notifSocket.send(JSON.stringify({ type: 'mark_read', notification_id: id }));
+        }
+    }).catch(function() {});
+}
+
+function markAllNotifRead() {
+    fetch('/notifications/mark-all-read/', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCSRFToken(),
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+    }).then(function() {
+        updateNotificationBadge();
+        var items = document.querySelectorAll('.notification-item.unread');
+        items.forEach(function(el) { el.classList.remove('unread'); });
+        document.querySelector('.notification-mark-all')?.remove();
+        if (notifSocket && notifSocket.readyState === WebSocket.OPEN) {
+            notifSocket.send(JSON.stringify({ type: 'mark_all_read' }));
+        }
+    }).catch(function() {});
+}
+
+// ---------------- NOTIFICATION WEBSOCKET ----------------
+var notifSocket = null;
+
+function connectNotifications() {
+    var protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    try {
+        notifSocket = new WebSocket(protocol + "//" + window.location.host + "/ws/notifications/");
+    } catch (e) { setTimeout(connectNotifications, 3000); return; }
+
+    notifSocket.onmessage = function(e) {
+        var data;
+        try { data = JSON.parse(e.data); } catch (err) { return; }
+
+        if (data.type === 'new_notification') {
+            showNotificationToast(data.sender_name || 'System', data.message);
+            showBrowserNotification(data.title, data.message, data.link || '/chat/');
+            updateNotificationBadge();
+        }
+
+        if (data.type === 'notification_count') {
+            var badge = document.getElementById('notificationBadge');
+            var count = data.count || 0;
+            if (badge) {
+                if (count > 0) {
+                    badge.textContent = count > 99 ? '99+' : count;
+                    badge.style.display = '';
+                } else {
+                    badge.style.display = 'none';
+                }
+            }
+        }
+    };
+
+    notifSocket.onclose = function() { setTimeout(connectNotifications, 3000); };
+    notifSocket.onerror = function() { try { notifSocket.close(); } catch(e) {} };
+}
+
+function getCSRFToken() {
+    var el = document.querySelector('[name=csrfmiddlewaretoken]');
+    if (el) return el.value;
+    var cookie = document.cookie.match('csrftoken=([^;]*)');
+    return cookie ? cookie[1] : '';
+}
+
 // ---------------- UNREAD BADGE HELPER ----------------
 function updateUnreadBadge() {
     fetch('/chat/unread/')
@@ -168,7 +350,6 @@ function updateUnreadBadge() {
                 navbarBadge.textContent = count;
                 navbarBadge.style.display = count > 0 ? '' : 'none';
             }
-            updatePageTitle(count);
         })
         .catch(function() {});
 }
@@ -177,7 +358,8 @@ function updateUnreadBadge() {
 var chatSocket = null;
 
 function connectChat() {
-    chatSocket = new WebSocket("wss://" + window.location.host + "/ws/chat/");
+    var protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    chatSocket = new WebSocket(protocol + "//" + window.location.host + "/ws/chat/");
 
     chatSocket.onmessage = function(e) {
         var data;
@@ -186,8 +368,8 @@ function connectChat() {
         if (data.type === 'chat_message') {
             var inModalChat = typeof modalChatUserId !== 'undefined' && modalChatUserId && data.sender_id === modalChatUserId;
             if (data.sender_id && data.sender_id !== currentChatUserId && !inModalChat) {
-                showBrowserNotification(data.sender, data.message, '/chat/');
-                showToastNotification(data.sender, data.message);
+                showBrowserNotification(data.sender_name || data.sender, data.message, '/chat/');
+                showNotificationToast(data.sender_name || data.sender, data.message);
                 playNotificationSound();
                 addToastAnimation();
             }
@@ -213,12 +395,31 @@ function connectChat() {
             }
             updatePageTitle(count);
         }
+
+        if (data.type === 'typing') {
+            document.dispatchEvent(new CustomEvent('chat-typing', { detail: data }));
+        }
+
+        if (data.type === 'conversations') {
+            document.dispatchEvent(new CustomEvent('chat-conversations', { detail: data }));
+        }
     };
 
-    chatSocket.onclose = function() { setTimeout(connectChat, 2000); };
+    chatSocket.onclose = function() { setTimeout(connectChat, 3000); };
     chatSocket.onerror = function() { try { chatSocket.close(); } catch(e) {} };
 }
 
 // ---------------- POLL UNREAD BADGE ----------------
 updateUnreadBadge();
+updateNotificationBadge();
 setInterval(updateUnreadBadge, 15000);
+setInterval(updateNotificationBadge, 30000);
+
+// Close notification panel on outside click
+document.addEventListener('click', function(e) {
+    var panel = document.getElementById('notificationPanel');
+    var bell = document.getElementById('notificationBell');
+    if (panel && bell && !bell.contains(e.target) && !panel.contains(e.target)) {
+        panel.style.display = 'none';
+    }
+});

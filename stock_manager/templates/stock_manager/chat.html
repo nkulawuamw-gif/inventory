@@ -3,56 +3,72 @@
 
 {% block content %}
 <div class="container-fluid mt-2">
-    <div class="row">
-        <div class="col-md-4 col-lg-3 mb-3">
-            <div class="card shadow-sm">
-                <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
-                    <span><i class="bi bi-chat-dots"></i> Conversations</span>
-                    <span class="badge bg-danger" id="conversationBadge">{% if total_unread %}{{ total_unread }}{% endif %}</span>
+    <div class="row g-2" style="height:calc(100vh - 80px);">
+        <!-- Conversation List -->
+        <div class="col-md-4 col-lg-3 d-flex flex-column" style="max-height:100%;">
+            <div class="card shadow-sm flex-grow-1 d-flex flex-column" style="overflow:hidden;">
+                <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center py-2">
+                    <span><i class="bi bi-chat-dots"></i> Chats</span>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge bg-danger" id="conversationBadge" style="display:none;">0</span>
+                        <button class="btn btn-outline-light btn-sm" onclick="loadUsers()" title="New chat"><i class="bi bi-pencil-square"></i></button>
+                    </div>
                 </div>
-                <div class="p-2 border-bottom">
-                    <select id="userSelect" class="form-select form-select-sm" onchange="onUserSelect(this)">
-                        <option value="">— Select user to chat —</option>
-                    </select>
+                <div class="p-2 border-bottom bg-light">
+                    <input type="text" id="conversationSearch" class="form-control form-control-sm" placeholder="Search conversations..." oninput="filterConversations(this.value)">
                 </div>
-                <div class="list-group list-group-flush" id="conversationList" style="max-height:60vh;overflow-y:auto;">
-                    {% for conv in conversations %}
-                    <a href="#" class="list-group-item list-group-item-action d-flex justify-content-between align-items-start" data-user-id="{{ conv.user.id }}" onclick="openChat({{ conv.user.id }}, '{{ conv.user.get_full_name|default:conv.user.username|escapejs }}')">
-                        <div class="ms-2 me-auto">
-                            <div class="fw-bold">{{ conv.user.get_full_name|default:conv.user.username }}</div>
-                            <small class="text-muted">{{ conv.last_message|truncatechars:30 }}{% if conv.last_status %}<span class="tick-icon {% if conv.last_status == 'read' %}tick-read{% else %}tick-delivered{% endif %}">{% if conv.last_status == 'read' or conv.last_status == 'delivered' %}✓✓{% else %}✓{% endif %}</span>{% endif %}</small>
-                        </div>
-                        {% if conv.unread %}
-                        <span class="badge bg-danger rounded-pill">{{ conv.unread }}</span>
-                        {% endif %}
-                    </a>
-                    {% empty %}
-                    <div class="list-group-item text-muted text-center">No conversations yet</div>
-                    {% endfor %}
+                <div class="list-group list-group-flush flex-grow-1" id="conversationList" style="overflow-y:auto;">
+                    <div class="list-group-item text-muted text-center py-4" id="conversationEmpty">
+                        <i class="bi bi-chat-dots" style="font-size:2rem;display:block;margin-bottom:8px;"></i>
+                        No conversations yet<br>
+                        <small>Start chatting with team members</small>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <div class="col-md-8 col-lg-9">
-            <div class="card shadow-sm">
-                <div class="card-header bg-dark text-white" id="chatHeader">
-                    <i class="bi bi-chat"></i> Select a conversation
+        <!-- Chat Area -->
+        <div class="col-md-8 col-lg-9 d-flex flex-column" style="max-height:100%;">
+            <div class="card shadow-sm flex-grow-1 d-flex flex-column" style="overflow:hidden;">
+                <div class="card-header bg-dark text-white d-flex align-items-center gap-2 py-2" id="chatHeader">
+                    <i class="bi bi-chat"></i>
+                    <span id="chatHeaderTitle">Select a conversation</span>
+                    <span id="chatUserStatus" class="small text-white-50 ms-auto"></span>
                 </div>
-                <div id="chatMessages" class="card-body" style="height:60vh;overflow-y:auto;background:#f8f9fa;">
-                    <div class="text-center text-muted mt-5">
+                <div id="chatMessages" class="card-body flex-grow-1" style="overflow-y:auto;background:#e8ded1;position:relative;">
+                    <div class="text-center text-muted mt-5" id="chatPlaceholder">
                         <i class="bi bi-chat-dots" style="font-size:3rem;"></i>
                         <p class="mt-2">Select a conversation to start chatting</p>
                     </div>
+                    <div id="typingIndicator" style="display:none;position:absolute;bottom:8px;left:16px;font-size:0.8rem;color:#888;background:rgba(255,255,255,0.9);padding:4px 12px;border-radius:12px;">
+                        <span id="typingText">someone is typing...</span>
+                    </div>
                 </div>
-                <div class="card-footer" id="chatFooter" style="display:none;">
+                <div class="card-footer bg-light" id="chatFooter" style="display:none;">
                     <form onsubmit="return sendMessage(event)">
                         {% csrf_token %}
                         <div class="input-group">
-                            <input type="text" id="messageInput" class="form-control" placeholder="Type a message..." required>
-                            <button class="btn btn-primary" type="submit"><i class="bi bi-send"></i></button>
+                            <input type="text" id="messageInput" class="form-control" placeholder="Type a message..." autocomplete="off" oninput="onTyping()">
+                            <button class="btn btn-primary" type="submit"><i class="bi bi-send-fill"></i></button>
                         </div>
                     </form>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- New conversation modal -->
+<div class="modal fade" id="newChatModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content">
+            <div class="modal-header bg-dark text-white py-2">
+                <h6 class="modal-title"><i class="bi bi-person-plus"></i> New Chat</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-2">
+                <input type="text" id="newChatSearch" class="form-control form-control-sm mb-2" placeholder="Search users..." oninput="filterNewChatUsers(this.value)">
+                <div id="newChatUserList" class="list-group list-group-flush" style="max-height:300px;overflow-y:auto;"></div>
             </div>
         </div>
     </div>
@@ -65,130 +81,243 @@
 .tick-sent { color: #999; }
 .tick-delivered { color: #999; }
 .tick-read { color: #53bdeb; }
+#chatMessages::-webkit-scrollbar { width:6px; }
+#chatMessages::-webkit-scrollbar-thumb { background:#ccc; border-radius:3px; }
+#chatMessages::-webkit-scrollbar-track { background:transparent; }
+#conversationList::-webkit-scrollbar { width:5px; }
+#conversationList::-webkit-scrollbar-thumb { background:#ccc; border-radius:3px; }
+.chat-bubble { max-width:75%; word-wrap:break-word; border-radius:8px; position:relative; }
+.chat-bubble.mine { border-bottom-right-radius:2px; }
+.chat-bubble.other { border-bottom-left-radius:2px; }
+.conv-item { transition:background 0.2s; }
+.conv-item:hover { background:#f0f2f5; }
+.conv-item.active { background:#e8f4fd; }
 </style>
 <script>
 let currentChatUserId = null;
 let currentChatUserName = '';
 let pendingMessageIds = {};
+let typingTimeout = null;
+let newChatUsersData = [];
 
-function onUserSelect(sel) {
-    const val = sel.value;
-    if (!val) return;
-    const parts = val.split('|');
-    const userId = parseInt(parts[0], 10);
-    const userName = parts[1];
-    sel.value = '';
-    openChat(userId, userName);
+// ---- Load conversations ----
+function loadConversations() {
+    if (chatSocket && chatSocket.readyState === WebSocket.OPEN) {
+        chatSocket.send(JSON.stringify({ type: 'get_conversations' }));
+    }
 }
 
-function loadUsers() {
-    fetch('{% url "all_users" %}')
-        .then(r => r.json())
-        .then(d => {
-            const sel = document.getElementById('userSelect');
-            if (!d.users) return;
-            const currentId = {{ request.user.id }};
-            d.users.forEach(u => {
-                if (u.id === currentId) return;
-                const opt = document.createElement('option');
-                opt.value = u.id + '|' + u.username;
-                opt.textContent = u.username;
-                sel.appendChild(opt);
-            });
-        })
-        .catch(() => {});
+// ---- Handle conversations from WebSocket ----
+document.addEventListener('chat-conversations', function(e) {
+    renderConversations(e.detail.conversations || []);
+});
+
+// ---- Render conversation list ----
+function renderConversations(convs) {
+    var list = document.getElementById('conversationList');
+    var empty = document.getElementById('conversationEmpty');
+    if (!list) return;
+
+    // Remove old items (keep empty state)
+    var items = list.querySelectorAll('.conv-item');
+    items.forEach(function(el) { el.remove(); });
+
+    if (!convs || convs.length === 0) {
+        empty.style.display = '';
+        return;
+    }
+
+    empty.style.display = 'none';
+
+    convs.forEach(function(c) {
+        var a = document.createElement('a');
+        a.href = '#';
+        a.className = 'list-group-item list-group-item-action conv-item d-flex align-items-start gap-2 py-2 px-3';
+        if (currentChatUserId === c.user_id) a.classList.add('active');
+        a.setAttribute('data-user-id', c.user_id);
+        a.onclick = function(e) {
+            e.preventDefault();
+            openChat(c.user_id, c.full_name);
+        };
+
+        var avatar = document.createElement('div');
+        avatar.className = 'position-relative flex-shrink-0';
+        avatar.innerHTML = '<div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center text-white fw-bold" style="width:40px;height:40px;font-size:0.9rem;">' + (c.full_name.charAt(0).toUpperCase() || '?') + '</div>';
+        if (c.is_online) {
+            avatar.innerHTML += '<span class="position-absolute bottom-0 end-0 p-1 bg-success border border-light rounded-circle" style="width:12px;height:12px;"></span>';
+        }
+
+        var content = document.createElement('div');
+        content.className = 'flex-grow-1 min-width-0';
+        var time = formatConvTime(c.last_time);
+        var unreadBadge = c.unread_count > 0 ? '<span class="badge bg-danger rounded-pill flex-shrink-0 ms-auto" style="font-size:0.65rem;">' + c.unread_count + '</span>' : '';
+        content.innerHTML = '<div class="d-flex justify-content-between align-items-center"><span class="fw-semibold small">' + escapeHtml(c.full_name) + '</span><span class="text-muted" style="font-size:0.65rem;">' + time + '</span></div><div class="d-flex justify-content-between align-items-center"><span class="text-muted text-truncate" style="font-size:0.75rem;max-width:180px;display:inline-block;">' + escapeHtml(c.last_message) + '</span>' + unreadBadge + '</div>';
+
+        a.appendChild(avatar);
+        a.appendChild(content);
+        list.appendChild(a);
+    });
 }
 
-function renderTicks(status) {
-    if (status === 'sent') return '<span class="tick-icon tick-sent">\u2713</span>';
-    if (status === 'delivered') return '<span class="tick-icon tick-delivered">\u2713\u2713</span>';
-    if (status === 'read') return '<span class="tick-icon tick-read">\u2713\u2713</span>';
-    return '';
+function formatConvTime(iso) {
+    if (!iso) return '';
+    var d = new Date(iso);
+    var now = new Date();
+    var isToday = d.toDateString() === now.toDateString();
+    if (isToday) return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    var yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+    if (d.toDateString() === yesterday.toDateString()) return 'Yesterday';
+    return d.toLocaleDateString([], { day: 'numeric', month: 'short' });
 }
 
+// ---- Filter conversations ----
+function filterConversations(q) {
+    var items = document.querySelectorAll('#conversationList .conv-item');
+    q = q.toLowerCase().trim();
+    items.forEach(function(el) {
+        var name = el.querySelector('.fw-semibold')?.textContent?.toLowerCase() || '';
+        var msg = el.querySelector('.text-truncate')?.textContent?.toLowerCase() || '';
+        el.style.display = (!q || name.indexOf(q) !== -1 || msg.indexOf(q) !== -1) ? '' : 'none';
+    });
+}
+
+// ---- Open chat with user ----
 function openChat(userId, userName) {
     currentChatUserId = userId;
     currentChatUserName = userName;
-    document.getElementById('chatHeader').innerHTML = '<i class="bi bi-person-circle"></i> ' + userName;
-    document.getElementById('chatFooter').style.display = '';
 
-    // send mark_read via WebSocket
+    var header = document.getElementById('chatHeaderTitle');
+    header.textContent = userName;
+
+    document.getElementById('chatFooter').style.display = '';
+    document.getElementById('chatPlaceholder').style.display = 'none';
+
+    // update active state
+    document.querySelectorAll('.conv-item').forEach(function(el) {
+        el.classList.remove('active');
+        if (parseInt(el.dataset.userId) === userId) el.classList.add('active');
+    });
+
+    // mark read via WebSocket
     if (chatSocket && chatSocket.readyState === WebSocket.OPEN) {
         chatSocket.send(JSON.stringify({ type: 'mark_read', sender_id: userId }));
     }
     updateUnreadBadge();
 
+    // update status
+    updateChatUserStatus(userId);
+
     fetch('{% url "get_conversation" 0 %}'.replace('/0/', '/' + userId + '/'))
-        .then(r => r.json())
-        .then(data => {
-            const container = document.getElementById('chatMessages');
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            var container = document.getElementById('chatMessages');
             container.innerHTML = '';
-            data.messages.forEach(m => {
-                const div = document.createElement('div');
-                div.className = 'd-flex mb-2 ' + (m.is_mine ? 'justify-content-end' : 'justify-content-start');
-                const ticks = m.is_mine ? renderTicks(m.status) : '';
-                div.innerHTML = '<div class="' + (m.is_mine ? 'bg-primary text-white' : 'bg-white border') + ' rounded-3 px-3 py-2" style="max-width:75%;"><small class="fw-bold d-block">' + (m.is_mine ? 'You' : m.sender) + '</small>' + escapeHtml(m.content) + '<br><small class="text-muted" style="font-size:0.7rem;">' + formatTime(m.timestamp) + ticks + '</small></div>';
-                if (m.id) div.dataset.msgId = m.id;
-                container.appendChild(div);
+            data.messages.forEach(function(m) {
+                addMessageBubble(m.sender, m.content, m.timestamp, m.is_mine, m.id, m.status);
             });
             container.scrollTop = container.scrollHeight;
-        });
+        })
+        .catch(function() {});
 }
 
+function updateChatUserStatus(userId) {
+    var statusEl = document.getElementById('chatUserStatus');
+    var user = document.querySelector('.conv-item.active');
+    // check presence cache
+    var countEl = document.getElementById('onlineCount');
+    if (countEl) {
+        var panel = document.getElementById('onlineUsersPanel');
+        if (panel) {
+            var online = panel.querySelector('[data-uid="' + userId + '"]');
+            statusEl.textContent = online ? 'Online' : '';
+        }
+    }
+}
+
+// ---- Add message bubble ----
+function addMessageBubble(sender, content, timestamp, isMine, msgId, status) {
+    var container = document.getElementById('chatMessages');
+    if (!container || container.querySelector('[data-msg-id="' + msgId + '"]')) return;
+
+    var div = document.createElement('div');
+    div.className = 'd-flex mb-2 ' + (isMine ? 'justify-content-end' : 'justify-content-start');
+    if (msgId) div.dataset.msgId = msgId;
+
+    var ticks = '';
+    if (isMine) {
+        if (status === 'read') ticks = '<span class="tick-icon tick-read">\u2713\u2713</span>';
+        else if (status === 'delivered') ticks = '<span class="tick-icon tick-delivered">\u2713\u2713</span>';
+        else ticks = '<span class="tick-icon tick-sent">\u2713</span>';
+    }
+
+    var align = isMine ? 'text-end' : 'text-start';
+    div.innerHTML = '<div class="chat-bubble px-3 py-2 ' + (isMine ? 'bg-primary text-white mine' : 'bg-white border other') + '">'
+        + (isMine ? '' : '<small class="fw-bold d-block text-primary" style="font-size:0.75rem;">' + escapeHtml(sender) + '</small>')
+        + '<span style="font-size:0.9rem;">' + escapeHtml(content) + '</span><br>'
+        + '<span class="small ' + (isMine ? 'text-white-50' : 'text-muted') + '" style="font-size:0.65rem;">' + formatTime(timestamp) + ticks + '</span>'
+        + '</div>';
+
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+}
+
+// ---- Send message ----
 function sendMessage(e) {
     e.preventDefault();
-    if (!currentChatUserId || !chatSocket || chatSocket.readyState !== WebSocket.OPEN) return false;
+    if (!currentChatUserId || !chatSocket || chatSocket.readyState !== WebSocket.OPEN) {
+        showToast('Chat connection not ready. Please wait...', 'warning');
+        return false;
+    }
 
-    const input = document.getElementById('messageInput');
-    const text = input.value.trim();
+    var input = document.getElementById('messageInput');
+    var text = input.value.trim();
     if (!text) return false;
 
-    // temporary ID for tracking
-    const tempId = 'tmp_' + Date.now();
+    var tempId = 'tmp_' + Date.now();
     pendingMessageIds[tempId] = true;
 
     chatSocket.send(JSON.stringify({ receiver_id: currentChatUserId, message: text }));
     input.value = '';
-
-    const container = document.getElementById('chatMessages');
-    const div = document.createElement('div');
-    div.className = 'd-flex mb-2 justify-content-end';
-    div.dataset.tempId = tempId;
-    div.innerHTML = '<div class="bg-primary text-white rounded-3 px-3 py-2" style="max-width:75%;"><small class="fw-bold d-block">You</small>' + escapeHtml(text) + '<br><small class="text-muted" style="font-size:0.7rem;">just now' + renderTicks('sent') + '</small></div>';
-    container.appendChild(div);
-    container.scrollTop = container.scrollHeight;
+    addMessageBubble('You', text, new Date().toISOString(), true, tempId, 'sent');
     return false;
 }
 
-function escapeHtml(s) {
-    const d = document.createElement('div');
-    d.textContent = s;
-    return d.innerHTML;
+// ---- Typing indicator ----
+function onTyping() {
+    if (!currentChatUserId || !chatSocket || chatSocket.readyState !== WebSocket.OPEN) return;
+    chatSocket.send(JSON.stringify({ type: 'typing', receiver_id: currentChatUserId, is_typing: true }));
+    if (typingTimeout) clearTimeout(typingTimeout);
+    typingTimeout = setTimeout(function() {
+        if (chatSocket && chatSocket.readyState === WebSocket.OPEN) {
+            chatSocket.send(JSON.stringify({ type: 'typing', receiver_id: currentChatUserId, is_typing: false }));
+        }
+    }, 2000);
 }
 
-function formatTime(iso) {
-    if (!iso) return '';
-    const d = new Date(iso);
-    const today = new Date();
-    const isToday = d.toDateString() === today.toDateString();
-    const time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    if (isToday) return time;
-    return d.toLocaleDateString([], { day: 'numeric', month: 'short' }) + ' ' + time;
-}
+document.addEventListener('chat-typing', function(e) {
+    var data = e.detail;
+    var indicator = document.getElementById('typingIndicator');
+    var text = document.getElementById('typingText');
+    if (!indicator || !text) return;
+    if (data.is_typing && data.user_id === currentChatUserId) {
+        text.textContent = data.username + ' is typing...';
+        indicator.style.display = '';
+    } else {
+        indicator.style.display = 'none';
+    }
+});
 
-// Real-time message handler (via custom events from global-chat.js)
+// ---- Real-time message handler ----
 document.addEventListener('chat-message', function(e) {
     var data = e.detail;
     if (currentChatUserId && data.sender_id === currentChatUserId) {
-        const container = document.getElementById('chatMessages');
-        const div = document.createElement('div');
-        div.className = 'd-flex mb-2 justify-content-start';
-        div.dataset.msgId = data.message_id;
-        div.innerHTML = '<div class="bg-white border rounded-3 px-3 py-2" style="max-width:75%;"><small class="fw-bold d-block">' + escapeHtml(data.sender) + '</small>' + escapeHtml(data.message) + '<br><small class="text-muted" style="font-size:0.7rem;">' + formatTime(data.timestamp) + '</small></div>';
-        container.appendChild(div);
-        container.scrollTop = container.scrollHeight;
+        addMessageBubble(data.sender_name || data.sender, data.message, data.timestamp, false, data.message_id, '');
+        if (chatSocket && chatSocket.readyState === WebSocket.OPEN) {
+            chatSocket.send(JSON.stringify({ type: 'mark_read', sender_id: currentChatUserId }));
+        }
     }
-    updateBadge();
+    loadConversations();
 });
 
 document.addEventListener('chat-status', function(e) {
@@ -203,10 +332,14 @@ document.addEventListener('chat-status', function(e) {
             }
         }
         if (el) {
-            var small = el.querySelector('small.text-muted');
+            var small = el.querySelector('small:last-child');
             if (small) {
                 var timeText = small.childNodes[0] ? (small.childNodes[0].textContent || '') : '';
-                small.innerHTML = timeText + renderTicks(data.status);
+                var ticks = '';
+                if (data.status === 'read') ticks = '<span class="tick-icon tick-read">\u2713\u2713</span>';
+                else if (data.status === 'delivered') ticks = '<span class="tick-icon tick-delivered">\u2713\u2713</span>';
+                else ticks = '<span class="tick-icon tick-sent">\u2713</span>';
+                small.innerHTML = timeText + ticks;
             }
         }
     }
@@ -214,28 +347,89 @@ document.addEventListener('chat-status', function(e) {
         data.message_ids.forEach(function(id) {
             var el = document.querySelector('[data-msg-id="' + id + '"]');
             if (el) {
-                var small = el.querySelector('small.text-muted');
+                var small = el.querySelector('small:last-child');
                 if (small) {
                     var timeText = small.childNodes[0] ? (small.childNodes[0].textContent || '') : '';
-                    small.innerHTML = timeText + renderTicks(data.status);
+                    small.innerHTML = timeText + '<span class="tick-icon tick-read">\u2713\u2713</span>';
                 }
             }
         });
     }
 });
 
-function updateBadge() {
-    fetch('{% url "unread_count" %}')
-        .then(r => r.json())
-        .then(d => {
-            const badge = document.getElementById('conversationBadge');
-            if (d.count > 0) { badge.textContent = d.count; badge.style.display = ''; }
-            else { badge.style.display = 'none'; }
+// ---- New chat modal ----
+function loadUsers() {
+    var modalEl = document.getElementById('newChatModal');
+    if (!modalEl) return;
+    var modal = new bootstrap.Modal(modalEl);
+    modal.show();
+
+    fetch('{% url "all_users" %}')
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+            var list = document.getElementById('newChatUserList');
+            var currentId = {{ request.user.id }};
+            newChatUsersData = (d.users || []).filter(function(u) { return u.id !== currentId; });
+            renderNewChatUsers(newChatUsersData);
         })
-        .catch(() => {});
+        .catch(function() {});
 }
 
-setInterval(updateBadge, 15000);
-loadUsers();
+function renderNewChatUsers(users) {
+    var list = document.getElementById('newChatUserList');
+    if (!list) return;
+    list.innerHTML = '';
+    users.forEach(function(u) {
+        var a = document.createElement('a');
+        a.href = '#';
+        a.className = 'list-group-item list-group-item-action d-flex align-items-center gap-2 py-2';
+        a.innerHTML = '<div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center text-white fw-bold flex-shrink-0" style="width:36px;height:36px;font-size:0.8rem;">' + (u.username.charAt(0).toUpperCase()) + '</div><span>' + escapeHtml(u.username) + '</span>';
+        a.onclick = function(e) {
+            e.preventDefault();
+            var modal = bootstrap.Modal.getInstance(document.getElementById('newChatModal'));
+            if (modal) modal.hide();
+            openChat(u.id, u.username);
+        };
+        list.appendChild(a);
+    });
+}
+
+function filterNewChatUsers(q) {
+    q = (q || '').toLowerCase().trim();
+    var filtered = !q ? newChatUsersData : newChatUsersData.filter(function(u) {
+        return u.username.toLowerCase().indexOf(q) !== -1;
+    });
+    renderNewChatUsers(filtered);
+}
+
+// ---- Helpers ----
+function escapeHtml(s) {
+    var d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+}
+
+function formatTime(iso) {
+    if (!iso) return '';
+    var d = new Date(iso);
+    var today = new Date();
+    var isToday = d.toDateString() === today.toDateString();
+    var time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    if (isToday) return time;
+    return d.toLocaleDateString([], { day: 'numeric', month: 'short' }) + ' ' + time;
+}
+
+function getCSRFToken() {
+    var el = document.querySelector('[name=csrfmiddlewaretoken]');
+    if (el) return el.value;
+    var cookie = document.cookie.match('csrftoken=([^;]*)');
+    return cookie ? cookie[1] : '';
+}
+
+// ---- Init ----
+document.addEventListener('DOMContentLoaded', function() {
+    loadConversations();
+    setInterval(loadConversations, 10000);
+});
 </script>
 {% endblock %}

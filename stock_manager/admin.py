@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.contrib.auth import get_user_model
 User = get_user_model()
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from .models import Shop, Item, Sale, Receipt, ReceiptItem, StockTransaction, UserProfile, Profile, Message, BusinessPeriod, CompanyProfile, WhatsAppSetting, WhatsAppMessage
+from .models import Shop, Item, Sale, Receipt, ReceiptItem, StockTransaction, UserProfile, Profile, Message, BusinessPeriod, CompanyProfile, WhatsAppSetting, WhatsAppMessage, Notification
 
 
 class UserProfileInline(admin.StackedInline):
@@ -141,3 +141,10 @@ class WhatsAppMessageAdmin(admin.ModelAdmin):
     list_filter = ['is_from_customer', 'is_read']
     search_fields = ['customer_number', 'customer_name', 'body']
     date_hierarchy = 'created_at'
+
+
+@admin.register(Notification)
+class NotificationAdmin(admin.ModelAdmin):
+    list_display = ['title', 'user', 'type', 'is_read', 'created_at']
+    list_filter = ['type', 'is_read', 'created_at']
+    search_fields = ['title', 'message', 'user__username']

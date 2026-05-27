@@ -1,24 +1,25 @@
-self.addEventListener('install', () => self.skipWaiting());
-self.addEventListener('activate', () => self.clients.claim());
-
-self.addEventListener('push', function (event) {
-    let data = {};
-    try { data = event.data.json(); } catch (e) {}
-
-    const title = data.title || 'Notification';
-    const options = {
-        body: data.body || '',
-        icon: data.icon || '/static/favicon.ico',
-        badge: '/static/favicon.ico',
-        vibrate: [200, 100, 200],
-        data: data.data || {},
-    };
-
-    event.waitUntil(self.registration.showNotification(title, options));
+self.addEventListener('install', function(e) {
+    self.skipWaiting();
 });
 
-self.addEventListener('notificationclick', function (event) {
-    event.notification.close();
-    const url = event.notification.data.url || '/';
-    event.waitUntil(clients.openWindow(url));
+self.addEventListener('activate', function(e) {
+    e.waitUntil(clients.claim());
+});
+
+self.addEventListener('notificationclick', function(e) {
+    e.notification.close();
+    var url = e.notification.data && e.notification.data.url ? e.notification.data.url : '/';
+    e.waitUntil(
+        clients.matchAll({ type: 'window' }).then(function(clientList) {
+            for (var i = 0; i < clientList.length; i++) {
+                var client = clientList[i];
+                if (client.url === url && 'focus' in client) {
+                    return client.focus();
+                }
+            }
+            if (clients.openWindow) {
+                return clients.openWindow(url);
+            }
+        })
+    );
 });

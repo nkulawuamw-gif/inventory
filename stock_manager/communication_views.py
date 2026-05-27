@@ -8,7 +8,7 @@ from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
-from .models import Message, Profile
+from .models import Message, Profile, Notification
 
 logger = logging.getLogger(__name__)
 
@@ -170,5 +170,48 @@ def get_conversation(request, user_id):
             'status': 'sent',
         } for m in msgs]
     })
+
+
+# ---------------- NOTIFICATIONS ----------------
+
+@login_required
+def notification_list(request):
+    notifications = Notification.objects.filter(user=request.user)[:50]
+    unread_count = Notification.objects.filter(user=request.user, is_read=False).count()
+    return JsonResponse({
+        'notifications': [{
+            'id': n.id,
+            'title': n.title,
+            'message': n.message,
+            'type': n.type,
+            'is_read': n.is_read,
+            'created_at': n.created_at.isoformat(),
+            'link': n.link,
+            'sender': n.sender.username if n.sender else None,
+        } for n in notifications],
+        'unread_count': unread_count,
+    })
+
+
+@login_required
+def mark_notification_read(request, notification_id):
+    if request.method == 'POST':
+        Notification.objects.filter(id=notification_id, user=request.user).update(is_read=True)
+        return JsonResponse({'status': 'ok'})
+    return JsonResponse({'error': 'POST required'}, status=405)
+
+
+@login_required
+def mark_all_notifications_read(request):
+    if request.method == 'POST':
+        Notification.objects.filter(user=request.user, is_read=False).update(is_read=True)
+        return JsonResponse({'status': 'ok'})
+    return JsonResponse({'error': 'POST required'}, status=405)
+
+
+@login_required
+def unread_notification_count(request):
+    count = Notification.objects.filter(user=request.user, is_read=False).count()
+    return JsonResponse({'count': count})
 
 

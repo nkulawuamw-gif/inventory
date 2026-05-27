@@ -250,6 +250,10 @@
                     </span>
                     <span id="onlineCount" class="text-light small fw-semibold">0</span>
                 </div>
+                <div class="position-relative px-1" id="notificationBell" style="cursor:pointer;" onclick="toggleNotificationPanel()" title="Notifications">
+                    <i class="bi bi-bell-fill text-light" style="font-size:1.1rem;"></i>
+                    <span id="notificationBadge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size:0.55rem;display:none;min-width:16px;">0</span>
+                </div>
                 {% endif %}
                 <button class="navbar-toggler border-0 p-1" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                     <span class="navbar-toggler-icon" style="width:1.2rem;height:1.2rem;"></span>
@@ -258,7 +262,25 @@
         </div>
         <div id="onlineUsersPanel" class="position-absolute bg-dark text-white border border-secondary rounded shadow-sm" style="z-index:1050;top:100%;right:60px;width:260px;display:none;max-height:300px;overflow-y:auto;">
         </div>
+        <div id="notificationPanel" class="position-absolute bg-dark text-white border border-secondary rounded shadow-sm" style="z-index:1050;top:100%;right:100px;width:340px;display:none;max-height:420px;overflow-y:auto;">
+        </div>
         <style>
+            #notificationPanel::-webkit-scrollbar { width:4px; }
+            #notificationPanel::-webkit-scrollbar-thumb { background:#555; border-radius:2px; }
+            #notificationPanel .notification-item { display:flex; align-items:flex-start; gap:10px; padding:10px 12px; border-bottom:1px solid rgba(255,255,255,0.08); cursor:pointer; transition:background 0.2s; }
+            #notificationPanel .notification-item:hover { background:rgba(255,255,255,0.08); }
+            #notificationPanel .notification-item.unread { background:rgba(52,152,219,0.15); border-left:3px solid #3498db; }
+            #notificationPanel .notification-item .notif-icon { width:32px; height:32px; border-radius:50%; background:rgba(255,255,255,0.1); display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:0.9rem; color:#3498db; }
+            #notificationPanel .notification-item.unread .notif-icon { background:rgba(52,152,219,0.2); }
+            #notificationPanel .notification-item .notif-content { flex:1; min-width:0; }
+            #notificationPanel .notification-item .notif-title { font-size:0.8rem; font-weight:600; color:#fff; }
+            #notificationPanel .notification-item .notif-message { font-size:0.75rem; color:rgba(255,255,255,0.7); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+            #notificationPanel .notification-item .notif-time { font-size:0.65rem; color:rgba(255,255,255,0.4); margin-top:2px; }
+            #notificationPanel .notification-mark-all { padding:8px 12px; border-top:1px solid rgba(255,255,255,0.1); position:sticky; bottom:0; background:#2c3e50; }
+            @media (max-width: 575px) {
+                #notificationPanel { right:10px !important; width:calc(100vw - 20px) !important; max-width:340px; }
+            }
+
             #onlineUsersPanel.show { display:block !important; }
             #onlineUsersPanel::-webkit-scrollbar { width:4px; }
             #onlineUsersPanel::-webkit-scrollbar-thumb { background:#555; border-radius:2px; }
