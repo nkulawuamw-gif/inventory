@@ -9,7 +9,7 @@ from django.utils import timezone
 from django.db.models import Q
 from django.contrib.auth import get_user_model
 
-from .models import Message, Profile, Notification, Shop, Transfer
+from .models import Message, Profile, Notification, Shop, Transfer, UserProfile
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -318,6 +318,14 @@ def create_transfer(request):
             return JsonResponse({'error': 'Sender and receiver must be different'}, status=400)
         if not items:
             return JsonResponse({'error': 'At least one item is required'}, status=400)
+
+        # Restrict non-admin users to their assigned shop
+        if not request.user.is_superuser:
+            profile = getattr(request.user, 'user_profile', None)
+            if not profile or not profile.is_admin:
+                if not profile or not profile.assigned_shop or str(profile.assigned_shop.id) != sender_id:
+                    return JsonResponse({'error': 'You can only transfer from your assigned shop.'}, status=403)
+
         sender = Shop.objects.get(id=sender_id)
         receiver = Shop.objects.get(id=receiver_id)
         transfer = Transfer.objects.create(
@@ -343,6 +351,14 @@ def create_transfer(request):
 def transfer_detail(request, transfer_id):
     try:
         t = Transfer.objects.select_related('sender_shop', 'receiver_shop', 'created_by').get(id=transfer_id)
+
+        # Restrict non-admin users to transfers involving their shop
+        if not request.user.is_superuser:
+            profile = getattr(request.user, 'user_profile', None)
+            if profile and not profile.is_admin and profile.assigned_shop:
+                if profile.assigned_shop not in (t.sender_shop, t.receiver_shop):
+                    return JsonResponse({'error': 'Access denied.'}, status=403)
+
         return JsonResponse({
             'id': t.id,
             'transfer_code': t.transfer_code,
@@ -364,6 +380,14 @@ def update_transfer_status(request, transfer_id):
         return JsonResponse({'error': 'POST required'}, status=405)
     try:
         t = Transfer.objects.get(id=transfer_id)
+
+        # Restrict non-admin users to transfers involving their shop
+        if not request.user.is_superuser:
+            profile = getattr(request.user, 'user_profile', None)
+            if profile and not profile.is_admin and profile.assigned_shop:
+                if profile.assigned_shop not in (t.sender_shop, t.receiver_shop):
+                    return JsonResponse({'error': 'Access denied.'}, status=403)
+
         new_status = request.POST.get('status')
         if new_status not in dict(Transfer.STATUS_CHOICES):
             return JsonResponse({'error': f'Invalid status: {new_status}'}, status=400)

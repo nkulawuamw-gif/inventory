@@ -304,6 +304,12 @@ def point_of_sale(request, shop_slug):
 
     is_warehouse = shop.name == 'Warehouse'
 
+    # Inline shop check (second layer after decorator)
+    if not request.user.is_superuser:
+        profile = get_user_profile(request.user)
+        if not profile or not profile.assigned_shop or profile.assigned_shop != shop:
+            return HttpResponseForbidden("Access Denied")
+
     if request.method == 'POST':
         try:
             # =========================
@@ -457,6 +463,8 @@ def sales_history(request):
 
     total_sales = sales.aggregate(total=Sum('total_amount'))['total'] or 0
     all_shops = Shop.objects.all().order_by('name')
+    if not user_is_admin and profile.assigned_shop:
+        all_shops = Shop.objects.filter(id=profile.assigned_shop.id)
 
     context = {
         'sales': sales,
@@ -1360,6 +1368,13 @@ def change_password(request):
 
 @login_required
 def manage_categories(request):
+    profile = get_user_profile(request.user)
+    user_is_admin = profile is None or profile.is_admin
+    has_perm = user_is_admin or (profile and profile.permissions and 'settings' in profile.permissions)
+    if not has_perm:
+        messages.error(request, 'Access denied.')
+        return redirect('dashboard')
+
     if request.method == 'POST':
         action = request.POST.get('action')
         if action == 'add_category':
