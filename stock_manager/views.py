@@ -220,12 +220,8 @@ def dashboard(request):
             s_sales = Sale.objects.filter(item__in=s_items)
             s_count = s_sales.count()
             s_amount = s_sales.aggregate(total=Sum('total_amount'))['total'] or 0
-            sales_persons = UserProfile.objects.filter(
-                user__receipt__shop=s
-            ).distinct()
             shop_sales_data.append({
                 'shop': s,
-                'sales_persons': sales_persons,
                 'count': s_count,
                 'total_amount': float(s_amount),
             })

@@ -209,12 +209,9 @@ def notification_list(request):
                     "id": n.id,
                     "title": n.title,
                     "message": n.message,
-                    "type": n.type,
                     "is_read": n.is_read,
                     "created_at": n.created_at.isoformat(),
-                    "link": n.link,
                     "sender": n.sender.username if n.sender else None,
-                    "transfer_code": n.transfer.transfer_code if n.transfer else None,
                 }
                 for n in notifications
             ],

@@ -219,7 +219,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 {% for data in shop_sales_data %}
                 <tr class="dash-row{% if forloop.counter > 10 %} d-none{% endif %}">
                     <td><strong>{{ data.shop.name }}</strong></td>
-                    <td>{% if data.sales_persons %}{% for sp in data.sales_persons %}{{ sp.user.get_full_name|default:sp.user.username }}{% if not forloop.last %}, {% endif %}{% endfor %}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+                    <td><span class="text-muted">—</span></td>
                     <td class="text-center">{{ data.count }}</td>
                     <td class="text-end"><strong>MWK {{ data.total_amount|floatformat:2 }}</strong></td>
                     <td class="text-center">
@@ -272,13 +272,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             {% for data in shop_sales_data %}
                             <tr>
                                 <td><strong>{{ data.shop.name }}</strong></td>
-                                <td>
-                                    {% if data.sales_persons %}
-                                    {% for sp in data.sales_persons %}{{ sp.user.get_full_name|default:sp.user.username }}{% if not forloop.last %}, {% endif %}{% endfor %}
-                                    {% else %}
-                                    <span class="text-muted">—</span>
-                                    {% endif %}
-                                </td>
+                                <td><span class="text-muted">—</span></td>
                                 <td class="text-center">{{ data.count }}</td>
                                 <td class="text-end"><strong>MWK {{ data.total_amount|floatformat:2 }}</strong></td>
                                 <td class="text-center">
