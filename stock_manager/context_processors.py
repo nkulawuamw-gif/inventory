@@ -1,4 +1,4 @@
-from .models import Shop, UserProfile, CompanyProfile, WhatsAppSetting
+from .models import Shop, UserProfile, CompanyProfile
 
 
 def get_user_access(user):
@@ -26,5 +26,4 @@ def global_context(request):
         'user_access': user_access,
         'shop_slug': getattr(request, 'resolver_match', None) and getattr(request.resolver_match, 'kwargs', {}).get('shop_slug', ''),
         'company': CompanyProfile.get_profile(),
-        'whatsapp': WhatsAppSetting.get_profile(),
     }

@@ -585,6 +585,7 @@ def print_receipt(request, receipt_id):
     context = {
         'receipt': receipt,
         'page_title': f'Receipt {receipt.receipt_number}',
+        'whatsapp': WhatsAppSetting.get_profile(),
     }
 
     return render(request, 'stock_manager/receipt_print.html', context)
@@ -1841,6 +1842,7 @@ def settings_view(request):
         'page_title': 'Settings',
         'landing_data': landing_data,
         'permission_choices': PERMISSION_CHOICES,
+        'whatsapp': WhatsAppSetting.get_profile(),
     }
     return render(request, 'stock_manager/settings.html', context)
 
