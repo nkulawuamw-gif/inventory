@@ -5,14 +5,15 @@
 <div class="container-fluid p-0 d-flex flex-column" style="height:calc(100vh - 56px);">
   <div class="card shadow-sm flex-grow-1 d-flex flex-column rounded-0 border-0" style="overflow:hidden;">
 
-    <!-- HEADER: search + chat title + selected user + status -->
+    <!-- HEADER: user dropdown + chat title + selected user + status -->
     <div class="card-header bg-dark text-white py-2 px-3 d-flex align-items-center gap-2" style="min-height:52px;">
-      <div class="position-relative" style="min-width:200px;">
-        <input type="text" id="chatUserSearch" class="form-control form-control-sm"
-               placeholder="Search users..." autocomplete="off"
-               oninput="onSearchInput(this.value)" onfocus="onSearchFocus()" onblur="onSearchBlur()">
-        <div id="searchResults" class="position-absolute bg-white text-dark border rounded shadow-sm"
-             style="top:100%;left:0;right:0;z-index:1050;max-height:300px;overflow-y:auto;display:none;"></div>
+      <div style="min-width:200px;">
+        <select id="chatUserSelect" class="form-select form-select-sm" onchange="onUserSelect(this.value)">
+          <option value="">— Select a user to chat —</option>
+          {% for u in chat_users %}
+          <option value="{{ u.id }}">{{ u.get_full_name|default:u.username }}</option>
+          {% endfor %}
+        </select>
       </div>
       <span class="fw-semibold ms-2 text-truncate" id="chatHeaderChat">Chat</span>
       <span id="chatHeaderUser" class="text-info fw-bold text-truncate"></span>
@@ -31,13 +32,13 @@
     </div>
 
     <!-- TYPING FIELD -->
-    <div id="chatFooter" class="card-footer bg-light px-3 py-2" style="display:none;">
+    <div id="chatFooter" class="card-footer bg-light px-3 py-2">
       <form onsubmit="return sendMessage(event)">
         {% csrf_token %}
         <div class="input-group">
           <input id="messageInput" class="form-control" autocomplete="off"
-                 placeholder="Type a message..." oninput="onTyping()">
-          <button class="btn btn-primary" type="submit"><i class="bi bi-send"></i></button>
+                 placeholder="Select a user above to start chatting" disabled>
+          <button id="sendBtn" class="btn btn-primary" type="submit" disabled><i class="bi bi-send"></i></button>
         </div>
       </form>
     </div>
@@ -50,7 +51,6 @@
 <script>
 let currentChatUserId = null;
 let typingTimeout = null;
-let searchBlurTimer = null;
 
 function isConnected() {
     var cs = window.chatSocket;
@@ -70,57 +70,11 @@ function updateStatus() {
     }
 }
 
-/* =========================
-   USER SEARCH + SELECTION
-========================= */
-function onSearchFocus() {
-    var val = document.getElementById("chatUserSearch").value;
-    onSearchInput(val);
-}
-
-function onSearchBlur() {
-    searchBlurTimer = setTimeout(function() {
-        document.getElementById("searchResults").style.display = "none";
-    }, 200);
-}
-
-function onSearchInput(query) {
-    var results = document.getElementById("searchResults");
-    var q = query.toLowerCase().trim();
-    fetch('/api/all-users/')
-        .then(function(r) { return r.json(); })
-        .then(function(d) {
-            var currentId = parseInt('{{ request.user.id }}', 10);
-            var users = (d.users || []).filter(function(u) { return u.id !== currentId; });
-            if (!q) {
-                results.style.display = "none";
-                return;
-            }
-            var matched = users.filter(function(u) {
-                return u.full_name.toLowerCase().indexOf(q) > -1 ||
-                       u.username.toLowerCase().indexOf(q) > -1;
-            });
-            if (!matched.length) {
-                results.style.display = "none";
-                return;
-            }
-            results.innerHTML = '';
-            matched.forEach(function(u) {
-                var item = document.createElement('a');
-                item.href = '#';
-                item.className = 'd-flex align-items-center gap-2 px-3 py-2 text-decoration-none text-dark border-bottom';
-                item.innerHTML = '<i class="bi bi-person-circle fs-5"></i><span>' + escape(u.full_name || u.username) + '</span><small class="text-muted ms-auto">@' + escape(u.username) + '</small>';
-                item.onclick = function(e) {
-                    e.preventDefault();
-                    openChat(u.id, u.full_name || u.username);
-                    document.getElementById("searchResults").style.display = "none";
-                    document.getElementById("chatUserSearch").value = '';
-                };
-                results.appendChild(item);
-            });
-            results.style.display = "block";
-        })
-        .catch(function() {});
+function onUserSelect(userId) {
+    if (!userId) return;
+    var sel = document.getElementById("chatUserSelect");
+    var name = sel.options[sel.selectedIndex].text;
+    openChat(parseInt(userId, 10), name);
 }
 
 /* =========================
@@ -131,8 +85,10 @@ function openChat(id, name) {
 
     document.getElementById("chatHeaderChat").textContent = "Chat —";
     document.getElementById("chatHeaderUser").textContent = name;
-    document.getElementById("chatFooter").style.display = "block";
     document.getElementById("chatPlaceholder").style.display = "none";
+    document.getElementById("messageInput").disabled = false;
+    document.getElementById("messageInput").placeholder = "Type a message...";
+    document.getElementById("sendBtn").disabled = false;
 
     if (isConnected()) {
         var cs = window.chatSocket;

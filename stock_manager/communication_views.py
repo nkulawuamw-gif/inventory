@@ -249,6 +249,8 @@ def chat_view(request):
             if msg.receiver == request.user and not msg.is_read:
                 conversations[other.id]["unread"] += 1
 
+        chat_users = User.objects.exclude(id=request.user.id).only("id", "username")
+
         return render(request, "stock_manager/chat.html", {
             "conversations": sorted(
                 conversations.values(),
@@ -256,6 +258,7 @@ def chat_view(request):
                 reverse=True
             ),
             "total_unread": sum(c["unread"] for c in conversations.values()),
+            "chat_users": chat_users,
             "page_title": "Chat",
         })
 
@@ -264,6 +267,7 @@ def chat_view(request):
         return render(request, "stock_manager/chat.html", {
             "conversations": [],
             "total_unread": 0,
+            "chat_users": [],
             "error": str(e),
         })
 

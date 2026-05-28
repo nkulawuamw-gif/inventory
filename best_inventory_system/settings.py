@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
 
     "stock_manager.apps.StockManagerConfig",
+    "audit.apps.AuditConfig",
 ]
 
 # =========================
