@@ -308,7 +308,6 @@
                     <li class="nav-item"><a class="nav-link py-1" href="{% url 'chat' %}"><i class="bi bi-chat-dots"></i> Chat <span class="badge bg-danger" id="navbarChatBadge" style="display:none;">0</span></a></li>
                     <li class="nav-item"><a class="nav-link py-1" href="{% url 'transfer_history' %}"><i class="bi bi-arrow-left-right"></i> Transfers</a></li>
                     <li class="nav-item"><a class="nav-link py-1" href="{% url 'audit_logs' %}"><i class="bi bi-clipboard-data text-danger"></i> Audit Log</a></li>
-                    <li class="nav-item"><a class="nav-link py-1" href="#" onclick="event.preventDefault();var m=new bootstrap.Modal(document.getElementById('chatUserModal'));m.show();"><i class="bi bi-person-plus"></i></a></li>
                     {% if user_access.is_admin or 'whatsapp' in user_access.permissions %}
                     <li class="nav-item"><a class="nav-link py-1" href="{% url 'whatsapp_inbox' %}"><i class="bi bi-whatsapp text-success"></i> WhatsApp</a></li>
                     {% endif %}
@@ -447,38 +446,6 @@
 
     <div class="toast-container" id="toastContainer"></div>
 
-    <div class="modal fade" id="chatUserModal" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered modal-lg">
-            <div class="modal-content" style="min-height:500px;">
-                <div class="modal-header bg-dark text-white py-2">
-                    <h6 class="modal-title" id="modalChatTitle"><i class="bi bi-chat-dots"></i> Chat</h6>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body p-0 d-flex flex-column" style="min-height:450px;">
-                    <div class="p-2 border-bottom bg-light">
-                        <select id="modalChatUserSelect" class="form-select form-select-sm" onchange="onModalUserSelect(this.value)">
-                            <option value="">— Select a user to chat —</option>
-                        </select>
-                    </div>
-                    <div id="modalChatMessages" class="flex-grow-1 overflow-auto p-3" style="background:#f8f9fa;">
-                        <div id="modalChatPlaceholder" class="text-center text-muted mt-5">
-                            <i class="bi bi-chat-dots" style="font-size:2.5rem;display:block;margin-bottom:8px;"></i>
-                            Select a user above to start chatting
-                        </div>
-                    </div>
-                    <div class="p-2 border-top">
-                        <form onsubmit="return sendModalMessage(event)">
-                            <div class="input-group">
-                                <input type="text" id="modalMessageInput" class="form-control" placeholder="Select a user above to start chatting" disabled>
-                                <button id="modalSendBtn" class="btn btn-primary" type="submit" disabled><i class="bi bi-send"></i></button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <script>
     function showToast(message, type, duration) {
         type = type || 'info';
@@ -536,139 +503,6 @@
             icon.className = 'bi bi-eye';
         }
     }
-
-    var modalChatUserId = null;
-
-    function loadModalUsersDropdown() {
-        var sel = document.getElementById('modalChatUserSelect');
-        if (!sel) return;
-        var currentId = {{ request.user.id }};
-        sel.innerHTML = '<option value="">— Select a user to chat —</option>';
-        fetch('/api/all-users/', { credentials: 'include' })
-            .then(function (r) {
-                if (!r.ok) throw new Error('HTTP ' + r.status);
-                return r.json();
-            })
-            .then(function (d) {
-                (d.users || []).forEach(function (u) {
-                    if (u.id === currentId) return;
-                    var opt = document.createElement('option');
-                    opt.value = u.id;
-                    opt.textContent = u.full_name || u.username;
-                    sel.appendChild(opt);
-                });
-                if (sel.options.length <= 1) {
-                    var opt = document.createElement('option');
-                    opt.disabled = true;
-                    opt.textContent = 'No other users found';
-                    sel.appendChild(opt);
-                }
-            })
-            .catch(function (err) {
-                console.error('Failed to load users:', err);
-                var opt = document.createElement('option');
-                opt.disabled = true;
-                opt.textContent = 'Failed to load users';
-                sel.appendChild(opt);
-            });
-    }
-
-    function onModalUserSelect(userId) {
-        if (!userId) return;
-        var sel = document.getElementById('modalChatUserSelect');
-        var name = sel.options[sel.selectedIndex].text;
-        openModalChat(parseInt(userId, 10), name);
-    }
-
-    function openModalChat(userId, userName) {
-        modalChatUserId = userId;
-        document.getElementById('modalChatTitle').innerHTML = '<i class="bi bi-chat-dots"></i> ' + escapeHtml(userName);
-        document.getElementById('modalChatPlaceholder').style.display = 'none';
-        document.getElementById('modalMessageInput').disabled = false;
-        document.getElementById('modalMessageInput').placeholder = 'Type a message...';
-        document.getElementById('modalSendBtn').disabled = false;
-        document.getElementById('modalMessageInput').value = '';
-
-        fetch('/chat/conversation/' + userId + '/')
-            .then(function (r) { return r.json(); })
-            .then(function (data) {
-                var container = document.getElementById('modalChatMessages');
-                container.innerHTML = '';
-                (data.messages || []).forEach(function (m) {
-                    addModalMessage(m.sender, m.content, m.timestamp, m.is_mine, m.id);
-                });
-                container.scrollTop = container.scrollHeight;
-            });
-
-        if (typeof chatSocket !== 'undefined' && chatSocket && chatSocket.readyState === WebSocket.OPEN) {
-            chatSocket.send(JSON.stringify({ type: 'mark_read', sender_id: userId }));
-        }
-        if (typeof updateUnreadBadge !== 'undefined') updateUnreadBadge();
-    }
-
-    function addModalMessage(sender, content, timestamp, isMine, msgId) {
-        var container = document.getElementById('modalChatMessages');
-        if (!container) return;
-        var div = document.createElement('div');
-        div.className = 'd-flex mb-2 ' + (isMine ? 'justify-content-end' : 'justify-content-start');
-        if (msgId) div.dataset.msgId = msgId;
-        var ticks = isMine ? '<span class="tick-icon tick-delivered" style="color:#999;font-size:0.7rem;margin-left:3px;">\u2713</span>' : '';
-        div.innerHTML = '<div class="' + (isMine ? 'bg-primary text-white' : 'bg-white border') + ' rounded-3 px-3 py-2" style="max-width:75%;"><small class="fw-bold d-block">' + (isMine ? 'You' : escapeHtml(sender)) + '</small>' + escapeHtml(content) + '<br><small class="text-muted" style="font-size:0.7rem;">' + formatTime(timestamp) + ticks + '</small></div>';
-        container.appendChild(div);
-        container.scrollTop = container.scrollHeight;
-    }
-
-    function sendModalMessage(e) {
-        e.preventDefault();
-        if (!modalChatUserId) return false;
-        if (typeof chatSocket === 'undefined' || !chatSocket || chatSocket.readyState !== WebSocket.OPEN) {
-            if (typeof showToast === 'function') {
-                showToast('Chat connection not ready. Please wait...', 'warning');
-            }
-            return false;
-        }
-        var input = document.getElementById('modalMessageInput');
-        var text = input.value.trim();
-        if (!text) return false;
-        chatSocket.send(JSON.stringify({ receiver_id: modalChatUserId, message: text }));
-        addModalMessage('You', text, new Date().toISOString(), true, 'tmp_' + Date.now());
-        input.value = '';
-        return false;
-    }
-
-    document.addEventListener('DOMContentLoaded', function () {
-        var chatModalEl = document.getElementById('chatUserModal');
-        if (chatModalEl) {
-            chatModalEl.addEventListener('show.bs.modal', function () {
-                modalChatUserId = null;
-                document.getElementById('modalChatTitle').innerHTML = '<i class="bi bi-chat-dots"></i> Chat';
-                document.getElementById('modalChatPlaceholder').style.display = '';
-                document.getElementById('modalMessageInput').disabled = true;
-                document.getElementById('modalMessageInput').placeholder = 'Select a user above to start chatting';
-                document.getElementById('modalSendBtn').disabled = true;
-                var container = document.getElementById('modalChatMessages');
-                var placeholder = document.getElementById('modalChatPlaceholder');
-                if (container && !placeholder) {
-                    container.innerHTML = '<div id="modalChatPlaceholder" class="text-center text-muted mt-5"><i class="bi bi-chat-dots" style="font-size:2.5rem;display:block;margin-bottom:8px;"></i>Select a user above to start chatting</div>';
-                }
-                loadModalUsersDropdown();
-            });
-        }
-    });
-
-    document.addEventListener('chat-message', function (e) {
-        var d = e.detail;
-        var modal = document.getElementById('chatUserModal');
-        if (modal && modal.classList.contains('show') && modalChatUserId && d.sender_id === modalChatUserId) {
-            var container = document.getElementById('modalChatMessages');
-            if (container && !container.querySelector('[data-msg-id="' + d.message_id + '"]')) {
-                addModalMessage(d.sender, d.message, d.timestamp, false, d.message_id);
-                if (typeof chatSocket !== 'undefined' && chatSocket && chatSocket.readyState === WebSocket.OPEN) {
-                    chatSocket.send(JSON.stringify({ type: 'mark_read', sender_id: modalChatUserId }));
-                }
-            }
-        }
-    });
 
     function heartbeat() {
         fetch('{% url "heartbeat" %}', {

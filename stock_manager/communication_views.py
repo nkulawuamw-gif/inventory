@@ -10,7 +10,7 @@ from django.db.models import Q
 from django.db import transaction
 from django.contrib.auth import get_user_model
 
-from .models import Message, Profile, Notification, Shop, Transfer, UserProfile, Item
+from .models import Message, Profile, Notification, Shop, Transfer, UserProfile, Item, Conversation
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -223,51 +223,40 @@ def get_online_users(request):
 
 
 # =========================
-# CHAT VIEW (SAFE + OPTIMIZED)
+# CHAT VIEW
 # =========================
 
 @login_required
 def chat_view(request):
     try:
-        messages = Message.objects.filter(
-            Q(sender=request.user) | Q(receiver=request.user)
-        ).select_related("sender", "receiver").order_by("-timestamp")
+        chat_users = User.objects.exclude(
+            id=request.user.id
+        ).filter(
+            is_active=True
+        ).only("id", "username")
 
-        conversations = {}
-
-        for msg in messages:
-            other = msg.receiver if msg.sender == request.user else msg.sender
-
-            if other.id not in conversations:
-                conversations[other.id] = {
-                    "user": other,
-                    "last_message": msg.content,
-                    "timestamp": msg.timestamp,
-                    "unread": 0,
-                }
-
-            if msg.receiver == request.user and not msg.is_read:
-                conversations[other.id]["unread"] += 1
-
-        chat_users = User.objects.exclude(id=request.user.id).only("id", "username")
+        user_data = []
+        for u in chat_users:
+            profile = Profile.objects.filter(user=u).first()
+            user_profile = UserProfile.objects.filter(user=u).first()
+            role = "Admin" if u.is_superuser else (user_profile.get_role_display() if user_profile else "Staff")
+            user_data.append({
+                "id": u.id,
+                "username": u.username,
+                "full_name": u.get_full_name() or u.username,
+                "role": role,
+                "is_online": profile.is_online if profile else False,
+                "last_seen": profile.last_seen.isoformat() if profile and profile.last_seen else None,
+            })
 
         return render(request, "stock_manager/chat.html", {
-            "conversations": sorted(
-                conversations.values(),
-                key=lambda x: x["timestamp"],
-                reverse=True
-            ),
-            "total_unread": sum(c["unread"] for c in conversations.values()),
-            "chat_users": chat_users,
+            "chat_users_json": json.dumps(user_data),
             "page_title": "Chat",
         })
-
     except Exception as e:
         logger.exception("chat_view failed")
         return render(request, "stock_manager/chat.html", {
-            "conversations": [],
-            "total_unread": 0,
-            "chat_users": [],
+            "chat_users_json": "[]",
             "error": str(e),
         })
 
@@ -276,6 +265,12 @@ def chat_view(request):
 def conversation_history(request, user_id):
     try:
         other_user = get_object_or_404(User, id=user_id)
+        conv = Conversation.objects.filter(
+            participants=request.user
+        ).filter(
+            participants=other_user
+        ).first()
+
         messages_qs = Message.objects.filter(
             Q(sender=request.user, receiver=other_user) |
             Q(sender=other_user, receiver=request.user)
@@ -285,16 +280,20 @@ def conversation_history(request, user_id):
             sender=other_user,
             receiver=request.user,
             is_read=False
-        ).update(is_read=True)
+        ).update(is_read=True, status='read', read_at=timezone.now())
 
         return JsonResponse({
+            "conversation_id": conv.id if conv else None,
             "messages": [
                 {
                     "id": m.id,
                     "sender": m.sender.username,
+                    "sender_id": m.sender.id,
                     "content": m.content,
                     "timestamp": m.timestamp.isoformat(),
                     "is_mine": m.sender == request.user,
+                    "status": m.status,
+                    "read_at": m.read_at.isoformat() if m.read_at else None,
                 }
                 for m in messages_qs
             ]
@@ -333,7 +332,7 @@ def mark_read(request):
                     sender_id=sender_id,
                     receiver=request.user,
                     is_read=False
-                ).update(is_read=True)
+                ).update(is_read=True, status='read', read_at=timezone.now())
 
         return JsonResponse({"status": "ok"})
 

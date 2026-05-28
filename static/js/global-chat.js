@@ -339,7 +339,8 @@ function connectChat() {
         try { data = JSON.parse(e.data); } catch (err) { return; }
 
         if (data.type === 'chat_message') {
-            if (data.sender_id && data.sender_id !== currentChatUserId) {
+            var inChat = typeof currentChatUserId !== 'undefined';
+            if (data.sender_id && (!inChat || data.sender_id !== currentChatUserId)) {
                 showBrowserNotification(data.sender_name || data.sender, data.message, '/chat/');
                 showNotificationToast(data.sender_name || data.sender, data.message);
                 playNotificationSound();
@@ -347,6 +348,10 @@ function connectChat() {
             }
             updateUnreadBadge();
             document.dispatchEvent(new CustomEvent('chat-message', { detail: data }));
+        }
+
+        if (data.type === 'self_message') {
+            document.dispatchEvent(new CustomEvent('self_message', { detail: data }));
         }
 
         if (data.type === 'message_status') {

@@ -4,7 +4,7 @@ from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 
 from .models import (
     Shop, Item, Sale, StockTransaction,
-    UserProfile, Profile, Message,
+    UserProfile, Profile, Conversation, Message,
     Notification, Transfer, LandingPageContent, Category
 )
 
@@ -125,12 +125,23 @@ class StockTransactionAdmin(admin.ModelAdmin):
     search_fields = ['item__name', 'source_shop__name']
 
 
+# ---------------- CONVERSATIONS ----------------
+
+@admin.register(Conversation)
+class ConversationAdmin(admin.ModelAdmin):
+    list_display = ['id', 'participants_list', 'last_message', 'last_message_time']
+    search_fields = ['participants__username']
+
+    def participants_list(self, obj):
+        return ', '.join(u.username for u in obj.participants.all())
+
+
 # ---------------- MESSAGES ----------------
 
 @admin.register(Message)
 class MessageAdmin(admin.ModelAdmin):
-    list_display = ['sender', 'receiver', 'short_content', 'is_read', 'timestamp']
-    list_filter = ['is_read', 'timestamp']
+    list_display = ['sender', 'receiver', 'short_content', 'status', 'is_read', 'timestamp']
+    list_filter = ['status', 'is_read', 'timestamp']
     search_fields = ['sender__username', 'receiver__username', 'content']
 
     @admin.display(description="Message")
