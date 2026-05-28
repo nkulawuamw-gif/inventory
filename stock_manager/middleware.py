@@ -96,9 +96,13 @@ def shop_access_required(view_func):
         shop_slug = kwargs.get('shop_slug')
 
         if profile.assigned_shop and shop_slug:
+            # Redirect to correct shop if slug doesn't match
             if profile.assigned_shop.slug != shop_slug:
                 messages.error(request, "Access denied to this shop.")
                 return redirect('shop_dashboard', shop_slug=profile.assigned_shop.slug)
+            # Always allow access to the user's own shop dashboard
+            if url_name == 'shop_dashboard':
+                return view_func(request, *args, **kwargs)
 
         # PERMISSION CHECK (SAFE)
         if profile.permissions and url_name:
