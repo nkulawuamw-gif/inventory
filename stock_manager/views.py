@@ -21,7 +21,7 @@ from .models import (
     Shop, Item, Sale, StockTransaction, UserProfile, Notification,
     PERMISSION_CHOICES, LandingPageContent, Category, get_company_profile,
 )
-from audit.models import AuditLog, LoginSession, DailyAuditSummary
+
 
 from .middleware import shop_access_required
 from .communication_views import _notify_shop_users
@@ -242,15 +242,6 @@ def dashboard(request):
     category_labels = list(category_data.keys())
     category_values = list(category_data.values())
 
-    today_start = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
-    recent_audit_logs = AuditLog.objects.select_related('user').order_by('-created_at')[:20]
-    today_audit = AuditLog.objects.filter(created_at__gte=today_start)
-    today_sales_count = today_audit.filter(action='SALE').count()
-    today_refunds = today_audit.filter(action='REFUND').count()
-    today_voids = today_audit.filter(action='VOID').count()
-    today_adjustments = today_audit.filter(action='ADJUSTMENT').count()
-    recent_logins = LoginSession.objects.select_related('user').order_by('-login_time')[:10]
-
     context = {
         'inventory_data': inventory_data,
         'total_items': total_items,
@@ -267,12 +258,6 @@ def dashboard(request):
         'category_labels_json': json.dumps(category_labels),
         'category_values_json': json.dumps(category_values),
         'shop_sales_data': shop_sales_data,
-        'recent_audit_logs': recent_audit_logs,
-        'today_sales_count': today_sales_count,
-        'today_refunds': today_refunds,
-        'today_voids': today_voids,
-        'today_adjustments': today_adjustments,
-        'recent_logins': recent_logins,
     }
 
     return render(request, 'stock_manager/dashboard.html', context)

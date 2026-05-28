@@ -307,6 +307,7 @@
                     <li class="nav-item"><a class="nav-link py-1" href="{% url 'sales_history' %}"><i class="bi bi-receipt"></i> Receipts</a></li>
                     <li class="nav-item"><a class="nav-link py-1" href="{% url 'chat' %}"><i class="bi bi-chat-dots"></i> Chat <span class="badge bg-danger" id="navbarChatBadge" style="display:none;">0</span></a></li>
                     <li class="nav-item"><a class="nav-link py-1" href="{% url 'transfer_history' %}"><i class="bi bi-arrow-left-right"></i> Transfers</a></li>
+                    <li class="nav-item"><a class="nav-link py-1" href="{% url 'audit_logs' %}"><i class="bi bi-clipboard-data text-danger"></i> Audit Log</a></li>
                     <li class="nav-item"><a class="nav-link py-1" href="#" onclick="event.preventDefault();var m=new bootstrap.Modal(document.getElementById('chatUserModal'));m.show();"><i class="bi bi-person-plus"></i></a></li>
                     {% if user_access.is_admin or 'whatsapp' in user_access.permissions %}
                     <li class="nav-item"><a class="nav-link py-1" href="{% url 'whatsapp_inbox' %}"><i class="bi bi-whatsapp text-success"></i> WhatsApp</a></li>
@@ -363,6 +364,9 @@
                     </a>
                     <a href="{% url 'transfer_history' %}" class="{% if request.resolver_match.url_name == 'transfer_history' %}active{% endif %}">
                         <i class="bi bi-arrow-left-right"></i> Transfers
+                    </a>
+                    <a href="{% url 'audit_logs' %}" class="{% if request.resolver_match.url_name == 'audit_logs' %}active{% endif %}">
+                        <i class="bi bi-clipboard-data text-danger"></i> Audit Log
                     </a>
                     <a href="{% url 'chat' %}" class="{% if request.resolver_match.url_name == 'chat' %}active{% endif %} d-flex justify-content-between align-items-center">
                         <span><i class="bi bi-chat-dots"></i> Chat</span>
