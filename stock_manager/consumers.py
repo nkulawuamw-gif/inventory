@@ -139,6 +139,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
             await self.handle_mark_read(data)
             return
 
+        if msg_type == "get_conversations":
+            await self.send_conversations()
+            return
+
         receiver_id = data.get("receiver_id")
         message_text = data.get("message")
 
@@ -178,6 +182,13 @@ class ChatConsumer(AsyncWebsocketConsumer):
     async def chat_message(self, event):
         await self.send(text_data=json.dumps(event))
 
+    async def send_conversations(self):
+        conversations = await self.get_conversations()
+        await self.send(text_data=json.dumps({
+            "type": "conversations",
+            "conversations": conversations,
+        }))
+
     async def unread_update(self, event):
         await self.send(text_data=json.dumps(event))
 
@@ -212,6 +223,29 @@ class ChatConsumer(AsyncWebsocketConsumer):
         except Exception as e:
             logger.exception(f"Notification error: {e}")
             return None
+
+    @database_sync_to_async
+    def get_conversations(self):
+        messages = Message.objects.filter(
+            Q(sender=self.user) | Q(receiver=self.user)
+        ).select_related("sender", "receiver").order_by("-timestamp")
+
+        convs = {}
+        for msg in messages:
+            other = msg.receiver if msg.sender == self.user else msg.sender
+            if other.id not in convs:
+                convs[other.id] = {
+                    "user_id": other.id,
+                    "username": other.username,
+                    "full_name": other.get_full_name() or other.username,
+                    "last_message": msg.content,
+                    "timestamp": msg.timestamp.isoformat(),
+                    "unread_count": 0,
+                }
+            if msg.receiver == self.user and not msg.is_read:
+                convs[other.id]["unread_count"] += 1
+
+        return sorted(convs.values(), key=lambda x: x["timestamp"], reverse=True)
 
     @database_sync_to_async
     def get_unread_count(self):
