@@ -849,12 +849,25 @@ def shop_dashboard(request, shop_slug):
             .distinct()
             .order_by('name')
         )
+        def _clean_item_name(raw_name, item_category):
+            """Strip appended category/shop suffixes from item names for display."""
+            cleaned = raw_name.strip()
+            if item_category and cleaned.lower().endswith(item_category.lower()):
+                cleaned = cleaned[:-len(item_category)].strip()
+            for s in non_warehouse_shops:
+                shop_suffix = s.name.lower().replace(' shop', '')
+                if cleaned.lower().endswith(shop_suffix):
+                    cleaned = cleaned[:-len(shop_suffix)].strip()
+                    break
+            return cleaned
+
         seen_categories = set()
         for entry in all_item_names:
             name = entry['name']
             first_item = Item.objects.filter(name__iexact=name).exclude(shop__name__iexact='warehouse').first()
             category = first_item.category if first_item else ''
-            row = {'name': name, 'category': category, 'shops': {}}
+            display_name = _clean_item_name(name, category)
+            row = {'name': display_name, 'category': category, 'shops': {}}
             for s in non_warehouse_shops:
                 item = Item.objects.filter(name__iexact=name, shop=s).first()
                 row['shops'][s.name] = item.quantity if item else 0

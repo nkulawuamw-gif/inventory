@@ -32,7 +32,7 @@
       <tbody>
         {% for row in cross_shop_items %}
         <tr class="cross-shop-row{% if forloop.counter > 10 %} d-none{% endif %}" data-category="{{ row.category }}">
-          <td><strong>{{ row.name }}</strong>{% if row.category %} <span class="badge bg-secondary">{{ row.category }}</span>{% endif %}</td>
+          <td><strong>{{ row.name }}</strong></td>
           {% for shop_name in cross_shop_shops %}
           <td class="text-center{% if row.shops|lookup:shop_name == 0 %} text-muted{% endif %}">
             {% with qty=row.shops|lookup:shop_name %}
