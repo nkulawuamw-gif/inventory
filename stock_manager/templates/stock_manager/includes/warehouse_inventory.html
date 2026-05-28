@@ -34,6 +34,7 @@
                     <th class="text-center text-success">Stocked In</th>
                     <th class="text-center text-danger">Stocked Out</th>
                     <th class="text-center">Balance</th>
+                    <th class="text-center text-warning">Adjustment</th>
                     <th class="text-end">Unit Price</th>
                     <th class="text-end">Total Value</th>
                     <th class="text-center">Status</th>
@@ -53,6 +54,7 @@
                     <td class="text-center">{{ item.quantity|add:stocked_out }}</td>
                     <td class="text-center text-danger">{{ stocked_out }}</td>
                     <td class="text-center"><strong>{{ item.quantity }}</strong></td>
+                    <td class="text-center text-warning">{{ item.adjustment }}</td>
                     <td class="text-end">MWK {{ item.unit_price|floatformat:2 }}</td>
                     <td class="text-end">MWK {{ total_value_by_item|lookup:item.id|floatformat:2 }}</td>
                     <td class="text-center">
@@ -62,7 +64,10 @@
                         <span class="badge bg-success">In Stock</span>
                         {% endif %}
                     </td>
-                    <td class="text-center">
+                    <td class="text-center" onclick="event.stopPropagation()" style="white-space:nowrap;">
+                        <button type="button" class="btn btn-sm btn-outline-success py-0 px-1" title="Adjust Stock" data-bs-toggle="modal" data-bs-target="#adjustWHModal{{ item.id }}">
+                            <i class="bi bi-plus-slash-minus"></i> Adj
+                        </button>
                         <button type="button" class="btn btn-sm btn-outline-primary py-0 px-1" title="Edit" data-bs-toggle="modal" data-bs-target="#editWHModal{{ item.id }}">
                             <i class="bi bi-pencil"></i>
                         </button>
@@ -75,7 +80,7 @@
                 {% endwith %}
                 {% empty %}
                 <tr>
-                    <td colspan="12" class="text-center text-muted py-4">No items in Warehouse</td>
+                    <td colspan="13" class="text-center text-muted py-4">No items in Warehouse</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -146,6 +151,51 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-danger"><i class="bi bi-trash"></i> Delete</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Adjust Stock Modal -->
+<div class="modal fade" id="adjustWHModal{{ item.id }}" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="bi bi-sliders"></i> Adjust Stock</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="adjust_stock">
+                <input type="hidden" name="item_id" value="{{ item.id }}">
+                <div class="modal-body">
+                    <p><strong>{{ item.name }}</strong> — Current stock: <span class="badge bg-info fs-6">{{ item.quantity }}</span></p>
+                    <div class="mb-3">
+                        <label class="form-label">Adjustment Type</label>
+                        <div class="d-flex gap-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="adjustment_type" value="add" id="adjAdd{{ item.id }}" checked>
+                                <label class="form-check-label text-success fw-semibold" for="adjAdd{{ item.id }}"><i class="bi bi-plus-circle"></i> Add Stock</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="adjustment_type" value="deduct" id="adjDeduct{{ item.id }}">
+                                <label class="form-check-label text-danger fw-semibold" for="adjDeduct{{ item.id }}"><i class="bi bi-dash-circle"></i> Deduct Stock</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="adjQty{{ item.id }}">Quantity</label>
+                        <input type="number" name="quantity" id="adjQty{{ item.id }}" class="form-control" min="1" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="adjReason{{ item.id }}">Reason (optional)</label>
+                        <input type="text" name="reason" id="adjReason{{ item.id }}" class="form-control" placeholder="e.g. Damaged, found extra, recount...">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success"><i class="bi bi-check-lg"></i> Apply Adjustment</button>
                 </div>
             </form>
         </div>

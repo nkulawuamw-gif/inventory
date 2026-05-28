@@ -441,7 +441,7 @@ def sales_history(request):
     profile = get_user_profile(request.user)
     user_is_admin = profile is None or profile.is_admin
 
-    sales = Sale.objects.select_related('item', 'item__shop').order_by('-sold_at')[:100]
+    sales = Sale.objects.select_related('item', 'item__shop').order_by('-sold_at')
 
     if not user_is_admin and profile.assigned_shop:
         sales = sales.filter(item__shop=profile.assigned_shop)
@@ -462,6 +462,8 @@ def sales_history(request):
 
     if selected_shop:
         sales = sales.filter(item__shop_id=selected_shop)
+
+    sales = sales[:100]
 
     total_sales = sales.aggregate(total=Sum('total_amount'))['total'] or 0
     all_shops = Shop.objects.all().order_by('name')
@@ -809,6 +811,44 @@ def shop_dashboard(request, shop_slug):
             )
 
             messages.success(request, f'Transfer successfully done to {target_shop.name}')
+            return redirect('shop_dashboard', shop_slug=shop_slug)
+
+        if action == 'adjust_stock':
+            item_id = request.POST.get('item_id')
+            adjustment_type = request.POST.get('adjustment_type')
+            try:
+                qty = int(request.POST.get('quantity', 0))
+            except (ValueError, TypeError):
+                qty = 0
+            reason = request.POST.get('reason', '').strip()
+
+            if not item_id or adjustment_type not in ('add', 'deduct') or qty <= 0:
+                messages.error(request, 'Missing or invalid adjustment fields.')
+                return redirect('shop_dashboard', shop_slug=shop_slug)
+
+            try:
+                item = Item.objects.get(id=item_id, shop=shop)
+            except Item.DoesNotExist:
+                messages.error(request, 'Item not found in warehouse.')
+                return redirect('shop_dashboard', shop_slug=shop_slug)
+
+            if adjustment_type == 'deduct' and qty > item.quantity:
+                messages.error(request, f'Cannot deduct {qty}. Available stock: {item.quantity}')
+                return redirect('shop_dashboard', shop_slug=shop_slug)
+
+            item.quantity += qty if adjustment_type == 'add' else -qty
+            item.adjustment += qty if adjustment_type == 'add' else -qty
+            item.save()
+
+            StockTransaction.objects.create(
+                item=item,
+                source_shop=shop,
+                quantity=qty,
+                transaction_type='adjustment',
+                reason=reason or f'Manual stock {adjustment_type}: {qty} units',
+            )
+
+            messages.success(request, f'Stock {"added" if adjustment_type == "add" else "deducted"} successfully. New balance: {item.quantity}')
             return redirect('shop_dashboard', shop_slug=shop_slug)
 
     # ---- GET: Build context ----
