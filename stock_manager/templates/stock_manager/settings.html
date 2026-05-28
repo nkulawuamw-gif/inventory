@@ -236,11 +236,21 @@
 </select>
 </div>
 <div class="col-md-6 mb-2">
-<label class="form-label small">Password (leave blank to keep current)</label>
+<label class="form-label small">Current Password (hash — read only)</label>
 <div class="position-relative">
-<input class="form-control" name="password" id="editPassword{{ u.id }}" type="password" minlength="4">
+<input class="form-control" value="{{ u.password }}" id="currentHash{{ u.id }}" type="password" readonly style="font-size:0.65rem;cursor:default;color:#888;">
+<span class="pw-toggle" onclick="togglePw('currentHash{{ u.id }}')"><i class="bi bi-eye" id="ico_currentHash{{ u.id }}"></i></span>
+</div>
+</div>
+</div>
+<div class="row">
+<div class="col-md-6 mb-2">
+<label class="form-label small">New Password</label>
+<div class="position-relative">
+<input class="form-control" name="password" id="editPassword{{ u.id }}" type="password" minlength="4" placeholder="Leave blank to keep current">
 <span class="pw-toggle" onclick="togglePw('editPassword{{ u.id }}')"><i class="bi bi-eye" id="ico_editPassword{{ u.id }}"></i></span>
 </div>
+<small class="text-muted">Enter a new password to change it, or leave blank to keep current</small>
 </div>
 </div>
 <div class="row">
