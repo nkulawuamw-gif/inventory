@@ -2,103 +2,47 @@
 {% load static %}
 
 {% block content %}
-<div class="container-fluid mt-2">
-    <div class="row g-2" style="height:calc(100vh - 80px);">
+<div class="container-fluid p-0 d-flex flex-column" style="height:calc(100vh - 56px);">
+  <div class="card shadow-sm flex-grow-1 d-flex flex-column rounded-0 border-0" style="overflow:hidden;">
 
-        <!-- Conversation List -->
-        <div class="col-md-4 col-lg-3 d-flex flex-column">
-            <div class="card shadow-sm flex-grow-1 d-flex flex-column" style="overflow:hidden;">
-
-                <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center py-2">
-                    <span>Chats</span>
-                    <button class="btn btn-outline-light btn-sm" onclick="showNewChatModal()">New</button>
-                </div>
-
-                <div class="p-2 border-bottom bg-light">
-                    <input type="text" class="form-control form-control-sm"
-                           placeholder="Search..." oninput="filterConversations(this.value)">
-                </div>
-
-                <div id="conversationList" class="list-group list-group-flush flex-grow-1 overflow-auto">
-                    <div id="conversationEmpty" class="text-center text-muted py-4">
-                        No conversations
-                    </div>
-                </div>
-
-            </div>
-        </div>
-
-        <!-- Chat Area -->
-        <div class="col-md-8 col-lg-9 d-flex flex-column">
-
-            <div class="card shadow-sm flex-grow-1 d-flex flex-column">
-
-                <div class="card-header bg-dark text-white d-flex align-items-center">
-                    <span id="chatHeaderTitle">Select chat</span>
-                    <span id="chatUserStatus" class="ms-2 small text-muted"></span>
-
-                    <span id="chatConnectionStatus" class="badge bg-secondary ms-auto">
-                        Offline
-                    </span>
-                </div>
-
-                <div id="chatMessages"
-                     class="card-body flex-grow-1 overflow-auto"
-                     style="background:#e8ded1;">
-
-                    <div id="chatPlaceholder" class="text-center text-muted mt-5">
-                        Select a conversation
-                    </div>
-
-                    <div id="typingIndicator"
-                         style="display:none;position:absolute;bottom:10px;left:10px;">
-                        typing...
-                    </div>
-
-                </div>
-
-                <div id="chatFooter" class="card-footer" style="display:none;">
-                    <form onsubmit="return sendMessage(event)">
-                        {% csrf_token %}
-                        <div class="input-group">
-                            <input id="messageInput"
-                                   class="form-control"
-                                   autocomplete="off"
-                                   oninput="onTyping()">
-                            <button class="btn btn-primary">Send</button>
-                        </div>
-                    </form>
-                </div>
-
-            </div>
-        </div>
-
+    <!-- HEADER: search + chat title + selected user + status -->
+    <div class="card-header bg-dark text-white py-2 px-3 d-flex align-items-center gap-2" style="min-height:52px;">
+      <div class="position-relative" style="min-width:200px;">
+        <input type="text" id="chatUserSearch" class="form-control form-control-sm"
+               placeholder="Search users..." autocomplete="off"
+               oninput="onSearchInput(this.value)" onfocus="onSearchFocus()" onblur="onSearchBlur()">
+        <div id="searchResults" class="position-absolute bg-white text-dark border rounded shadow-sm"
+             style="top:100%;left:0;right:0;z-index:1050;max-height:300px;overflow-y:auto;display:none;"></div>
+      </div>
+      <span class="fw-semibold ms-2 text-truncate" id="chatHeaderChat">Chat</span>
+      <span id="chatHeaderUser" class="text-info fw-bold text-truncate"></span>
+      <span id="chatUserStatus" class="small text-muted"></span>
+      <span id="chatConnectionStatus" class="badge bg-secondary ms-auto">Offline</span>
     </div>
-</div>
 
-<!-- Modal -->
-<div class="modal fade" id="newChatModal">
-    <div class="modal-dialog modal-sm modal-dialog-centered">
-        <div class="modal-content">
-
-            <div class="modal-header bg-dark text-white">
-                <h6>New Chat</h6>
-            </div>
-
-            <div class="modal-body">
-                <input id="newChatUserSearch" class="form-control form-control-sm mb-2"
-                       placeholder="Search users..." oninput="filterNewChatUsers(this.value)">
-                <select id="newChatUserSelect" class="form-select" size="8" style="width:100%;">
-                    <option value="" disabled selected>Select a user...</option>
-                </select>
-            </div>
-
-            <div class="modal-footer">
-                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
-            </div>
-
-        </div>
+    <!-- MESSAGES AREA -->
+    <div id="chatMessages" class="card-body flex-grow-1 overflow-auto p-3"
+         style="background:#e8ded1;">
+      <div id="chatPlaceholder" class="text-center text-muted mt-5">
+        <i class="bi bi-chat-dots" style="font-size:3rem;display:block;margin-bottom:12px;"></i>
+        Search for a user above to start chatting
+      </div>
+      <div id="typingIndicator" style="display:none;">typing...</div>
     </div>
+
+    <!-- TYPING FIELD -->
+    <div id="chatFooter" class="card-footer bg-light px-3 py-2" style="display:none;">
+      <form onsubmit="return sendMessage(event)">
+        {% csrf_token %}
+        <div class="input-group">
+          <input id="messageInput" class="form-control" autocomplete="off"
+                 placeholder="Type a message..." oninput="onTyping()">
+          <button class="btn btn-primary" type="submit"><i class="bi bi-send"></i></button>
+        </div>
+      </form>
+    </div>
+
+  </div>
 </div>
 {% endblock %}
 
@@ -106,86 +50,77 @@
 <script>
 let currentChatUserId = null;
 let typingTimeout = null;
-let conversationsCache = [];
+let searchBlurTimer = null;
 
 function isConnected() {
     var cs = window.chatSocket;
     return cs && cs.readyState === WebSocket.OPEN;
 }
 
-/* =========================
-   CONNECTION STATUS FIX
-========================= */
 function updateStatus() {
-    const el = document.getElementById("chatConnectionStatus");
+    var el = document.getElementById("chatConnectionStatus");
     var cs = window.chatSocket;
-
-    if (!cs) {
-        el.className = "badge bg-secondary ms-auto";
-        el.textContent = "Offline";
-        return;
-    }
-
+    if (!cs) { el.className = "badge bg-secondary ms-auto"; el.textContent = "Offline"; return; }
     if (cs.readyState === WebSocket.OPEN) {
-        el.className = "badge bg-success ms-auto";
-        el.textContent = "Connected";
+        el.className = "badge bg-success ms-auto"; el.textContent = "Connected";
     } else if (cs.readyState === WebSocket.CONNECTING) {
-        el.className = "badge bg-warning text-dark ms-auto";
-        el.textContent = "Connecting";
+        el.className = "badge bg-warning text-dark ms-auto"; el.textContent = "Connecting";
     } else {
-        el.className = "badge bg-secondary ms-auto";
-        el.textContent = "Offline";
+        el.className = "badge bg-secondary ms-auto"; el.textContent = "Offline";
     }
 }
 
 /* =========================
-   CONVERSATIONS
+   USER SEARCH + SELECTION
 ========================= */
-function loadConversations() {
-    if (isConnected()) {
-        var cs = window.chatSocket;
-        if (cs) cs.send(JSON.stringify({ type: "get_conversations" }));
-    }
+function onSearchFocus() {
+    var val = document.getElementById("chatUserSearch").value;
+    onSearchInput(val);
 }
 
-document.addEventListener("chat-conversations", e => {
-    conversationsCache = e.detail.conversations || [];
-    renderConversations(conversationsCache);
-});
+function onSearchBlur() {
+    searchBlurTimer = setTimeout(function() {
+        document.getElementById("searchResults").style.display = "none";
+    }, 200);
+}
 
-function renderConversations(list) {
-    const box = document.getElementById("conversationList");
-    const empty = document.getElementById("conversationEmpty");
-
-    box.querySelectorAll(".conv-item").forEach(e => e.remove());
-
-    if (!list.length) {
-        empty.style.display = "block";
-        return;
-    }
-
-    empty.style.display = "none";
-
-    list.forEach(c => {
-        const el = document.createElement("a");
-        el.href = "#";
-        el.className = "list-group-item conv-item d-flex justify-content-between";
-
-        el.onclick = e => {
-            e.preventDefault();
-            openChat(c.user_id, c.full_name);
-        };
-
-        el.innerHTML = `
-            <div>
-                <b>${escape(c.full_name || c.username)}</b><br>
-                <small>${escape(c.last_message || "")}</small>
-            </div>
-            ${c.unread_count ? `<span class="badge bg-danger">${c.unread_count}</span>` : ""}
-        `;
-
-        box.appendChild(el);
-    });
+function onSearchInput(query) {
+    var results = document.getElementById("searchResults");
+    var q = query.toLowerCase().trim();
+    fetch('/api/all-users/')
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+            var currentId = parseInt('{{ request.user.id }}', 10);
+            var users = (d.users || []).filter(function(u) { return u.id !== currentId; });
+            if (!q) {
+                results.style.display = "none";
+                return;
+            }
+            var matched = users.filter(function(u) {
+                return u.full_name.toLowerCase().indexOf(q) > -1 ||
+                       u.username.toLowerCase().indexOf(q) > -1;
+            });
+            if (!matched.length) {
+                results.style.display = "none";
+                return;
+            }
+            results.innerHTML = '';
+            matched.forEach(function(u) {
+                var item = document.createElement('a');
+                item.href = '#';
+                item.className = 'd-flex align-items-center gap-2 px-3 py-2 text-decoration-none text-dark border-bottom';
+                item.innerHTML = '<i class="bi bi-person-circle fs-5"></i><span>' + escape(u.full_name || u.username) + '</span><small class="text-muted ms-auto">@' + escape(u.username) + '</small>';
+                item.onclick = function(e) {
+                    e.preventDefault();
+                    openChat(u.id, u.full_name || u.username);
+                    document.getElementById("searchResults").style.display = "none";
+                    document.getElementById("chatUserSearch").value = '';
+                };
+                results.appendChild(item);
+            });
+            results.style.display = "block";
+        })
+        .catch(function() {});
 }
 
 /* =========================
@@ -194,7 +129,8 @@ function renderConversations(list) {
 function openChat(id, name) {
     currentChatUserId = id;
 
-    document.getElementById("chatHeaderTitle").textContent = name;
+    document.getElementById("chatHeaderChat").textContent = "Chat —";
+    document.getElementById("chatHeaderUser").textContent = name;
     document.getElementById("chatFooter").style.display = "block";
     document.getElementById("chatPlaceholder").style.display = "none";
 
@@ -203,81 +139,56 @@ function openChat(id, name) {
         if (cs) cs.send(JSON.stringify({ type: "mark_read", sender_id: id }));
     }
 
-    fetch(`/chat/conversation/${id}/`)
-        .then(r => r.json())
-        .then(data => {
-            const box = document.getElementById("chatMessages");
+    fetch('/chat/conversation/' + id + '/')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            var box = document.getElementById("chatMessages");
             box.innerHTML = "";
-
-            data.messages.forEach(m => {
+            (data.messages || []).forEach(function(m) {
                 addMessage(m.sender, m.content, m.timestamp, m.is_mine, m.id);
             });
         });
-
-    loadConversations();
 }
 
 /* =========================
    MESSAGES
 ========================= */
 function addMessage(sender, text, time, mine, id) {
-    const box = document.getElementById("chatMessages");
-
-    const div = document.createElement("div");
-    div.className = mine ? "text-end" : "text-start";
+    var box = document.getElementById("chatMessages");
+    var div = document.createElement("div");
+    div.className = mine ? "text-end mb-2" : "text-start mb-2";
     if (id) div.dataset.id = id;
-
-    div.innerHTML = `
-        <div class="d-inline-block p-2 rounded ${mine ? 'bg-primary text-white' : 'bg-white'}">
-            ${escape(text)}<br>
-            <small>${new Date(time).toLocaleTimeString()}</small>
-        </div>
-    `;
-
+    div.innerHTML = '<div class="d-inline-block px-3 py-2 rounded ' + (mine ? 'bg-primary text-white' : 'bg-white border') + '" style="max-width:75%;">' + escape(text) + '<br><small class="' + (mine ? 'text-white-50' : 'text-muted') + '">' + new Date(time).toLocaleTimeString() + '</small></div>';
     box.appendChild(div);
     box.scrollTop = box.scrollHeight;
 }
 
-/* =========================
-   SEND MESSAGE
-========================= */
 function sendMessage(e) {
     e.preventDefault();
-
-    const input = document.getElementById("messageInput");
-    const text = input.value.trim();
+    var input = document.getElementById("messageInput");
+    var text = input.value.trim();
     if (!text || !currentChatUserId) return;
-
     if (isConnected()) {
         var cs = window.chatSocket;
-        if (cs) cs.send(JSON.stringify({
-            receiver_id: currentChatUserId,
-            message: text
-        }));
+        if (cs) cs.send(JSON.stringify({ receiver_id: currentChatUserId, message: text }));
     }
-
     addMessage("You", text, new Date().toISOString(), true);
     input.value = "";
 }
 
 /* =========================
-   REALTIME EVENTS FIX
+   REALTIME EVENTS
 ========================= */
-document.addEventListener("chat-message", e => {
-    const d = e.detail;
-
+document.addEventListener("chat-message", function(e) {
+    var d = e.detail;
     if (d.sender_id === currentChatUserId) {
         addMessage(d.sender_name, d.message, d.timestamp, false, d.message_id);
     }
-
-    loadConversations();
 });
 
-document.addEventListener("chat-typing", e => {
-    const d = e.detail;
-
-    const ind = document.getElementById("typingIndicator");
-
+document.addEventListener("chat-typing", function(e) {
+    var d = e.detail;
+    var ind = document.getElementById("typingIndicator");
     if (d.user_id === currentChatUserId && d.is_typing) {
         ind.style.display = "block";
     } else {
@@ -290,97 +201,28 @@ document.addEventListener("chat-typing", e => {
 ========================= */
 function onTyping() {
     var cs = window.chatSocket;
-    if (!cs || cs.readyState !== WebSocket.OPEN) return;
-
-    cs.send(JSON.stringify({
-        type: "typing",
-        receiver_id: currentChatUserId,
-        is_typing: true
-    }));
-
+    if (!cs || cs.readyState !== WebSocket.OPEN || !currentChatUserId) return;
+    cs.send(JSON.stringify({ type: "typing", receiver_id: currentChatUserId, is_typing: true }));
     clearTimeout(typingTimeout);
-    typingTimeout = setTimeout(() => {
-        cs.send(JSON.stringify({
-            type: "typing",
-            receiver_id: currentChatUserId,
-            is_typing: false
-        }));
+    typingTimeout = setTimeout(function() {
+        cs.send(JSON.stringify({ type: "typing", receiver_id: currentChatUserId, is_typing: false }));
     }, 1500);
 }
-
-/* =========================
-   NEW CHAT — USER DROPDOWN
-========================= */
-function showNewChatModal() {
-    loadUsers();
-    var modal = new bootstrap.Modal(document.getElementById('newChatModal'));
-    modal.show();
-}
-
-function loadUsers() {
-    const sel = document.getElementById('newChatUserSelect');
-    if (!sel) return;
-    sel.innerHTML = '<option value="" disabled selected>Loading...</option>';
-    fetch('/api/all-users/')
-        .then(function(r) { return r.json(); })
-        .then(function(d) {
-            const currentId = parseInt('{{ request.user.id }}', 10);
-            sel.innerHTML = '<option value="" disabled selected>Select a user...</option>';
-            if (!d.users) return;
-            d.users.forEach(function(u) {
-                if (u.id === currentId) return;
-                var opt = document.createElement('option');
-                opt.value = u.id;
-                opt.textContent = u.full_name + ' (@' + u.username + ')';
-                sel.appendChild(opt);
-            });
-            sel.size = Math.min(d.users.length, 10);
-        })
-        .catch(function() {
-            sel.innerHTML = '<option value="" disabled>Failed to load users</option>';
-        });
-}
-
-function filterNewChatUsers(query) {
-    const sel = document.getElementById('newChatUserSelect');
-    if (!sel) return;
-    const q = query.toLowerCase();
-    for (var i = 0; i < sel.options.length; i++) {
-        var opt = sel.options[i];
-        if (!opt.value) continue;
-        opt.style.display = opt.textContent.toLowerCase().indexOf(q) > -1 ? '' : 'none';
-    }
-}
-
-document.addEventListener('change', function(e) {
-    if (e.target.id === 'newChatUserSelect') {
-        var sel = e.target;
-        if (sel.value) {
-            var name = sel.options[sel.selectedIndex].textContent.split(' (@')[0];
-            openChat(parseInt(sel.value, 10), name);
-            var modal = bootstrap.Modal.getInstance(document.getElementById('newChatModal'));
-            if (modal) modal.hide();
-            sel.value = '';
-        }
-    }
-});
 
 /* =========================
    HELPERS
 ========================= */
 function escape(str) {
-    return (str || "").replace(/[&<>"']/g, m =>
-        ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;" }[m])
-    );
+    return (str || "").replace(/[&<>"']/g, function(m) {
+        return { "&":"&amp;", "<":"&lt;", ">":"&gt;", "\"":"&quot;", "'":"&#039;" }[m];
+    });
 }
 
 /* =========================
    INIT
 ========================= */
-document.addEventListener("DOMContentLoaded", () => {
-    loadConversations();
+document.addEventListener("DOMContentLoaded", function() {
     updateStatus();
-    setInterval(loadConversations, 8000);
     setInterval(updateStatus, 3000);
 });
 </script>
