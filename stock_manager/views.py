@@ -1075,6 +1075,12 @@ def settings_view(request):
                         user.email = email
                         user.first_name = first_name
                         user.last_name = last_name
+                        new_password = request.POST.get('password', '').strip()
+                        if new_password:
+                            if len(new_password) < 4:
+                                messages.error(request, 'Password must be at least 4 characters.')
+                                return redirect('settings')
+                            user.set_password(new_password)
                         user.save()
                         profile, created = UserProfile.objects.get_or_create(user=user)
                         profile.role = role

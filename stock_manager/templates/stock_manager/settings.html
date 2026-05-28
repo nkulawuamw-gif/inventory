@@ -236,6 +236,15 @@
 </select>
 </div>
 <div class="col-md-6 mb-2">
+<label class="form-label small">Password (leave blank to keep current)</label>
+<div class="position-relative">
+<input class="form-control" name="password" id="editPassword{{ u.id }}" type="password" minlength="4">
+<span class="pw-toggle" onclick="togglePw('editPassword{{ u.id }}')"><i class="bi bi-eye" id="ico_editPassword{{ u.id }}"></i></span>
+</div>
+</div>
+</div>
+<div class="row">
+<div class="col-md-6 mb-2">
 <label class="form-label small">Assigned Shop</label>
 <select class="form-control" name="shop_id">
 <option value="">-- No Shop --</option>
