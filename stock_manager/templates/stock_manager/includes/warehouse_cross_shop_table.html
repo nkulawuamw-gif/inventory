@@ -37,7 +37,7 @@
           <td class="text-center{% if row.shops|lookup:shop_name == 0 %} text-muted{% endif %}">
             {% with qty=row.shops|lookup:shop_name %}
             {% if qty > 0 %}
-            <span class="badge bg-info">{{ qty }}</span>
+            <span class="badge {% if qty <= 5 %}bg-danger{% else %}bg-info{% endif %}">{{ qty }}</span>
             {% else %}
             <span class="text-muted">—</span>
             {% endif %}
