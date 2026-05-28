@@ -1420,18 +1420,21 @@ def landing_view(request):
         user = authenticate(request, username=username, password=password)
         if user is not None:
             login(request, user)
-            LoginSession.objects.create(
-                user=user,
-                ip_address=request.META.get('REMOTE_ADDR'),
-                user_agent=request.META.get('HTTP_USER_AGENT', ''),
-            )
-            AuditLog.objects.create(
-                user=user,
-                action='LOGIN',
-                module='Auth',
-                description=f'User {user.username} logged in',
-                ip_address=request.META.get('REMOTE_ADDR'),
-            )
+            try:
+                LoginSession.objects.create(
+                    user=user,
+                    ip_address=request.META.get('REMOTE_ADDR') or None,
+                    user_agent=request.META.get('HTTP_USER_AGENT', '') or '',
+                )
+                AuditLog.objects.create(
+                    user=user,
+                    action='LOGIN',
+                    module='Auth',
+                    description=f'User {user.username} logged in',
+                    ip_address=request.META.get('REMOTE_ADDR') or None,
+                )
+            except Exception:
+                pass
             return redirect('dashboard')
         else:
             messages.error(request, 'Invalid username or password.')
@@ -1443,16 +1446,19 @@ def landing_view(request):
 
 def logout_view(request):
     if request.user.is_authenticated:
-        LoginSession.objects.filter(user=request.user, logout_time__isnull=True).update(
-            logout_time=timezone.now()
-        )
-        AuditLog.objects.create(
-            user=request.user,
-            action='LOGOUT',
-            module='Auth',
-            description=f'User {request.user.username} logged out',
-            ip_address=request.META.get('REMOTE_ADDR'),
-        )
+        try:
+            LoginSession.objects.filter(user=request.user, logout_time__isnull=True).update(
+                logout_time=timezone.now()
+            )
+            AuditLog.objects.create(
+                user=request.user,
+                action='LOGOUT',
+                module='Auth',
+                description=f'User {request.user.username} logged out',
+                ip_address=request.META.get('REMOTE_ADDR') or None,
+            )
+        except Exception:
+            pass
     auth_logout(request)
     next_url = request.GET.get('next', 'landing')
     return redirect(next_url)

@@ -5,7 +5,6 @@ from django.views.static import serve
 from django.contrib.staticfiles.views import serve as staticfiles_serve
 from django.http import JsonResponse
 from django.views.generic.base import RedirectView
-from django.urls import include
 
 def health_check(request):
     return JsonResponse({'status': 'ok'})
