@@ -835,6 +835,25 @@ def shop_dashboard(request, shop_slug):
         today_total = today_sales.aggregate(total=Sum('total_amount'))['total'] or 0
         shop_sales = shop_sales_qs.order_by('-sold_at')[:50]
 
+    # ---- Cross-shop inventory overview (warehouse only) ----
+    cross_shop_items = []
+    cross_shop_shops = []
+    if is_warehouse:
+        non_warehouse_shops = Shop.objects.exclude(name__iexact='warehouse').order_by('name')
+        cross_shop_shops = [s.name for s in non_warehouse_shops]
+        all_item_names = (
+            Item.objects.exclude(shop__name__iexact='warehouse')
+            .values('name')
+            .distinct()
+            .order_by('name')
+        )
+        for entry in all_item_names:
+            row = {'name': entry['name'], 'shops': {}}
+            for s in non_warehouse_shops:
+                item = Item.objects.filter(name__iexact=entry['name'], shop=s).first()
+                row['shops'][s.name] = item.quantity if item else 0
+            cross_shop_items.append(row)
+
     stock_transactions = StockTransaction.objects.filter(
         Q(source_shop=shop) | Q(target_shop=shop)
     ).select_related('item', 'source_shop', 'target_shop').order_by('-created_at')[:50]
@@ -863,6 +882,8 @@ def shop_dashboard(request, shop_slug):
         'total_transferred_qty': total_transferred_qty,
         'stock_transactions': stock_transactions,
         'shop_sales': shop_sales,
+        'cross_shop_items': cross_shop_items if is_warehouse else [],
+        'cross_shop_shops': cross_shop_shops if is_warehouse else [],
         'page_title': f'{shop.name} Dashboard',
     }
 
