@@ -159,7 +159,21 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         await self.channel_layer.group_send(f"user_{receiver_id}", payload)
 
-        await self.create_notification(receiver_id, message_text)
+        notif_id = await self.create_notification(receiver_id, message_text)
+        if notif_id:
+            await self.channel_layer.group_send(
+                f"notifications_{receiver_id}",
+                {
+                    "type": "new_notification",
+                    "title": f"New message from {self.user.username}",
+                    "message": message_text[:200],
+                    "sender_name": self.user.get_full_name() or self.user.username,
+                    "notification_type": "message",
+                    "notification_id": notif_id,
+                    "link": "/chat/",
+                    "transfer_code": None,
+                },
+            )
 
     async def chat_message(self, event):
         await self.send(text_data=json.dumps(event))
@@ -185,17 +199,19 @@ class ChatConsumer(AsyncWebsocketConsumer):
             receiver = User.objects.get(id=receiver_id)
 
             if receiver == self.user:
-                return
+                return None
 
-            Notification.objects.create(
+            notif = Notification.objects.create(
                 user=receiver,
                 sender=self.user,
                 title=f"New message from {self.user.username}",
                 message=message_text[:200],
             )
+            return notif.id
 
         except Exception as e:
             logger.exception(f"Notification error: {e}")
+            return None
 
     @database_sync_to_async
     def get_unread_count(self):

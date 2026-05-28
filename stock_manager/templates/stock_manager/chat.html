@@ -11,7 +11,7 @@
 
                 <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center py-2">
                     <span>Chats</span>
-                    <button class="btn btn-outline-light btn-sm" onclick="loadUsers()">New</button>
+                    <button class="btn btn-outline-light btn-sm" onclick="showNewChatModal()">New</button>
                 </div>
 
                 <div class="p-2 border-bottom bg-light">
@@ -86,11 +86,15 @@
             </div>
 
             <div class="modal-body">
-                <input class="form-control form-control-sm mb-2"
-                       placeholder="Search users..."
-                       oninput="filterNewChatUsers(this.value)">
+                <input id="newChatUserSearch" class="form-control form-control-sm mb-2"
+                       placeholder="Search users..." oninput="filterNewChatUsers(this.value)">
+                <select id="newChatUserSelect" class="form-select" size="8" style="width:100%;">
+                    <option value="" disabled selected>Select a user...</option>
+                </select>
+            </div>
 
-                <div id="newChatUserList"></div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
             </div>
 
         </div>
@@ -298,6 +302,63 @@ function onTyping() {
         }));
     }, 1500);
 }
+
+/* =========================
+   NEW CHAT — USER DROPDOWN
+========================= */
+function showNewChatModal() {
+    loadUsers();
+    var modal = new bootstrap.Modal(document.getElementById('newChatModal'));
+    modal.show();
+}
+
+function loadUsers() {
+    const sel = document.getElementById('newChatUserSelect');
+    if (!sel) return;
+    sel.innerHTML = '<option value="" disabled selected>Loading...</option>';
+    fetch('/api/all-users/')
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+            const currentId = parseInt('{{ request.user.id }}', 10);
+            sel.innerHTML = '<option value="" disabled selected>Select a user...</option>';
+            if (!d.users) return;
+            d.users.forEach(function(u) {
+                if (u.id === currentId) return;
+                var opt = document.createElement('option');
+                opt.value = u.id;
+                opt.textContent = u.full_name + ' (@' + u.username + ')';
+                sel.appendChild(opt);
+            });
+            sel.size = Math.min(d.users.length, 10);
+        })
+        .catch(function() {
+            sel.innerHTML = '<option value="" disabled>Failed to load users</option>';
+        });
+}
+
+function filterNewChatUsers(query) {
+    const sel = document.getElementById('newChatUserSelect');
+    if (!sel) return;
+    const q = query.toLowerCase();
+    for (var i = 0; i < sel.options.length; i++) {
+        var opt = sel.options[i];
+        if (!opt.value) continue;
+        opt.style.display = opt.textContent.toLowerCase().indexOf(q) > -1 ? '' : 'none';
+    }
+}
+
+document.addEventListener('change', function(e) {
+    if (e.target.id === 'newChatUserSelect') {
+        var sel = e.target;
+        if (sel.value) {
+            var name = sel.options[sel.selectedIndex].textContent.split(' (@')[0];
+            openChat(parseInt(sel.value, 10), name);
+            var modal = bootstrap.Modal.getInstance(document.getElementById('newChatModal'));
+            if (modal) modal.hide();
+            sel.value = '';
+        }
+    }
+});
 
 /* =========================
    HELPERS

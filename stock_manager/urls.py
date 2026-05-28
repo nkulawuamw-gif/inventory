@@ -29,9 +29,11 @@ urlpatterns = [
     path('chat/unread/', comm.unread_count, name='unread_count'),
 
     path('chat/mark-read/', comm.mark_read, name='mark_read'),
+    path('chat/conversation/<int:user_id>/', comm.conversation_history, name='conversation_history'),
 
     path('notifications/', comm.notification_list, name='notification_list'),
     path('notifications/unread/', comm.unread_notification_count, name='unread_notification_count'),
+    path('notifications/<int:notification_id>/', comm.notification_detail, name='notification_detail'),
     path('notifications/<int:notification_id>/mark-read/', comm.mark_notification_read, name='mark_notification_read'),
     path('notifications/mark-all-read/', comm.mark_all_notifications_read, name='mark_all_notifications_read'),
 

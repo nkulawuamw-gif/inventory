@@ -11,6 +11,7 @@ from django.db.models import Q, Sum, F, ExpressionWrapper, DecimalField
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout as auth_logout
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.csrf import ensure_csrf_cookie
 from django.contrib.auth import get_user_model
 User = get_user_model()
 from django.db import connection
@@ -838,6 +839,7 @@ def shop_dashboard(request, shop_slug):
     # ---- Cross-shop inventory overview (warehouse only) ----
     cross_shop_items = []
     cross_shop_shops = []
+    cross_shop_categories = []
     if is_warehouse:
         non_warehouse_shops = Shop.objects.exclude(name__iexact='warehouse').order_by('name')
         cross_shop_shops = [s.name for s in non_warehouse_shops]
@@ -847,12 +849,19 @@ def shop_dashboard(request, shop_slug):
             .distinct()
             .order_by('name')
         )
+        seen_categories = set()
         for entry in all_item_names:
-            row = {'name': entry['name'], 'shops': {}}
+            name = entry['name']
+            first_item = Item.objects.filter(name__iexact=name).exclude(shop__name__iexact='warehouse').first()
+            category = first_item.category if first_item else ''
+            row = {'name': name, 'category': category, 'shops': {}}
             for s in non_warehouse_shops:
-                item = Item.objects.filter(name__iexact=entry['name'], shop=s).first()
+                item = Item.objects.filter(name__iexact=name, shop=s).first()
                 row['shops'][s.name] = item.quantity if item else 0
             cross_shop_items.append(row)
+            if category and category not in seen_categories:
+                seen_categories.add(category)
+        cross_shop_categories = sorted(seen_categories)
 
     stock_transactions = StockTransaction.objects.filter(
         Q(source_shop=shop) | Q(target_shop=shop)
@@ -884,6 +893,7 @@ def shop_dashboard(request, shop_slug):
         'shop_sales': shop_sales,
         'cross_shop_items': cross_shop_items if is_warehouse else [],
         'cross_shop_shops': cross_shop_shops if is_warehouse else [],
+        'cross_shop_categories': cross_shop_categories if is_warehouse else [],
         'page_title': f'{shop.name} Dashboard',
     }
 
@@ -1343,6 +1353,7 @@ def financial_report(request):
 
 
 
+@ensure_csrf_cookie
 def landing_view(request):
     shops = Shop.objects.exclude(name__iexact='warehouse').order_by('name')
     items = Item.objects.exclude(shop__name__iexact='warehouse').select_related('shop').order_by('shop__name', 'name')

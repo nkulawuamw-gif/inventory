@@ -1,6 +1,6 @@
 import json
 import logging
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
@@ -68,7 +68,7 @@ def _notify_shop_users(
         user__is_active=True,
     ).select_related('user')
     for profile in profiles:
-        Notification.objects.create(
+        notif = Notification.objects.create(
             user=profile.user,
             sender=acting_user,
             title=title,
@@ -79,6 +79,7 @@ def _notify_shop_users(
             'message': message,
             'sender_name': sender_name,
             'notification_type': notification_type,
+            'notification_id': notif.id,
             'link': link,
             'transfer_code': transfer_code,
         })
@@ -179,8 +180,17 @@ def auto_logout(request):
 @login_required
 def get_all_users(request):
     try:
-        users = User.objects.all().values("id", "username")
-        return JsonResponse({"users": list(users)})
+        users = User.objects.all().only("id", "username")
+        return JsonResponse({
+            "users": [
+                {
+                    "id": u.id,
+                    "username": u.username,
+                    "full_name": u.get_full_name() or u.username,
+                }
+                for u in users
+            ]
+        })
     except Exception as e:
         logger.exception("get_all_users failed")
         return JsonResponse({"error": str(e)}, status=500)
@@ -258,6 +268,38 @@ def chat_view(request):
         })
 
 
+@login_required
+def conversation_history(request, user_id):
+    try:
+        other_user = get_object_or_404(User, id=user_id)
+        messages_qs = Message.objects.filter(
+            Q(sender=request.user, receiver=other_user) |
+            Q(sender=other_user, receiver=request.user)
+        ).select_related("sender", "receiver").order_by("timestamp")
+
+        Message.objects.filter(
+            sender=other_user,
+            receiver=request.user,
+            is_read=False
+        ).update(is_read=True)
+
+        return JsonResponse({
+            "messages": [
+                {
+                    "id": m.id,
+                    "sender": m.sender.username,
+                    "content": m.content,
+                    "timestamp": m.timestamp.isoformat(),
+                    "is_mine": m.sender == request.user,
+                }
+                for m in messages_qs
+            ]
+        })
+    except Exception as e:
+        logger.exception("conversation_history failed")
+        return JsonResponse({"error": str(e)}, status=500)
+
+
 # =========================
 # UNREAD COUNT
 # =========================
@@ -316,6 +358,7 @@ def notification_list(request):
                     "is_read": n.is_read,
                     "created_at": n.created_at.isoformat(),
                     "sender": n.sender.username if n.sender else None,
+                    "notification_url": f"/notifications/{n.id}/",
                 }
                 for n in notifications
             ],
@@ -381,6 +424,23 @@ def mark_all_notifications_read(request):
     except Exception as e:
         logger.exception("mark_all_notifications_read failed")
         return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+def notification_detail(request, notification_id):
+    try:
+        notification = get_object_or_404(Notification, id=notification_id, user=request.user)
+        if not notification.is_read:
+            notification.is_read = True
+            notification.save(update_fields=['is_read'])
+        return render(request, 'stock_manager/notification_detail.html', {
+            'notification': notification,
+            'page_title': notification.title,
+        })
+    except Exception as e:
+        logger.exception("notification_detail failed")
+        messages.error(request, 'Notification not found.')
+        return redirect('dashboard')
 
 
 @login_required

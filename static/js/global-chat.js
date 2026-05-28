@@ -53,7 +53,7 @@ function showNotificationToast(senderName, message, opts) {
     var toast = document.createElement('div');
     var isTransfer = opts.notificationType === 'transfer';
     var isMessage = opts.notificationType === 'message';
-    var linkUrl = opts.link || (isTransfer ? '/transfers/' : '/chat/');
+    var linkUrl = opts.notificationUrl || opts.link || (isTransfer ? '/transfers/' : '/chat/');
     var iconClass = isTransfer ? 'bi-arrow-left-right' : (isMessage ? 'bi-chat-dots-fill' : 'bi-bell-fill');
     var toastType = opts.notificationType === 'system' ? 'toast-warning' : (isTransfer ? 'toast-success' : 'toast-info');
 
@@ -153,14 +153,12 @@ function loadNotifications() {
                 item.className = 'notification-item' + (n.is_read ? '' : ' unread');
                 item.dataset.id = n.id;
                 item.onclick = function() {
-                    markNotifRead(n.id);
-                    if (n.link) window.location.href = n.link;
+                    window.location.href = n.notification_url || ('/notifications/' + n.id + '/');
                 };
                 var typeIcon = 'bi-bell-fill';
-                if (n.type === 'message') typeIcon = 'bi-chat-dots-fill';
-                else if (n.type === 'system') typeIcon = 'bi-gear-fill';
-                else if (n.type === 'transfer') typeIcon = 'bi-arrow-left-right';
-                else if (n.type === 'sale') typeIcon = 'bi-cart-fill';
+                if (n.sender) typeIcon = 'bi-person-fill';
+                if (n.title && n.title.indexOf('Transfer') !== -1) typeIcon = 'bi-arrow-left-right';
+                if (n.title && n.title.indexOf('New message') !== -1) typeIcon = 'bi-chat-dots-fill';
                 item.innerHTML = '<div class="notif-icon"><i class="bi ' + typeIcon + '"></i></div><div class="notif-content"><div class="notif-title">' + escapeHtml(n.title) + '</div><div class="notif-message">' + escapeHtml(n.message) + '</div><div class="notif-time">' + formatTimeAgo(n.created_at) + '</div></div>';
                 list.appendChild(item);
             });
@@ -399,11 +397,12 @@ function connectNotifications() {
         if (data.type === 'new_notification') {
             showNotificationToast(data.sender_name || data.title || 'System', data.message, {
                 notificationType: data.notification_type,
+                notificationUrl: data.notification_id ? '/notifications/' + data.notification_id + '/' : null,
                 link: data.link,
                 title: data.title,
                 transferCode: data.transfer_code,
             });
-            showBrowserNotification(data.title, data.message, data.link || '/chat/');
+            showBrowserNotification(data.title, data.message, data.notification_id ? '/notifications/' + data.notification_id + '/' : (data.link || '/chat/'));
             updateNotificationBadge();
         }
 
