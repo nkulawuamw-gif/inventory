@@ -58,8 +58,8 @@
                 {% csrf_token %}
                 <div class="modal-body">
                     <div class="alert alert-info mb-3">
-                        <strong>Expected columns:</strong> Item, Category, Stocked In, Stocked Out, Balance, Avg Unit Cost, Total Cost
-                        <br><small>Only "Item", "Category", "Stocked In", and "Avg Unit Cost" are required. Items will be added to Warehouse automatically.</small>
+                        <strong>Required columns:</strong> Item Name, Category, Quantity, Unit Price
+                        <br><small>Items will be added to <strong>Warehouse</strong> automatically. Item Name and Quantity are required. Category for existing items will not be overwritten if left empty.</small>
                     </div>
                     <div class="mb-3">
                         <label class="form-label" for="importCsv">CSV File *</label>
@@ -67,6 +67,7 @@
                     </div>
                 </div>
                 <div class="modal-footer">
+                    <a href="{% url 'download_template' %}" class="btn btn-outline-secondary"><i class="bi bi-download"></i> Download Template</a>
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-success"><i class="bi bi-upload"></i> Import Items</button>
                 </div>

@@ -583,8 +583,6 @@ def process_csv_import(csv_file):
 
     if not header_map or 'item_name' not in header_map:
         col_count = len(header)
-        # Check if this looks like warehouse layout: Item, Category, Stocked In, Stocked Out, Balance, Avg Unit Cost, Total Cost
-        has_shop_col = 'shop_name' in header_map
         header_map = {
             'item_name': 0,
         }
@@ -592,9 +590,7 @@ def process_csv_import(csv_file):
             header_map['category'] = 1
         if col_count > 2:
             header_map['quantity'] = 2
-        if col_count > 5:
-            header_map['unit_price'] = 5
-        elif col_count > 3:
+        if col_count > 3:
             header_map['unit_price'] = 3
 
     created = 0
@@ -605,7 +601,7 @@ def process_csv_import(csv_file):
     shop_col = header_map.get('shop_name', None)
     cat_col = header_map.get('category', 1)
     qty_col = header_map.get('quantity', 2)
-    price_col = header_map.get('unit_price', 5)
+    price_col = header_map.get('unit_price', 3)
 
     for i, row in enumerate(reader, start=2):
         try:
@@ -1224,10 +1220,11 @@ def download_template(request):
     response = HttpResponse(content_type='text/csv')
     response['Content-Disposition'] = 'attachment; filename="warehouse_import_template.csv"'
     writer = csv.writer(response)
-    writer.writerow(['Item', 'Category', 'Stocked In', 'Stocked Out', 'Balance', 'Avg Unit Cost', 'Total Cost'])
-    writer.writerow(['Sugar', 'Food', 10, '', '', 1500.00, 15000.00])
-    writer.writerow(['Rice', 'Food', 5, '', '', 2500.00, 12500.00])
-    writer.writerow(['Soap', 'Household', 20, '', '', 800.00, 16000.00])
+    writer.writerow(['Item Name', 'Category', 'Quantity', 'Unit Price'])
+    writer.writerow(['Sugar', 'Food', 50, 1500.00])
+    writer.writerow(['Rice', 'Food', 30, 2500.00])
+    writer.writerow(['Soap', 'Household', 100, 800.00])
+    writer.writerow(['Cooking Oil', 'Food', 20, 4500.00])
     return response
 
 
