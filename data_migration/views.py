@@ -7,7 +7,7 @@ from decimal import Decimal
 
 from django.contrib.admin.views.decorators import staff_member_required
 from django.db import transaction, connection
-from django.http import HttpResponse, JsonResponse
+from django.http import HttpResponse, JsonResponse, FileResponse
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.utils import timezone
@@ -239,6 +239,8 @@ def handle_export(request, user):
     if 'include_settings' in options and options['include_settings']:
         pass
 
+    from io import BytesIO
+
     archive_data = collect_export_data(options)
     zip_bytes = build_export_zip(archive_data)
     filename = f'backup_{timezone.now().strftime("%Y%m%d_%H%M%S")}.zip'
@@ -250,11 +252,13 @@ def handle_export(request, user):
     )
     export_archive.file.save(filename, ContentFile(zip_bytes))
 
-    messages.success(
-        request,
-        f'Export complete: {filename} ({export_archive.filesize / 1024:.1f} KB)'
+    response = FileResponse(
+        BytesIO(zip_bytes),
+        as_attachment=True,
+        filename=filename,
+        content_type='application/zip',
     )
-    return redirect('data_migration')
+    return response
 
 
 def parse_import_zip(uploaded_file):
