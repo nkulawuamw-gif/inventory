@@ -439,7 +439,7 @@ def point_of_sale(request, shop_slug):
 # SALES HISTORY
 # =========================
 
-@shop_access_required
+@login_required
 def sales_history(request):
     profile = get_user_profile(request.user)
     user_is_admin = profile is None or profile.is_admin
@@ -492,7 +492,7 @@ def sales_history(request):
 # SALE DETAIL
 # =========================
 
-@shop_access_required
+@login_required
 def sale_detail(request, sale_id):
     sale = get_object_or_404(Sale.objects.select_related('item', 'item__shop'), id=sale_id)
 
