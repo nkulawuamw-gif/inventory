@@ -840,17 +840,36 @@ def shop_dashboard(request, shop_slug):
 
             item.quantity += qty if adjustment_type == 'add' else -qty
             item.adjustment += qty if adjustment_type == 'add' else -qty
+
+            new_price = request.POST.get('new_price', '').strip()
+            price_changed = False
+            if new_price:
+                try:
+                    new_price_val = Decimal(new_price)
+                    if new_price_val >= 0 and new_price_val != item.unit_price:
+                        item.unit_price = new_price_val
+                        price_changed = True
+                except (ValueError, TypeError):
+                    pass
+
             item.save()
+
+            adj_reason = reason or f'Manual stock {adjustment_type}: {qty} units'
+            if price_changed:
+                adj_reason += f' | Price updated to MWK {item.unit_price}'
 
             StockTransaction.objects.create(
                 item=item,
                 source_shop=shop,
                 quantity=qty,
                 transaction_type='adjustment',
-                reason=reason or f'Manual stock {adjustment_type}: {qty} units',
+                reason=adj_reason,
             )
 
-            messages.success(request, f'Stock {"added" if adjustment_type == "add" else "deducted"} successfully. New balance: {item.quantity}')
+            msg = f'Stock {"added" if adjustment_type == "add" else "deducted"} successfully. New balance: {item.quantity}'
+            if price_changed:
+                msg += f' | New price: MWK {item.unit_price}'
+            messages.success(request, msg)
             return redirect('shop_dashboard', shop_slug=shop_slug)
 
     # ---- GET: Build context ----

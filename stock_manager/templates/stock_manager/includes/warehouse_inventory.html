@@ -192,6 +192,10 @@
                         <label class="form-label" for="adjReason{{ item.id }}">Reason (optional)</label>
                         <input type="text" name="reason" id="adjReason{{ item.id }}" class="form-control" placeholder="e.g. Damaged, found extra, recount...">
                     </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="adjPrice{{ item.id }}">New Unit Price (MWK) <small class="text-muted">— leave blank to keep current</small></label>
+                        <input type="number" step="0.01" name="new_price" id="adjPrice{{ item.id }}" class="form-control" value="{{ item.unit_price }}" placeholder="Current: MWK {{ item.unit_price }}">
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
