@@ -54,14 +54,18 @@ class Migration(migrations.Migration):
             reverse_code=migrations.RunPython.noop,
             elidable=False,
         ),
-        migrations.AddField(
-            model_name='message',
-            name='status',
-            field=models.CharField(
-                choices=[('sent', 'Sent'), ('delivered', 'Delivered'), ('read', 'Read')],
-                default='sent',
-                max_length=20,
-            ),
-            preserve_default=True,
+        migrations.SeparateDatabaseAndState(
+            state_operations=[
+                migrations.AddField(
+                    model_name='message',
+                    name='status',
+                    field=models.CharField(
+                        choices=[('sent', 'Sent'), ('delivered', 'Delivered'), ('read', 'Read')],
+                        default='sent',
+                        max_length=20,
+                    ),
+                    preserve_default=True,
+                ),
+            ],
         ),
     ]
