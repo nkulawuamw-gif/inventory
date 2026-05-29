@@ -311,6 +311,11 @@
                     {% if user_access.is_admin or 'whatsapp' in user_access.permissions %}
                     <li class="nav-item"><a class="nav-link py-1" href="{% url 'whatsapp_inbox' %}"><i class="bi bi-whatsapp text-success"></i> WhatsApp</a></li>
                     {% endif %}
+                    {% if user.is_superuser %}
+                    <li class="nav-item"><a class="nav-link py-1" href="{% url 'data_migration' %}"><i class="bi bi-hdd-stack text-info"></i> Data Migration</a></li>
+                    <li class="nav-item"><a class="nav-link py-1" href="{% url 'system_updates' %}"><i class="bi bi-arrow-up-circle text-warning"></i> System Updates</a></li>
+                    <li class="nav-item"><a class="nav-link py-1" href="{% url 'clear_history' %}"><i class="bi bi-eraser text-warning"></i> Clear History</a></li>
+                    {% endif %}
                     {% if user_access.is_admin or 'settings' in user_access.permissions %}
                     <li class="nav-item"><a class="nav-link py-1" href="{% url 'manage_categories' %}"><i class="bi bi-tags"></i> Categories</a></li>
                     <li class="nav-item"><a class="nav-link py-1" href="{% url 'settings' %}"><i class="bi bi-gear-wide-connected"></i> Settings</a></li>
@@ -425,6 +430,9 @@
                     </a>
                     <a href="{% url 'system_updates' %}" class="{% if request.resolver_match.url_name == 'system_updates' %}active{% endif %}">
                         <i class="bi bi-arrow-up-circle text-warning"></i> System Updates
+                    </a>
+                    <a href="{% url 'clear_history' %}" class="{% if request.resolver_match.url_name == 'clear_history' %}active{% endif %}">
+                        <i class="bi bi-eraser text-warning"></i> Clear History
                     </a>
                     {% endif %}
                     <hr class="text-secondary mx-3">

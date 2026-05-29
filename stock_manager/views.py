@@ -21,6 +21,7 @@ from audit.models import LoginSession, AuditLog
 from .models import (
     Shop, Item, Sale, StockTransaction, UserProfile, Notification,
     PERMISSION_CHOICES, LandingPageContent, Category, get_company_profile,
+    Message, Transfer,
 )
 
 
@@ -1548,4 +1549,78 @@ def manage_categories(request):
     return render(request, 'stock_manager/manage_categories.html', {
         'categories': categories,
         'page_title': 'Manage Categories',
+    })
+
+
+# =========================
+# CLEAR HISTORY
+# =========================
+
+from django.db import transaction as db_transaction
+
+
+@login_required
+def clear_history(request):
+    if not request.user.is_superuser:
+        messages.error(request, 'Access restricted to Super Administrators only.')
+        return redirect('dashboard')
+
+    results = None
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        older_than_days = request.POST.get('older_than_days', '30')
+        try:
+            older_than_days = int(older_than_days)
+        except (ValueError, TypeError):
+            older_than_days = 30
+
+        if older_than_days < 1:
+            older_than_days = 30
+
+        cutoff = timezone.now() - timezone.timedelta(days=older_than_days)
+        results = {'cutoff_days': older_than_days, 'cutoff_date': cutoff.strftime('%Y-%m-%d %H:%M'), 'deleted': {}}
+
+        tables = {
+            'audit_logs': AuditLog.objects.filter(created_at__lt=cutoff),
+            'login_sessions': LoginSession.objects.filter(login_time__lt=cutoff),
+            'notifications': Notification.objects.filter(created_at__lt=cutoff),
+            'messages': Message.objects.filter(timestamp__lt=cutoff),
+            'sales': Sale.objects.filter(sold_at__lt=cutoff),
+            'stock_transactions': StockTransaction.objects.filter(created_at__lt=cutoff),
+            'transfers': Transfer.objects.filter(created_at__lt=cutoff),
+        }
+
+        selected = []
+        for key in tables:
+            if request.POST.get(key) == 'on':
+                selected.append(key)
+
+        if not selected:
+            messages.warning(request, 'No history types selected.')
+            return redirect('clear_history')
+
+        total_deleted = 0
+        try:
+            with db_transaction.atomic():
+                for key in selected:
+                    qs = tables[key]
+                    count = qs.count()
+                    if count:
+                        qs.delete()
+                    results['deleted'][key] = count
+                    total_deleted += count
+
+            results['total'] = total_deleted
+            messages.success(request, f'Cleared {total_deleted} record(s) older than {older_than_days} days.')
+        except Exception as e:
+            messages.error(request, f'Error clearing history: {e}')
+            results = None
+
+        if results and total_deleted == 0:
+            messages.info(request, 'No records found matching the criteria.')
+
+    return render(request, 'stock_manager/clear_history.html', {
+        'page_title': 'Clear History',
+        'results': results,
     })

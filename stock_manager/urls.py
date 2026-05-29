@@ -12,6 +12,7 @@ urlpatterns = [
     path('sale/<int:sale_id>/', views.sale_detail, name='sale_detail'),
     path('financial-report/', views.financial_report, name='financial_report'),
     path('settings/', views.settings_view, name='settings'),
+    path('clear-history/', views.clear_history, name='clear_history'),
     path('manage-categories/', views.manage_categories, name='manage_categories'),
     path('download-template/', views.download_template, name='download_template'),
     path('download-bulk-transfer-template/', views.download_bulk_transfer_template, name='download_bulk_transfer_template'),
