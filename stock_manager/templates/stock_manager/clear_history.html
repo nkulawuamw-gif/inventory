@@ -22,10 +22,13 @@
 
                         <div class="mb-4">
                             <label class="form-label fw-semibold">Delete records older than:</label>
-                            <div class="input-group" style="max-width:250px;">
-                                <input type="number" name="older_than_days" class="form-control" value="30" min="1" required>
-                                <span class="input-group-text">days</span>
-                            </div>
+                            <select name="retention_period" class="form-select" style="max-width:250px;">
+                                <option value="7">1 Week</option>
+                                <option value="30" selected>1 Month</option>
+                                <option value="90">Quarterly (3 Months)</option>
+                                <option value="365">Yearly (12 Months)</option>
+                                <option value="never">Never Delete</option>
+                            </select>
                         </div>
 
                         <div class="mb-3">

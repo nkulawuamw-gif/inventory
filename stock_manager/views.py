@@ -1569,13 +1569,15 @@ def clear_history(request):
 
     if request.method == 'POST':
         action = request.POST.get('action')
-        older_than_days = request.POST.get('older_than_days', '30')
-        try:
-            older_than_days = int(older_than_days)
-        except (ValueError, TypeError):
-            older_than_days = 30
+        retention = request.POST.get('retention_period', '30')
 
-        if older_than_days < 1:
+        if retention == 'never':
+            messages.info(request, 'No records were deleted (retention set to Never Delete).')
+            return redirect('clear_history')
+
+        try:
+            older_than_days = int(retention)
+        except (ValueError, TypeError):
             older_than_days = 30
 
         cutoff = timezone.now() - timezone.timedelta(days=older_than_days)
@@ -1612,7 +1614,8 @@ def clear_history(request):
                     total_deleted += count
 
             results['total'] = total_deleted
-            messages.success(request, f'Cleared {total_deleted} record(s) older than {older_than_days} days.')
+            period_label = {'7': '1 week', '30': '1 month', '90': '3 months', '365': '1 year'}.get(retention, f'{older_than_days} days')
+            messages.success(request, f'Cleared {total_deleted} record(s) older than {period_label}.')
         except Exception as e:
             messages.error(request, f'Error clearing history: {e}')
             results = None
