@@ -11,6 +11,8 @@ node_modules/
 *.html
 !stock_manager/templates/**/*.html
 !audit/templates/**/*.html
+!data_migration/templates/**/*.html
+!system_updates/templates/**/*.html
 check_*.py
 find_error.py
 test_*.py

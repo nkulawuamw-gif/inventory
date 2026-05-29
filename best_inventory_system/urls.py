@@ -15,6 +15,8 @@ urlpatterns = [
     path('favicon.ico', RedirectView.as_view(url='/static/favicon.ico', permanent=True)),
     path('', include('stock_manager.urls')),
     path('audit/', include('audit.urls')),
+    path('admin/data-migration/', include('data_migration.urls')),
+    path('admin/system-updates/', include('system_updates.urls')),
 ]
 
 if settings.DEBUG:

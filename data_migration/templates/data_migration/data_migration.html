@@ -1,0 +1,204 @@
+{% extends 'stock_manager/base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container-fluid py-3">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4 class="mb-0"><i class="bi bi-hdd-stack text-primary"></i> Data Backup & Migration</h4>
+    </div>
+
+    {% if preview %}
+    <div class="card border-info mb-4">
+        <div class="card-header bg-info text-white">
+            <i class="bi bi-eye"></i> Import Preview — {{ preview.mode_display }}
+        </div>
+        <div class="card-body">
+            <table class="table table-sm table-bordered">
+                <thead class="table-light">
+                    <tr>
+                        <th>Table</th>
+                        <th class="text-center">In File</th>
+                        <th class="text-center text-success">Will Add</th>
+                        <th class="text-center text-warning">Will Update</th>
+                        <th class="text-center text-muted">Will Skip</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for table, info in preview.tables.items %}
+                    <tr>
+                        <td>{{ table|title }}</td>
+                        <td class="text-center">{{ info.total_in_file }}</td>
+                        <td class="text-center text-success">{{ info.will_add }}</td>
+                        <td class="text-center text-warning">{{ info.will_update }}</td>
+                        <td class="text-center text-muted">{{ info.will_skip }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot class="table-light fw-bold">
+                    <tr>
+                        <td>Totals</td>
+                        <td class="text-center">{{ preview.tables.values|dictsortreversed:"total_in_file"|first }}</td>
+                        <td class="text-center text-success">{{ preview.total_new }}</td>
+                        <td class="text-center text-warning">{{ preview.total_changed }}</td>
+                        <td class="text-center text-muted">—</td>
+                    </tr>
+                </tfoot>
+            </table>
+            <form method="POST" action="{% url 'data_migration' %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="import_execute">
+                <input type="hidden" name="import_log_id" value="{{ import_log_id }}">
+                <button type="submit" class="btn btn-success"><i class="bi bi-check-lg"></i> Execute Import</button>
+                <a href="{% url 'data_migration' %}" class="btn btn-secondary">Cancel</a>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="row">
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-success text-white">
+                    <i class="bi bi-download"></i> Export Data
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{% url 'data_migration' %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="export">
+                        <p class="text-muted small">Select the data to include in the export archive.</p>
+                        <div class="row">
+                            {% for key, label in export_options %}
+                            <div class="col-6 mb-2">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="{{ key }}" id="exp_{{ key }}" checked>
+                                    <label class="form-check-label" for="exp_{{ key }}">{{ label }}</label>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <hr>
+                        <button type="submit" class="btn btn-success"><i class="bi bi-file-zip"></i> Export to ZIP</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-warning text-dark">
+                    <i class="bi bi-upload"></i> Import Data
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{% url 'data_migration' %}" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="import_preview">
+                        <div class="mb-3">
+                            <label class="form-label">Backup ZIP File</label>
+                            <input type="file" name="import_file" class="form-control" accept=".zip" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Import Mode</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="import_mode" value="add" id="mode_add" checked>
+                                <label class="form-check-label" for="mode_add">
+                                    <strong>Add New Records Only</strong><br>
+                                    <small class="text-muted">Skip records that already exist. Never modifies existing data.</small>
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="import_mode" value="merge" id="mode_merge">
+                                <label class="form-check-label" for="mode_merge">
+                                    <strong>Merge Existing Records</strong><br>
+                                    <small class="text-muted">Match by unique identifiers. Update changed records, add missing ones. No duplicates.</small>
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="import_mode" value="replace" id="mode_replace">
+                                <label class="form-check-label" for="mode_replace">
+                                    <strong>Full Replace</strong><br>
+                                    <small class="text-muted">Clear existing data and replace entirely. Use with caution.</small>
+                                </label>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-warning"><i class="bi bi-eye"></i> Preview Import</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-6 mb-4">
+            <div class="card">
+                <div class="card-header bg-secondary text-white">
+                    <i class="bi bi-archive"></i> Export History
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>File</th>
+                                    <th>Size</th>
+                                    <th>By</th>
+                                    <th>Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for exp in exports %}
+                                <tr>
+                                    <td><a href="{{ exp.file.url }}" class="text-decoration-none"><i class="bi bi-file-zip"></i> {{ exp.filename }}</a></td>
+                                    <td>{{ exp.filesize|filesizeformat }}</td>
+                                    <td>{{ exp.created_by|default:"—" }}</td>
+                                    <td>{{ exp.created_at|date:"Y-m-d H:i" }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="4" class="text-center text-muted py-3">No exports yet</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6 mb-4">
+            <div class="card">
+                <div class="card-header bg-secondary text-white">
+                    <i class="bi bi-clock-history"></i> Import History
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Mode</th>
+                                    <th>Status</th>
+                                    <th>By</th>
+                                    <th>Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for imp in imports %}
+                                <tr>
+                                    <td>{{ imp.get_mode_display }}</td>
+                                    <td>
+                                        <span class="badge bg-{% if imp.status == 'completed' %}success{% elif imp.status == 'failed' %}danger{% elif imp.status == 'rolled_back' %}warning{% else %}secondary{% endif %}">
+                                            {{ imp.get_status_display }}
+                                        </span>
+                                    </td>
+                                    <td>{{ imp.created_by|default:"—" }}</td>
+                                    <td>{{ imp.created_at|date:"Y-m-d H:i" }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="4" class="text-center text-muted py-3">No imports yet</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

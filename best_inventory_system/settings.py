@@ -52,7 +52,16 @@ INSTALLED_APPS = [
 
     "stock_manager.apps.StockManagerConfig",
     "audit.apps.AuditConfig",
+
+    "data_migration.apps.DataMigrationConfig",
+    "system_updates.apps.SystemUpdatesConfig",
 ]
+
+# =========================
+# SYSTEM VERSION
+# =========================
+
+SYSTEM_VERSION = os.environ.get("SYSTEM_VERSION", "1.0.0")
 
 # =========================
 # MIDDLEWARE
@@ -190,6 +199,12 @@ STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
+
+# Ensure media subdirectories exist
+for _sub in ['exports', 'backups']:
+    p = MEDIA_ROOT / _sub
+    if not p.exists():
+        p.mkdir(parents=True, exist_ok=True)
 
 # =========================
 # DEFAULT AUTO FIELD
