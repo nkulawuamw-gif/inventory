@@ -10,13 +10,13 @@ def health_check(request):
     return JsonResponse({'status': 'ok'})
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
     path('health/', health_check, name='health_check'),
     path('favicon.ico', RedirectView.as_view(url='/static/favicon.ico', permanent=True)),
-    path('', include('stock_manager.urls')),
-    path('audit/', include('audit.urls')),
     path('admin/data-migration/', include('data_migration.urls')),
     path('admin/system-updates/', include('system_updates.urls')),
+    path('admin/', admin.site.urls),
+    path('', include('stock_manager.urls')),
+    path('audit/', include('audit.urls')),
 ]
 
 if settings.DEBUG:
