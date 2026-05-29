@@ -10,7 +10,7 @@ from django.db.models import Q
 from django.db import transaction
 from django.contrib.auth import get_user_model
 
-from .models import Message, Profile, Notification, Shop, Transfer, UserProfile, Item, Conversation
+from .models import Message, Profile, Notification, Shop, Transfer, UserProfile, Item, Conversation, StockTransaction
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -101,6 +101,22 @@ def _notify_receiver_shop_transfer_sent(transfer, acting_user):
     )
 
 
+def _notify_receiver_shop_transfer_created(transfer, acting_user):
+    """Alert receiver-shop users when a transfer is created (status → pending)."""
+    summary = _format_transfer_items_summary(transfer.items_data)
+    message = (
+        f'Transfer {transfer.transfer_code} from {transfer.sender_shop.name} is pending: '
+        f'{summary}. Review and accept when stock arrives.'
+    )
+    _notify_shop_users(
+        transfer.receiver_shop,
+        acting_user,
+        'New Incoming Transfer',
+        message,
+        transfer_code=transfer.transfer_code,
+    )
+
+
 def _notify_receiver_shop_transfer_received(transfer, acting_user):
     """Confirm receiver-shop users when a transfer is marked received."""
     summary = _format_transfer_items_summary(transfer.items_data)
@@ -112,6 +128,76 @@ def _notify_receiver_shop_transfer_received(transfer, acting_user):
         transfer.receiver_shop,
         acting_user,
         'Stock Transfer Received',
+        message,
+        transfer_code=transfer.transfer_code,
+    )
+
+
+def _apply_transfer_stock(transfer):
+    """Deduct items from sender, add to receiver on confirmed receipt."""
+    for line in transfer.items_data or []:
+        item_id = line.get('item_id')
+        qty = int(line.get('quantity', 0))
+        if not item_id or qty < 1:
+            continue
+
+        # Deduct from sender
+        try:
+            sender_item = Item.objects.get(id=item_id, shop=transfer.sender_shop)
+        except Item.DoesNotExist:
+            continue
+        sender_item.quantity -= qty
+        sender_item.save()
+
+        StockTransaction.objects.create(
+            item=sender_item,
+            source_shop=transfer.sender_shop,
+            target_shop=transfer.receiver_shop,
+            quantity=qty,
+            transaction_type='transfer',
+            reason=f'Transfer {transfer.transfer_code} sent to {transfer.receiver_shop.name}',
+        )
+
+        # Add to receiver — find or create item
+        receiver_item = Item.objects.filter(
+            name=sender_item.name,
+            shop=transfer.receiver_shop,
+            category=sender_item.category,
+        ).first()
+        if receiver_item:
+            receiver_item.quantity += qty
+            receiver_item.unit_price = sender_item.unit_price
+            receiver_item.save()
+        else:
+            receiver_item = Item.objects.create(
+                name=sender_item.name,
+                category=sender_item.category,
+                shop=transfer.receiver_shop,
+                quantity=qty,
+                unit_price=sender_item.unit_price,
+            )
+
+        StockTransaction.objects.create(
+            item=receiver_item,
+            source_shop=transfer.sender_shop,
+            target_shop=transfer.receiver_shop,
+            quantity=qty,
+            transaction_type='transfer',
+            reason=f'Transfer {transfer.transfer_code} received from {transfer.sender_shop.name}',
+        )
+
+
+def _notify_sender_shop_transfer_received(transfer, acting_user):
+    """Notify sender-shop users when receiver confirms receipt."""
+    summary = _format_transfer_items_summary(transfer.items_data)
+    message = (
+        f'{transfer.receiver_shop.name} has confirmed receipt of Transfer '
+        f'{transfer.transfer_code}: {summary}.'
+    )
+    _notify_shop_users(
+        transfer.sender_shop,
+        acting_user,
+        'Transfer Confirmed by Receiver',
         message,
         transfer_code=transfer.transfer_code,
     )
@@ -537,6 +623,7 @@ def create_transfer(request):
             notes=notes,
             items_data=validated_items,
         )
+        _notify_receiver_shop_transfer_created(transfer, request.user)
         return JsonResponse({
             'status': 'ok',
             'transfer_code': transfer.transfer_code,
@@ -631,11 +718,14 @@ def update_transfer_status(request, transfer_id):
         with transaction.atomic():
             t.status = new_status
             t.save(update_fields=['status'])
-            # Receiver shop is notified when stock is dispatched (sent) and when received.
+            # Notify receiver when dispatched
             if new_status == 'sent' and old_status != 'sent':
                 _notify_receiver_shop_transfer_sent(t, request.user)
+            # On received: adjust stock and notify both parties
             elif new_status == 'received' and old_status != 'received':
+                _apply_transfer_stock(t)
                 _notify_receiver_shop_transfer_received(t, request.user)
+                _notify_sender_shop_transfer_received(t, request.user)
 
         return JsonResponse({'status': 'ok', 'new_status': new_status})
     except Transfer.DoesNotExist:

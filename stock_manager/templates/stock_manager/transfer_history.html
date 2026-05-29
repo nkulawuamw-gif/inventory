@@ -68,15 +68,21 @@
                                 {% if t.status == 'pending' or t.status == 'sent' %}
                                 {% if t.receiver_shop in user_shops or user.is_superuser %}
                                 {% if t.status == 'sent' %}
-                                <button class="btn btn-outline-success btn-sm" onclick="updateTransferStatus({{ t.id }}, 'received')" title="Mark Received"><i class="bi bi-check-lg"></i></button>
+                                <button class="btn btn-success btn-sm fw-semibold" onclick="updateTransferStatus({{ t.id }}, 'received')" title="Click to confirm receipt and accept stock"><i class="bi bi-check-lg"></i> Received</button>
                                 {% endif %}
                                 <button class="btn btn-outline-danger btn-sm" onclick="updateTransferStatus({{ t.id }}, 'rejected')" title="Reject"><i class="bi bi-x-lg"></i></button>
                                 {% endif %}
                                 {% if t.sender_shop in user_shops or user.is_superuser %}
                                 {% if t.status == 'pending' %}
-                                <button class="btn btn-outline-primary btn-sm" onclick="updateTransferStatus({{ t.id }}, 'sent')" title="Send"><i class="bi bi-send"></i></button>
+                                <button class="btn btn-outline-primary btn-sm" onclick="updateTransferStatus({{ t.id }}, 'sent')" title="Send"><i class="bi bi-send"></i> Send</button>
                                 {% endif %}
                                 {% endif %}
+                                {% endif %}
+                                {% if t.status == 'pending' and t.receiver_shop in user_shops or t.status == 'pending' and user.is_superuser %}
+                                <span class="badge bg-warning text-dark ms-1" style="font-size:0.65rem;"><i class="bi bi-hourglass"></i> Awaiting sender</span>
+                                {% endif %}
+                                {% if t.status == 'sent' and t.receiver_shop in user_shops or t.status == 'sent' and user.is_superuser %}
+                                <span class="badge bg-info text-white ms-1" style="font-size:0.65rem;"><i class="bi bi-hand-index"></i> Accept?</span>
                                 {% endif %}
                             </div>
                         </td>
@@ -318,11 +324,16 @@ function showTransferDetail(transferId) {
 }
 
 function updateTransferStatus(transferId, newStatus) {
-    var labels = { sent: 'send', received: 'mark as received', rejected: 'reject' };
+    var labels = { sent: 'send', received: 'accept and receive stock', rejected: 'reject' };
+    var messages = {
+        sent: 'Mark this transfer as sent? The receiver will be notified.',
+        received: 'Confirm receipt of this transfer? Stock will be deducted from sender and added to your shop.',
+        rejected: 'Reject this transfer?',
+    };
     var title = labels[newStatus] || 'update';
     showConfirm({
         title: title.charAt(0).toUpperCase() + title.slice(1) + ' Transfer?',
-        message: 'Are you sure you want to ' + title + ' this transfer?',
+        message: messages[newStatus] || 'Are you sure you want to ' + title + ' this transfer?',
         type: newStatus === 'rejected' ? 'danger' : 'success',
         confirmText: 'Yes, ' + title,
     }).then(function(confirmed) {
